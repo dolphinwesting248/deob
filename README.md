@@ -14,7 +14,7 @@ deob main.js                         # → main.deob/main.js
 deob main.js --split                 # → main.deob/ (per-function files)
 deob main.js --metrics               # → main.deob/ + metrics.html
 deob main.js --md --json             # → main.deob/ + structure reports
-deob main.js --split --metrics --md --json  # everything
+deob main.js --split --metrics --md --json --index  # everything
 ```
 
 All output goes into a directory:
@@ -24,7 +24,8 @@ main.deob/
 ├── main.js           ← deobfuscated code
 ├── metrics.html      ← readability report (--metrics)
 ├── structure.md      ← naming rules + call graph (--md)
-└── structure.json    ← machine-readable (--json)
+├── structure.json    ← machine-readable (--json)
+└── .index/           ← code intelligence index (--index)
 ```
 
 ## CLI Options
@@ -36,6 +37,7 @@ main.deob/
 | `--metrics` | `metrics.html` | Before/after readability comparison with Chart.js |
 | `--md` | `structure.md` | Function inventory, call graph, naming convention docs |
 | `--json` | `structure.json` | Same as `--md` in machine-readable JSON |
+| `--index` | `.index/` | Build a code intelligence index for AI-assisted exploration |
 
 ## Pipeline (14 passes)
 
