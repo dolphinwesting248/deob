@@ -3,8 +3,10 @@ examples/
 .claude/
 
 # Pipeline output
-*.deob.js
 *.deob/
+*.metrics.html
+*.structure.md
+*.structure.json
 
 # IDE / Editor
 .vscode/

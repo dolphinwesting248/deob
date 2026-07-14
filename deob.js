@@ -2,39 +2,43 @@
 const path = require("path");
 const { main } = require("./scripts/pipeline");
 const { runMetrics } = require("./scripts/metrics");
+const { runStructure } = require("./scripts/structure");
 
 const args = process.argv.slice(2);
-const splitFlag = args.includes("--split");
-const metricsFlag = args.includes("--metrics");
-const filtered = args.filter((a) => a !== "--split" && a !== "--metrics");
+const flags = new Set(args.filter((a) => a.startsWith("--")));
+const splitFlag = flags.has("--split");
+const metricsFlag = flags.has("--metrics");
+const mdFlag = flags.has("--md");
+const jsonFlag = flags.has("--json");
+const filtered = args.filter((a) => !a.startsWith("--"));
 const inputPath = filtered[0];
 
-if (!inputPath || inputPath === "--help" || inputPath === "-h") {
+if (!inputPath || flags.has("--help") || flags.has("-h")) {
   console.log("deob — universal JS deobfuscation pipeline\n");
-  console.log("Usage: deob <input> [output] [options]\n");
-  console.log("  input     — path to the obfuscated JavaScript file");
-  console.log("  output    — path for output (default: <input>.deob.js)");
-  console.log("  --split   — split output into per-function files");
-  console.log("  --metrics — generate HTML metrics report\n");
+  console.log("Usage: deob <input> [output-dir] [options]\n");
+  console.log("  --split    split output into per-function files");
+  console.log("  --metrics  generate HTML readability metrics report");
+  console.log("  --md       generate Markdown structure report");
+  console.log("  --json     generate JSON structure report\n");
   console.log("Examples:");
-  console.log("  deob main.js");
-  console.log("  deob main.js --split");
-  console.log("  deob main.js --split --metrics");
+  console.log("  deob main.js                    → main.deob/");
+  console.log("  deob main.js --split            → main.deob/ (per-function files)");
+  console.log("  deob main.js out/ --metrics     → out/");
   process.exit(0);
 }
 
-const defaultOut = splitFlag
-  ? inputPath.replace(/\.js$/, ".deob")
-  : inputPath.replace(/\.js$/, ".deob.js");
-const outputPath = filtered[1] || defaultOut;
+const outputDir = filtered[1] || inputPath.replace(/\.js$/i, ".deob");
 
 console.log(`Input:  ${inputPath}`);
-console.log(`Output: ${outputPath}${splitFlag ? " (split mode)" : ""}`);
+console.log(`Output: ${outputDir}/`);
+if (splitFlag) console.log("        (split mode)");
 if (metricsFlag) console.log("        + metrics report");
+if (mdFlag) console.log("        + structure report (.md)");
+if (jsonFlag) console.log("        + structure report (.json)");
 console.log("");
 
-main({ input: inputPath, output: outputPath, split: splitFlag });
+main({ input: inputPath, output: outputDir, split: splitFlag });
 
-if (metricsFlag) {
-  runMetrics(inputPath, outputPath);
-}
+if (metricsFlag) runMetrics(inputPath, outputDir);
+if (mdFlag) runStructure(inputPath, outputDir, "md");
+if (jsonFlag) runStructure(inputPath, outputDir, "json");

@@ -9,6 +9,7 @@
 //   3. Add a step in main() that calls it
 
 const { parser, generate, t, fs } = require("./config");
+const path = require("path");
 const { processAllFunctions } = require("./traverse");
 const { extractTopLevelIIFEs } = require("./wrapper");
 const { hoistDeclarations, simplify, expandSequences, eliminateDeadCode, inlineReadOnlyProperties, removeUnusedHelpers, simplifyRedundantConditions, inlinePureWrappers, sortByCallTree, inlineSingleCallerFns, normalizeSyntax, extractInlineFunctions } = require("./passes");
@@ -130,6 +131,11 @@ function main({ input, output, split } = {}) {
 }
 
 function writeSingleOutput(ast, output, code) {
+  // output is always a directory; write deobfuscated code as main.js inside it
+  const outDir = output;
+  if (fs.existsSync(outDir)) fs.rmSync(outDir, { recursive: true });
+  fs.mkdirSync(outDir, { recursive: true });
+
   console.log("Generating output...");
   const g0 = Date.now();
   const generated = generate(ast, {
@@ -138,16 +144,17 @@ function writeSingleOutput(ast, output, code) {
   }).code;
   console.log(`Generated in ${Date.now() - g0}ms`);
 
+  const mainFile = path.join(outDir, "main.js");
   console.log("Writing output...");
-  fs.writeFileSync(output, generated, "utf-8");
+  fs.writeFileSync(mainFile, generated, "utf-8");
 
-  formatFile(output);
+  formatFile(mainFile);
 
-  const finalSize = fs.statSync(output).size;
+  const finalSize = fs.statSync(mainFile).size;
   const ratio = ((finalSize / code.length) * 100).toFixed(1);
   console.log(`Done! Output: ${(finalSize / 1024 / 1024).toFixed(2)} MB (${ratio}% of original)`);
 
-  const fnCount = fs.readFileSync(output, "utf-8").split("\n").filter((l) => l.includes("function _sub_")).length;
+  const fnCount = fs.readFileSync(mainFile, "utf-8").split("\n").filter((l) => l.includes("function _sub_")).length;
   console.log(`_sub_ function declarations in output: ${fnCount}`);
   return generated;
 }

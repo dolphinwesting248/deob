@@ -10,18 +10,19 @@ Zero configuration. Works on any obfuscated JavaScript: **obfuscator.io**, **JSV
 npm install
 npm link
 
-# Single file
+# Default: output to main.deob/
 deob main.js
 
-# Custom output
-deob main.js output.js
-
 # Split into per-function files
-deob main.js output/ --split
+deob main.js --split
 
-# Generate readability metrics report
-deob main.js --metrics
-deob main.js --split --metrics
+# All reports
+deob main.js --split --metrics --md --json
+# → main.deob/
+#   main.js          ← deobfuscated code
+#   metrics.html     ← readability report
+#   structure.md     ← naming rules + call graph
+#   structure.json   ← machine-readable
 ```
 
 ## Pipeline (14 passes)
@@ -70,8 +71,8 @@ function _sub_return_fn1(_0x4d3a42, _0x55eff5, _0x477d9d, _0x147aca, a0_0x5465, 
 
 ```javascript
 const { main } = require("./scripts");
-main({ input: "obfuscated.js", output: "clean.js" });           // single file
-main({ input: "obfuscated.js", output: "out/", split: true });  // split mode
+main({ input: "obfuscated.js", output: "out/", split: true });
+// All output goes into out/ directory
 ```
 
 ## Directory Structure

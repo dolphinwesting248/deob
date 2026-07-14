@@ -1,5 +1,6 @@
 // Readability metrics: before/after comparison with HTML report
-const { parser, t, fs, path } = require("./config");
+const { parser, t, fs } = require("./config");
+const path = require("path");
 
 function analyze(filepath) {
   const code = fs.readFileSync(filepath, "utf-8");
@@ -234,25 +235,20 @@ new Chart(document.getElementById('chart'), {
 </html>`;
 }
 
-function runMetrics(input, output) {
+function runMetrics(input, outputDir) {
   console.log("Analyzing before/after metrics...");
   const before = analyze(input);
 
-  // When output is a directory (--split mode), analyze main.js inside it
-  let afterPath = output;
-  if (fs.existsSync(output) && fs.statSync(output).isDirectory()) {
-    afterPath = require("path").join(output, "main.js");
-    if (!fs.existsSync(afterPath)) {
-      console.log("  Metrics skipped: no main.js in output directory");
-      return null;
-    }
+  // Output is always a directory; main.js is inside it
+  const afterPath = path.join(outputDir, "main.js");
+  if (!fs.existsSync(afterPath)) {
+    console.log("  Metrics skipped: no main.js in output directory");
+    return null;
   }
   const after = analyze(afterPath);
 
   const html = generateReport(before, after);
-  const outPath = output.endsWith(".js")
-    ? output.replace(/\.js$/, ".metrics.html")
-    : output.replace(/\/$/, "") + "/metrics.html";
+  const outPath = path.join(outputDir, "metrics.html");
   fs.writeFileSync(outPath, html, "utf-8");
   console.log(`  Report: ${outPath}`);
   return { before, after };
