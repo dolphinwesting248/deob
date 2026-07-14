@@ -1,8 +1,10 @@
 # deob
 
-Universal JavaScript deobfuscation pipeline — splits obfuscated code into readable sub-functions by syntactic structure.
+A general-purpose AST-level JavaScript deobfuscation preprocessing framework. All transformations are **semantics-preserving** — they restructure code without changing runtime behavior. Designed as a **data-preparation step for LLM-assisted reverse engineering**.
 
-Zero configuration. Works on any obfuscated JavaScript: **obfuscator.io**, **JSVMP**, **webpack bundles**, **minified code**.
+- **Universal.** No obfuscator detection, no signature matching. obfuscator.io, JSVMP, webpack bundles, custom obfuscators — all treated the same.
+- **Semantics-preserving.** Splitting, expansion, simplification, inlining — every pass keeps the original logic intact. Only the structure changes.
+- **LLM-oriented.** Structure reports, call graphs, string alerts, word lookup indexes, SQLite code indices — output designed for LLM consumption, not just human readability.
 
 ## Quick Start
 
