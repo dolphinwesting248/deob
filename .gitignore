@@ -1,0 +1,17 @@
+node_modules/
+examples/
+.claude/
+
+# Pipeline output
+*.deob.js
+*.deob/
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
