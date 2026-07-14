@@ -2,6 +2,7 @@
 
 const { t } = require("./config");
 const { clone, walkStmtLists, walkAST, walkASTDeep } = require("./ast-utils");
+const { collectDefined, getExternalRefs } = require("./scope");
 
 // ---- hoistDeclarations: move var/let/const/function to top of every scope ----
 // var: always safe (engine already hoists)
@@ -45,253 +46,6 @@ function hoistDeclarations(ast) {
   walk(ast);
 
   console.log(`  Hoisted ${fnCount}fns + ${varCount}var + ${letCount}const/let in ${affected} scopes`);
-}
-
-// ---- constantFold: evaluate pure arithmetic/string/logic expressions ----
-function constantFold(ast) {
-  let count = 0;
-
-  function isFoldable(node) {
-    if (!node) return false;
-    if (t.isNumericLiteral(node) || t.isStringLiteral(node) || t.isBooleanLiteral(node)) return true;
-    if (t.isUnaryExpression(node) && isFoldable(node.argument)) return true;
-    if (t.isBinaryExpression(node) && isFoldable(node.left) && isFoldable(node.right)) return true;
-    return false;
-  }
-
-  function evaluate(node) {
-    if (t.isNumericLiteral(node)) return node.value;
-    if (t.isStringLiteral(node)) return node.value;
-    if (t.isBooleanLiteral(node)) return node.value;
-
-    if (t.isUnaryExpression(node)) {
-      const arg = evaluate(node.argument);
-      if (arg === undefined) return undefined;
-      switch (node.operator) {
-        case "-": return -arg; case "+": return +arg; case "!": return !arg;
-        case "~": return ~arg; case "void": return undefined; case "typeof": return typeof arg;
-      }
-    }
-
-    if (t.isBinaryExpression(node)) {
-      const left = evaluate(node.left);
-      const right = evaluate(node.right);
-      if (left === undefined || right === undefined) return undefined;
-      switch (node.operator) {
-        case "+": return left + right; case "-": return left - right; case "*": return left * right;
-        case "/": return right === 0 ? undefined : left / right;
-        case "%": return right === 0 ? undefined : left % right; case "**": return left ** right;
-        case "|": return left | right; case "&": return left & right; case "^": return left ^ right;
-        case "<<": return left << right; case ">>": return left >> right; case ">>>": return left >>> right;
-        case "==": return left == right; case "!=": return left != right;
-        case "===": return left === right; case "!==": return left !== right;
-        case "<": return left < right; case ">": return left > right;
-        case "<=": return left <= right; case ">=": return left >= right;
-      }
-    }
-    return undefined;
-  }
-
-  function fold(node) {
-    if (!node || typeof node !== "object") return node;
-
-    if (t.isBinaryExpression(node) && isFoldable(node.left) && isFoldable(node.right)) {
-      const result = evaluate(node);
-      if (result !== undefined) {
-        count++;
-        if (typeof result === "string") return t.stringLiteral(result);
-        if (typeof result === "boolean") return t.booleanLiteral(result);
-        if (typeof result === "number") {
-          if (Number.isNaN(result)) return t.identifier("NaN");
-          if (!Number.isFinite(result)) return result > 0 ? t.identifier("Infinity") : t.binaryExpression("-", t.identifier("Infinity"));
-          return t.numericLiteral(result);
-        }
-        return t.identifier("undefined");
-      }
-    }
-
-    if (t.isUnaryExpression(node) && isFoldable(node.argument)) {
-      const result = evaluate(node);
-      if (result !== undefined) {
-        count++;
-        if (typeof result === "boolean") return t.booleanLiteral(result);
-        if (typeof result === "number") return t.numericLiteral(result);
-        if (typeof result === "undefined" || result === undefined) return t.identifier("undefined");
-      }
-    }
-
-    for (const key of Object.keys(node)) {
-      if (key === "start" || key === "end" || key === "loc" ||
-          key === "leadingComments" || key === "trailingComments" || key === "innerComments") continue;
-      const val = node[key];
-      if (Array.isArray(val)) { for (let i = 0; i < val.length; i++) { if (val[i] && typeof val[i].type === "string") val[i] = fold(val[i]); } }
-      else if (val && typeof val.type === "string") { node[key] = fold(val); }
-    }
-    return node;
-  }
-
-  fold(ast);
-  const after1 = count;
-  fold(ast); // second pass for chained patterns
-  console.log(`  Folded ${count} constant expressions${count > after1 ? " (incl. second pass)" : ""}`);
-}
-
-// ---- simplifyBooleanObfuscation: !![]→true, ![]→false, void 0→undefined ----
-function simplifyBooleanObfuscation(ast) {
-  let count = 0;
-
-  function walk(node) {
-    if (!node || typeof node !== "object") return node;
-
-    if (t.isUnaryExpression(node) && node.operator === "!" &&
-        t.isUnaryExpression(node.argument) && node.argument.operator === "!" &&
-        t.isArrayExpression(node.argument.argument) && node.argument.argument.elements.length === 0)
-      return t.booleanLiteral(true);
-
-    if (t.isUnaryExpression(node) && node.operator === "!" &&
-        t.isArrayExpression(node.argument) && node.argument.elements.length === 0)
-      return t.booleanLiteral(false);
-
-    if (t.isUnaryExpression(node) && node.operator === "void" &&
-        t.isNumericLiteral(node.argument) && node.argument.value === 0)
-      return t.identifier("undefined");
-
-    for (const key of Object.keys(node)) {
-      if (key === "start" || key === "end" || key === "loc" ||
-          key === "leadingComments" || key === "trailingComments" || key === "innerComments") continue;
-      const val = node[key];
-      if (Array.isArray(val)) {
-        for (let i = 0; i < val.length; i++) {
-          if (val[i] && typeof val[i].type === "string") {
-            const repl = walk(val[i]);
-            if (repl !== val[i]) { val[i] = repl; count++; }
-          }
-        }
-      } else if (val && typeof val.type === "string") {
-        const repl = walk(val);
-        if (repl !== val) { node[key] = repl; count++; }
-      }
-    }
-    return node;
-  }
-
-  walk(ast);
-  console.log(`  Simplified ${count} boolean obfuscation patterns`);
-}
-
-// ---- simplifyStrings: fold String.fromCharCode, .charAt, .slice etc. ----
-function simplifyStrings(ast) {
-  let count = 0;
-
-  function walk(node) {
-    if (!node || typeof node !== "object") return node;
-
-    // String.fromCharCode(n1, n2, ...) → "str"
-    if (t.isCallExpression(node) &&
-        t.isMemberExpression(node.callee) &&
-        t.isIdentifier(node.callee.object, { name: "String" }) &&
-        t.isIdentifier(node.callee.property, { name: "fromCharCode" }) &&
-        node.arguments.every((a) => t.isNumericLiteral(a))) {
-      count++;
-      return t.stringLiteral(String.fromCharCode(...node.arguments.map((a) => a.value)));
-    }
-
-    // "str".charAt(n) → single char string
-    if (t.isCallExpression(node) &&
-        t.isMemberExpression(node.callee) &&
-        node.callee.property && t.isIdentifier(node.callee.property, { name: "charAt" }) &&
-        t.isStringLiteral(node.callee.object) &&
-        node.arguments.length === 1 && t.isNumericLiteral(node.arguments[0])) {
-      const result = node.callee.object.value.charAt(node.arguments[0].value);
-      count++;
-      return t.stringLiteral(result);
-    }
-
-    // "str".charCodeAt(n) → number
-    if (t.isCallExpression(node) &&
-        t.isMemberExpression(node.callee) &&
-        node.callee.property && t.isIdentifier(node.callee.property, { name: "charCodeAt" }) &&
-        t.isStringLiteral(node.callee.object) &&
-        node.arguments.length === 1 && t.isNumericLiteral(node.arguments[0])) {
-      const result = node.callee.object.value.charCodeAt(node.arguments[0].value);
-      count++;
-      return t.numericLiteral(result);
-    }
-
-    // "str".slice(a, b) → simplified string
-    if (t.isCallExpression(node) &&
-        t.isMemberExpression(node.callee) &&
-        node.callee.property && t.isIdentifier(node.callee.property, { name: "slice" }) &&
-        t.isStringLiteral(node.callee.object)) {
-      const allNum = node.arguments.every((a) => t.isNumericLiteral(a));
-      if (allNum && (node.arguments.length === 1 || node.arguments.length === 2)) {
-        count++;
-        return t.stringLiteral(node.callee.object.value.slice(
-          node.arguments[0].value,
-          node.arguments[1] ? node.arguments[1].value : undefined,
-        ));
-      }
-    }
-
-    // "str".substr / "str".substring → simplified string
-    if (t.isCallExpression(node) &&
-        t.isMemberExpression(node.callee) &&
-        node.callee.property && (t.isIdentifier(node.callee.property, { name: "substr" }) || t.isIdentifier(node.callee.property, { name: "substring" })) &&
-        t.isStringLiteral(node.callee.object)) {
-      const method = node.callee.property.name;
-      const allNum = node.arguments.every((a) => t.isNumericLiteral(a));
-      if (allNum && node.arguments.length >= 1 && node.arguments.length <= 2) {
-        const result = node.callee.object.value[method](
-          node.arguments[0].value,
-          node.arguments[1] ? node.arguments[1].value : undefined,
-        );
-        count++;
-        return t.stringLiteral(result);
-      }
-    }
-
-    // "str".indexOf(x) / "str".lastIndexOf(x) when x is literal string → number
-    if (t.isCallExpression(node) &&
-        t.isMemberExpression(node.callee) &&
-        node.callee.property && (t.isIdentifier(node.callee.property, { name: "indexOf" }) || t.isIdentifier(node.callee.property, { name: "lastIndexOf" })) &&
-        t.isStringLiteral(node.callee.object) &&
-        node.arguments.length === 1 && t.isStringLiteral(node.arguments[0])) {
-      const result = node.callee.object.value[node.callee.property.name](node.arguments[0].value);
-      count++;
-      return t.numericLiteral(result);
-    }
-
-    // "str".toUpperCase() / "str".toLowerCase() / "str".trim()
-    if (t.isCallExpression(node) &&
-        t.isMemberExpression(node.callee) &&
-        t.isStringLiteral(node.callee.object) &&
-        node.arguments.length === 0 &&
-        node.callee.property && t.isIdentifier(node.callee.property)) {
-      const method = node.callee.property.name;
-      if (["toUpperCase", "toLowerCase", "trim", "trimStart", "trimEnd"].includes(method)) {
-        count++;
-        return t.stringLiteral(node.callee.object.value[method]());
-      }
-    }
-
-    // Recurse
-    for (const key of Object.keys(node)) {
-      if (key === "start" || key === "end" || key === "loc" ||
-          key === "leadingComments" || key === "trailingComments" || key === "innerComments") continue;
-      const val = node[key];
-      if (Array.isArray(val)) {
-        for (let i = 0; i < val.length; i++) {
-          if (val[i] && typeof val[i].type === "string") val[i] = walk(val[i]);
-        }
-      } else if (val && typeof val.type === "string") {
-        node[key] = walk(val);
-      }
-    }
-    return node;
-  }
-
-  walk(ast);
-  console.log(`  Simplified ${count} string operations`);
 }
 
 // ---- simplify: combined fold+boolean+strings+ast-normalize in ONE walk ----
@@ -538,7 +292,7 @@ function normalizeShortCircuit(ast) {
     }
     for (const k of Object.keys(node)) {
       if (k === "start" || k === "end" || k === "loc" ||
-          k.startsWith("lead") || k.startsWith("trail") || k.startsWith("inner")) continue;
+          k === "leadingComments" || k === "trailingComments" || k === "innerComments") continue;
       const v = node[k];
       if (Array.isArray(v)) {
         for (let i = 0; i < v.length; i++) walk(v[i]);
@@ -1029,22 +783,6 @@ function simplifyRedundantConditions(ast) {
     }
   }
 
-  function clone(node) {
-    if (!node || typeof node !== "object") return node;
-    if (t.isNumericLiteral(node)) return t.numericLiteral(node.value);
-    if (t.isStringLiteral(node)) return t.stringLiteral(node.value);
-    if (t.isBooleanLiteral(node)) return t.booleanLiteral(node.value);
-    const copy = {};
-    for (const k of Object.keys(node)) {
-      if (k === "start" || k === "end" || k === "loc") continue;
-      const v = node[k];
-      if (Array.isArray(v)) { copy[k] = v.map((x) => clone(x)); }
-      else if (v && typeof v.type === "string") { copy[k] = clone(v); }
-      else { copy[k] = v; }
-    }
-    return copy;
-  }
-
   function walkLists(node) {
     if (!node || typeof node !== "object") return;
     if ((t.isBlockStatement(node) || node.type === "Program") && Array.isArray(node.body)) {
@@ -1222,35 +960,6 @@ function normalizeSyntax(ast) {
   function walk(node) {
     if (!node || typeof node !== "object") return node;
 
-    // Rule: ~arr.indexOf(x) → arr.includes(x)
-    if (t.isUnaryExpression(node) && node.operator === "~" &&
-        t.isCallExpression(node.argument) &&
-        t.isMemberExpression(node.argument.callee) &&
-        t.isIdentifier(node.argument.callee.property, { name: "indexOf" })) {
-      count++;
-      return t.callExpression(
-        t.memberExpression(node.argument.callee.object, t.identifier("includes")),
-        node.argument.arguments,
-      );
-    }
-
-    // Rule: ~~x → Math.floor(x) (double bitwise NOT = truncation)
-    if (t.isUnaryExpression(node) && node.operator === "~" &&
-        t.isUnaryExpression(node.argument) && node.argument.operator === "~") {
-      count++;
-      return t.callExpression(
-        t.memberExpression(t.identifier("Math"), t.identifier("trunc")),
-        [node.argument.argument],
-      );
-    }
-
-    // Rule: +x → Number(x)
-    if (t.isUnaryExpression(node) && node.operator === "+" &&
-        !t.isNumericLiteral(node.argument) && t.isIdentifier(node.argument)) {
-      count++;
-      return t.callExpression(t.identifier("Number"), [node.argument]);
-    }
-
     // Recurse
     for (const key of Object.keys(node)) {
       if (key === "start" || key === "end" || key === "loc" ||
@@ -1288,9 +997,9 @@ function extractInlineFunctions(ast) {
         const name = `_sub_return_fn${++count}`;
         // Collect external refs from the function body
         const fnParamNames = new Set(fn.params.map((p) => (t.isIdentifier(p) ? p.name : null)).filter(Boolean));
-        const defined = collectDefinedForFn(fn.body.body);
+        const defined = collectDefined(fn.body.body);
         for (const n of fnParamNames) defined.add(n);
-        const extRefs = getExtRefsSimple(fn.body, defined);
+        const extRefs = getExternalRefs(fn.body, defined);
         // Combine params + external refs
         const allParams = [
           ...fn.params.map((p) => cloneParam(p)),
@@ -1388,30 +1097,6 @@ function extractInlineFunctions(ast) {
     return { ...p, start: undefined, end: undefined, loc: undefined };
   }
 
-  function collectDefinedForFn(stmts) {
-    const names = new Set();
-    for (const s of stmts) {
-      if (t.isVariableDeclaration(s)) { for (const d of s.declarations) { if (t.isIdentifier(d.id)) names.add(d.id.name); } }
-      if (t.isFunctionDeclaration(s) && s.id) names.add(s.id.name);
-    }
-    return names;
-  }
-
-  function getExtRefsSimple(node, defined) {
-    const collected = new Set();
-    const G = ["undefined", "this", "arguments"];
-    function w(n) {
-      if (!n || typeof n !== "object") return;
-      if (t.isIdentifier(n) && !defined.has(n.name) && !G.includes(n.name)) { collected.add(n.name); return; }
-      if (t.isFunction(n)) return;
-      for (const k of Object.keys(n)) {
-        if (k === "start" || k === "end" || k === "loc") continue;
-        const v = n[k]; if (Array.isArray(v)) { for (const x of v) w(x); } else if (v && typeof v.type === "string") w(v);
-      }
-    }
-    w(node);
-    return [...collected];
-  }
 
   walk(ast);
   // Append newly created functions to program body

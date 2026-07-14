@@ -2,16 +2,6 @@
 const { parser, t, fs, path } = require("./config");
 
 // ── String alert patterns for reverse-engineering ──────────────────
-function buildAlertPatterns(cfg) {
-  if (!cfg || !cfg.patterns || cfg.patterns.length === 0) return ALERT_PATTERNS;
-  const custom = cfg.patterns.map((p) => ({
-    label: p.label,
-    regex: new RegExp(p.regex.source, p.regex.flags || "gi"),
-    severity: p.severity || "medium",
-  }));
-  return cfg.extend === false ? custom : [...ALERT_PATTERNS, ...custom];
-}
-
 const ALERT_PATTERNS = [
   { label: "API Endpoint", regex: /https?:\/\/[^\s"'`,;{}[\]]+/gi, severity: "high" },
   { label: "API Path", regex: /\/(?:api|v\d+|rest|graphql|rpc)\/[^\s"'`,;{}[\]]*/gi, severity: "medium" },
@@ -89,7 +79,7 @@ function buildLookupIndex(fns) {
   return [...semantic.slice(0, 25), ...locations.slice(0, 15)];
 }
 
-function analyzeStructureFallback(filepath, code, alertsCfg) {
+function analyzeStructureFallback(filepath, code) {
   const file = path.basename(filepath);
   const fnPattern = /\bfunction\s+(\w+)\s*\(([^)]*)\)/g;
   const commentPattern = /\/\/\s*Original lines\s+(\d+)-(\d+)/g;
@@ -177,8 +167,7 @@ function analyzeStructureFallback(filepath, code, alertsCfg) {
     }
     if (bs < 0 || be < 0) continue;
     const body = code.substring(bs + 1, be);
-    const patterns = buildAlertPatterns(alertsCfg);
-    for (const p of patterns) {
+    for (const p of ALERT_PATTERNS) {
       const matches = [];
       let m;
       p.regex.lastIndex = 0;
@@ -231,10 +220,8 @@ function analyzeStructureFallback(filepath, code, alertsCfg) {
   };
 }
 
-function analyzeStructure(filepath, alertsCfg) {
+function analyzeStructure(filepath) {
   const code = fs.readFileSync(filepath, "utf-8");
-  // Merge custom alert patterns with defaults
-  const patterns = buildAlertPatterns(alertsCfg);
   let ast;
   try {
     ast = parser.parse(code, {
@@ -244,7 +231,7 @@ function analyzeStructure(filepath, alertsCfg) {
   } catch (e) {
     // Fallback: regex-based analysis for files that Babel can't re-parse
     // (sloppy-mode reserved words as identifiers, for-await outside async, etc.)
-    return analyzeStructureFallback(filepath, code, alertsCfg);
+    return analyzeStructureFallback(filepath, code);
   }
 
   const fns = []; // {name, lines, params, calls:[], calledBy:[], comment}
@@ -277,7 +264,7 @@ function analyzeStructure(filepath, alertsCfg) {
     }
     for (const k of Object.keys(node)) {
       if (k === "start" || k === "end" || k === "loc" ||
-          k.startsWith("lead") || k.startsWith("trail") || k.startsWith("inner")) continue;
+          k === "leadingComments" || k === "trailingComments" || k === "innerComments") continue;
       const v = node[k];
       if (Array.isArray(v)) { for (const x of v) walk(x, callerName); }
       else if (v && typeof v.type === "string") walk(v, callerName);
@@ -310,7 +297,7 @@ function analyzeStructure(filepath, alertsCfg) {
     function collectStrings(node) {
       if (!node || typeof node !== "object") return;
       if (t.isStringLiteral(node) && node.value) {
-        for (const p of patterns) {
+        for (const p of ALERT_PATTERNS) {
           const matches = [];
           let m;
           p.regex.lastIndex = 0;
@@ -333,7 +320,7 @@ function analyzeStructure(filepath, alertsCfg) {
       if (t.isFunction(node)) return;
       for (const k of Object.keys(node)) {
         if (k === "start" || k === "end" || k === "loc" ||
-            k.startsWith("lead") || k.startsWith("trail") || k.startsWith("inner")) continue;
+            k === "leadingComments" || k === "trailingComments" || k === "innerComments") continue;
         const v = node[k];
         if (Array.isArray(v)) { for (const x of v) collectStrings(x); }
         else if (v && typeof v.type === "string") collectStrings(v);
@@ -499,13 +486,13 @@ function generateJSON(report) {
   return JSON.stringify(report, null, 2);
 }
 
-function runStructure(input, outputDir, format, alertsCfg) {
+function runStructure(input, outputDir, format) {
   const afterPath = path.join(outputDir, "main.js");
   if (!fs.existsSync(afterPath)) {
     console.log("  Structure report skipped: no output file found");
     return null;
   }
-  const report = analyzeStructure(afterPath, alertsCfg);
+  const report = analyzeStructure(afterPath);
   const ext = format === "md" ? ".md" : ".json";
   const outPath = path.join(outputDir, "structure" + ext);
   const content = format === "md" ? generateMarkdown(report) : generateJSON(report);

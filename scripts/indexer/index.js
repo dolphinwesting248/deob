@@ -16,7 +16,7 @@ const {
   getStats,
 } = require("./store");
 
-function collectJsFiles(dir, skipPatterns) {
+function collectJsFilesRecursive(dir) {
   const results = [];
   function walk(d) {
     const entries = fs.readdirSync(d, { withFileTypes: true });
@@ -26,12 +26,7 @@ function collectJsFiles(dir, skipPatterns) {
         if (e.name === ".index" || e.name === "node_modules") continue;
         walk(full);
       } else if (e.isFile() && e.name.endsWith(".js") && e.name !== "index.js") {
-        const rel = path.relative(dir, full);
-        const skip = skipPatterns.some((p) => {
-          const re = new RegExp(p.replace(/\*\*/g, ".*").replace(/\*/g, "[^/]*"));
-          return re.test(rel);
-        });
-        if (!skip) results.push(full);
+        results.push(full);
       }
     }
   }
@@ -39,10 +34,9 @@ function collectJsFiles(dir, skipPatterns) {
   return results;
 }
 
-function indexDirectory(outputDir, skipPatterns) {
-  skipPatterns = skipPatterns || [];
+function indexDirectory(outputDir) {
   const startTime = Date.now();
-  const files = collectJsFiles(outputDir, skipPatterns);
+  const files = collectJsFilesRecursive(outputDir);
 
   if (files.length === 0) {
     console.log("  No .js files found to index");

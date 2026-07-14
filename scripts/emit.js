@@ -43,23 +43,4 @@ function createSubFn(name, params, body, sourceNode) {
   return fn;
 }
 
-// Sanitize external-ref argument lists (reserved words as variables)
-function safeArgList(args) {
-  return args.map((a) => {
-    if (t.isIdentifier(a) && RESERVED.has(a.name)) {
-      return t.identifier(a.name + "_");
-    }
-    return a;
-  });
-}
-
-function safeParamList(params) {
-  return params.map((p) => {
-    if (t.isIdentifier(p) && RESERVED.has(p.name)) {
-      return t.identifier(p.name + "_");
-    }
-    return p;
-  });
-}
-
-module.exports = { addLineComment, createSubFn, safeArgList, safeParamList, RESERVED, safeParam };
+module.exports = { addLineComment, createSubFn, safeParam };

@@ -43,7 +43,7 @@ function walkAST(ast) {
     }
     for (const k of Object.keys(node)) {
       if (k === "start" || k === "end" || k === "loc" ||
-          k.startsWith("lead") || k.startsWith("trail") || k.startsWith("inner")) continue;
+          k === "leadingComments" || k === "trailingComments" || k === "innerComments") continue;
       const v = node[k];
       if (Array.isArray(v)) { for (const x of v) walk(x, depth + 1); }
       else if (v && typeof v.type === "string") walk(v, depth + 1);

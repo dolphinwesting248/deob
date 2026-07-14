@@ -14,11 +14,9 @@ const { processAllFunctions } = require("./traverse");
 const { extractTopLevelIIFEs } = require("./wrapper");
 const { hoistDeclarations, simplify, normalizeShortCircuit, expandSequences, eliminateDeadCode, inlineReadOnlyProperties, removeUnusedHelpers, simplifyRedundantConditions, inlinePureWrappers, sortByCallTree, inlineSingleCallerFns, normalizeSyntax, extractInlineFunctions } = require("./passes");
 
-function main({ input, output, split, sourceType, compact } = {}) {
+function main({ input, output, split } = {}) {
   if (!input) throw new Error("main() requires { input: '<path>' }");
   if (!output) throw new Error("main() requires { output: '<path>' }");
-
-  const genOpts = { retainLines: false, retainFunctionParens: false, comments: true, compact: !!compact };
 
   console.log("Reading file...");
   const code = fs.readFileSync(input, "utf-8");
@@ -26,7 +24,7 @@ function main({ input, output, split, sourceType, compact } = {}) {
 
   console.log("Parsing AST...");
   const ast = parser.parse(code, {
-    sourceType: sourceType || "script",
+    sourceType: "script",
     allowReturnOutsideFunction: true,
     allowUndeclaredExports: true,
     errorRecovery: true,
@@ -136,18 +134,15 @@ function main({ input, output, split, sourceType, compact } = {}) {
   console.log(`  Done in ${Date.now() - t17}ms`);
 
   // ==================== Output ====================
-  const { t } = require("./config");
-  const path = require("path");
-
   if (split) {
-    writeSplitOutput(ast, output, code, genOpts);
+    writeSplitOutput(ast, output, code);
     return null;
   } else {
-    return writeSingleOutput(ast, output, code, genOpts);
+    return writeSingleOutput(ast, output, code);
   }
 }
 
-function writeSingleOutput(ast, output, code, genOpts) {
+function writeSingleOutput(ast, output, code) {
   // output is always a directory; write deobfuscated code as main.js inside it
   const outDir = output;
   if (fs.existsSync(outDir)) fs.rmSync(outDir, { recursive: true });
@@ -155,7 +150,10 @@ function writeSingleOutput(ast, output, code, genOpts) {
 
   console.log("Generating output...");
   const g0 = Date.now();
-  const generated = generate(ast, genOpts).code;
+  const generated = generate(ast, {
+    retainLines: false, retainFunctionParens: false,
+    comments: true, compact: false,
+  }).code;
   console.log(`Generated in ${Date.now() - g0}ms`);
 
   const mainFile = path.join(outDir, "main.js");
@@ -171,8 +169,7 @@ function writeSingleOutput(ast, output, code, genOpts) {
   return generated;
 }
 
-function writeSplitOutput(ast, output, code, genOpts) {
-  const path = require("path");
+function writeSplitOutput(ast, output, code) {
   console.log("Splitting into per-function files...");
 
   // Ensure output directory
@@ -197,7 +194,10 @@ function writeSplitOutput(ast, output, code, genOpts) {
 
   // --- Phase 1: generate ALL function codes at once ---
   // Write main.js with full combined output (used by reports)
-  fs.writeFileSync(path.join(outDir, "main.js"), generate(ast, genOpts).code, "utf-8");
+  fs.writeFileSync(path.join(outDir, "main.js"), generate(ast, {
+    retainLines: false, retainFunctionParens: false,
+    comments: true, compact: false,
+  }).code, "utf-8");
 
   // Generate each function separately but without prettier — batch format at end
   const generatedFns = new Map();
@@ -206,7 +206,10 @@ function writeSplitOutput(ast, output, code, genOpts) {
   for (const stmt of ast.program.body) {
     if (t.isFunctionDeclaration(stmt) && stmt.id && stmt.id.name.startsWith("_sub_")) {
       const fnAst = { ...ast, program: { ...ast.program, body: [stmt] } };
-      generatedFns.set(stmt, generate(fnAst, genOpts).code);
+      generatedFns.set(stmt, generate(fnAst, {
+        retainLines: false, retainFunctionParens: false,
+        comments: true, compact: false,
+      }).code);
     }
   }
 
