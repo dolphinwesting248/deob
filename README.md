@@ -86,9 +86,9 @@ module.exports = {
 | Call Graph | Mermaid diagram of cross-function calls |
 | Function Inventory | Full table with name, lines, params, calls, called-by |
 
-## Code Index (`--index`)
+## Code Index 
 
-Builds a SQLite knowledge graph using `node:sqlite` + `@babel/traverse` (zero extra dependencies).
+Builds a SQLite knowledge graph using `node:sqlite` + `@babel/traverse`.
 
 **Schema:** `nodes` (functions, classes, variables), `edges` (calls, contains, references), FTS5 search.
 
@@ -106,7 +106,7 @@ SELECT target, COUNT(*) as c FROM edges
 WHERE kind = 'calls' GROUP BY target ORDER BY c DESC LIMIT 10;
 ```
 
-## Pipeline (17 passes)
+## Pipeline 
 
 | Step | Pass | Description |
 |------|------|-------------|
@@ -187,7 +187,7 @@ scripts/
 ├── wrapper.js        ← Top-level IIFE extraction
 ├── config.js         ← Parser, generator, globals
 ├── index.js          ← Public API exports
-└── indexer/          ← Code intelligence indexer (--index)
+└── indexer/          ← Code intelligence indexer
     ├── index.js      ← Orchestration: scan → extract → store → resolve
     ├── extract.js    ← Babel-based JS symbol & call-graph extractor
     ├── schema.js     ← SQLite schema
