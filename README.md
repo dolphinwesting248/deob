@@ -130,22 +130,39 @@ WHERE kind = 'calls' GROUP BY target ORDER BY c DESC LIMIT 10;
 
 ## Output Example
 
-```javascript
-// Before: obfuscated
-function a0_0x5465(_0x147aca,_0x1c469e){const _0x477d9d=a0_0x1cb6();return (a0_0x5465=function(...){...}),a0_0x5465(...)}
+**Input** — typical obfuscated patterns: function reassignment via comma operator, ternary-as-statement, config object:
 
-// After: deobfuscated
+```javascript
+function a0_0x5465(_0x147aca,_0x1c469e){var _0x477d9d=a0_0x1cb6();return (a0_0x5465=function(_0x593f2d,_0x4d5e1e){var _0x2a8c=_0x477d9d[_0x593f2d];return _0x2a8c?_0x2a8c(_0x4d5e1e,_0x147aca):_0x4d5e1e}),a0_0x5465(_0x147aca,_0x1c469e)}
+function a0_0x1cb6(){var _0x4e7f={key1:100,key2:200};return _0x4e7f}
+var result="test"===typeof process?a0_0x5465(0,"hello"):a0_0x5465(1,"world")
+```
+
+**Output** — comma operator expanded, function expression lifted to `_sub_return_fn1`, ternary split into if/else:
+
+```javascript
 function a0_0x5465(_0x147aca, _0x1c469e) {
-  const _0x477d9d = a0_0x1cb6();
+  var _0x477d9d = a0_0x1cb6();
   a0_0x5465 = _sub_return_fn1;
   return a0_0x5465(_0x147aca, _0x1c469e);
 }
-
+function a0_0x1cb6() {
+  var _0x4e7f = {
+    key1: 100,
+    key2: 200
+  };
+  return _0x4e7f;
+}
+var result;
+if ("test" === typeof process) {
+  result = a0_0x5465(0, "hello");
+} else {
+  result = a0_0x5465(1, "world");
+}
 // Original lines 1-170
-function _sub_return_fn1(_0x4d3a42, _0x55eff5, _0x477d9d, _0x147aca, a0_0x5465) {
-  _0x4d3a42 = _0x4d3a42 - 295;
-  let _0x5711d9 = _0x477d9d[_0x4d3a42];
-  // ...
+function _sub_return_fn1(_0x593f2d, _0x4d5e1e, _0x477d9d, _0x147aca) {
+  var _0x2a8c = _0x477d9d[_0x593f2d];
+  return _0x2a8c ? _0x2a8c(_0x4d5e1e, _0x147aca) : _0x4d5e1e;
 }
 ```
 
