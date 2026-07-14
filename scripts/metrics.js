@@ -108,11 +108,19 @@ function generateReport(before, after) {
     const same = delta === 0;
     const bVal = m.before.toFixed(m.fmt);
     const aVal = m.after.toFixed(m.fmt);
-    const pct = m.before > 0 ? ((delta / m.before) * 100) : 0;
-    const pctStr = (pct > 0 ? "+" : "") + pct.toFixed(0) + "%";
 
-    const clazz = same ? "eq" : delta > 0 ? "up" : "down";
-    const dir = same ? "-- unchanged" : delta > 0 ? "↑ increase" : "↓ decrease";
+    // Handle before=0: can't calculate percentage change
+    let pctStr, clazz, dir;
+    if (m.before === 0) {
+      pctStr = m.after > 0 ? "new" : "--";
+      clazz = m.after > 0 ? "up" : "eq";
+      dir = m.after > 0 ? "↑ new" : "-- unchanged";
+    } else {
+      const pct = (delta / m.before) * 100;
+      pctStr = (pct > 0 ? "+" : "") + pct.toFixed(0) + "%";
+      clazz = same ? "eq" : delta > 0 ? "up" : "down";
+      dir = same ? "-- unchanged" : delta > 0 ? "↑ increase" : "↓ decrease";
+    }
 
     return {
       label: m.label, bVal, aVal, unit: m.unit || "",
