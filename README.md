@@ -20,7 +20,7 @@ deob main.js output.js
 deob main.js output/ --split
 ```
 
-## Pipeline (16 passes)
+## Pipeline (14 passes)
 
 | Step | Pass | Description |
 |------|------|-------------|
@@ -28,18 +28,16 @@ deob main.js output/ --split
 | 2 | `wrapper` | Extract top-level IIFEs to named wrappers |
 | 3 | `hoist` | Move var/let/const/function to top of every scope |
 | 4 | `extract-inline` | Lift embedded function expressions out of return/assignment |
-| 5 | `strings` | Fold String.fromCharCode, .charAt, .slice, etc. |
+| 5 | `simplify` | **Combined**: fold + boolean + strings + ast-normalize in one walk |
 | 6 | `expand-seq` | Break comma chains into independent statements |
-| 7 | `fold` | Evaluate pure arithmetic/string/logic expressions |
-| 8 | `boolean` | Replace !![]→true, ![]→false, void 0→undefined |
-| 9 | `dead-code` | Remove if(false), unreachable code after return |
-| 10 | `inline-props` | Replace config.PROP with literal values (45K+ inlined) |
-| 11 | `unused` | Remove helper functions never referenced |
-| 12 | `conditions` | Simplify a?true:false→!!a, if-return patterns |
-| 13 | `wrappers` | Inline pure wrapper functions |
-| 14 | `call-tree` | Topological sort: callees before callers |
-| 15 | `single-caller` | Inline functions called from exactly one place |
-| 16 | `normalize` | ~arr.indexOf→arr.includes, ~~x→Math.trunc, multi-decl split |
+| 7 | `dead-code` | Remove if(false), unreachable code after return |
+| 8 | `inline-props` | Replace config.PROP with literal values (45K+ inlined) |
+| 9 | `unused` | Remove helper functions never referenced |
+| 10 | `conditions` | Simplify a?true:false→!!a, if-return patterns |
+| 11 | `wrappers` | Inline pure wrapper functions |
+| 12 | `call-tree` | Topological sort: callees before callers |
+| 13 | `single-caller` | Inline functions called from exactly one place |
+| 14 | `normalize` | Statement-list: multi-decl split, sequence unwrap, for(;;)→while(true) |
 
 ## Output
 
