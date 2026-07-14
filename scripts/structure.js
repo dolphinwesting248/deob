@@ -186,10 +186,9 @@ function generateJSON(report) {
 }
 
 function runStructure(input, outputDir, format) {
-  // Analyze the full combined output (_all.js in split mode, main.js otherwise)
+  // _all.js (full combined) exists in split mode, prefer it; fall back to main.js
   const allPath = path.join(outputDir, "_all.js");
-  const mainPath = path.join(outputDir, "main.js");
-  const afterPath = fs.existsSync(allPath) ? allPath : mainPath;
+  const afterPath = fs.existsSync(allPath) ? allPath : path.join(outputDir, "main.js");
   if (!fs.existsSync(afterPath)) {
     console.log("  Structure report skipped: no output file found");
     return null;

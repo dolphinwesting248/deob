@@ -42,3 +42,7 @@ main({ input: inputPath, output: outputDir, split: splitFlag });
 if (metricsFlag) runMetrics(inputPath, outputDir);
 if (mdFlag) runStructure(inputPath, outputDir, "md");
 if (jsonFlag) runStructure(inputPath, outputDir, "json");
+
+// Clean up internal file used for report analysis
+const allPath = path.join(outputDir, "_all.js");
+if (require("fs").existsSync(allPath)) require("fs").unlinkSync(allPath);
