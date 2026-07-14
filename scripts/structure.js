@@ -220,10 +220,12 @@ function analyzeStructure(filepath) {
     return analyzeStructureFallback(filepath, code);
   }
 
-  const fns = []; // {name, lines, params, calls:[], calledBy:[], comment}
+  const fns = []; // {name, lines, params, calls:[], calledBy:[], comment, complexity, flat, suspicious}
   const nameMap = new Map();
+  let flattenedCount = 0;
+  let suspiciousCount = 0;
 
-  // Phase 1: collect all _sub_ function declarations
+  // Phase 1: collect all function declarations + compute complexity & patterns
   for (const stmt of ast.program.body) {
     if (t.isFunctionDeclaration(stmt) && stmt.id) {
       const name = stmt.id.name;
@@ -232,7 +234,101 @@ function analyzeStructure(filepath) {
       const bl = t.isBlockStatement(stmt.body) ? stmt.body.body.length : 1;
       const comment = (stmt.leadingComments && stmt.leadingComments.length > 0)
         ? stmt.leadingComments[0].value.trim() : "";
-      fns.push({ name, lines, params, bodyLen: bl, calls: [], calledBy: [], comment });
+
+      // ── A: flattening detection ──
+      let hasFlattening = false;
+      function detectFlat(n) {
+        if (!n || typeof n !== "object") return;
+        if ((t.isWhileStatement(n) || t.isForStatement(n)) && containsSwitch(n.body)) { hasFlattening = true; }
+        if (t.isFunction(n)) return;
+        for (const k of Object.keys(n)) {
+          if (k === "start" || k === "end" || k === "loc" ||
+              k === "leadingComments" || k === "trailingComments" || k === "innerComments") continue;
+          const v = n[k];
+          if (Array.isArray(v)) { for (const x of v) detectFlat(x); }
+          else if (v && typeof v.type === "string") detectFlat(v);
+        }
+      }
+      function containsSwitch(n) {
+        if (!n || typeof n !== "object") return false;
+        if (t.isSwitchStatement(n)) return true;
+        if (t.isFunction(n)) return false;
+        for (const k of Object.keys(n)) {
+          if (k === "start" || k === "end" || k === "loc" ||
+              k === "leadingComments" || k === "trailingComments" || k === "innerComments") continue;
+          const v = n[k];
+          if (Array.isArray(v)) { for (const x of v) { if (containsSwitch(x)) return true; } }
+          else if (v && typeof v.type === "string") { if (containsSwitch(v)) return true; }
+        }
+        return false;
+      }
+      detectFlat(stmt.body);
+      if (hasFlattening) flattenedCount++;
+
+      // ── B: cyclomatic complexity ──
+      let complexity = 1;
+      function calcComplexity(n) {
+        if (!n || typeof n !== "object") return;
+        if (t.isIfStatement(n)) complexity++;
+        if (t.isForStatement(n) || t.isWhileStatement(n) || t.isDoWhileStatement(n)) complexity++;
+        if (t.isSwitchCase(n)) complexity++;
+        if (t.isConditionalExpression(n)) complexity++;
+        if (t.isLogicalExpression(n) && (n.operator === "&&" || n.operator === "||")) complexity++;
+        if (t.isCatchClause(n)) complexity++;
+        if (t.isFunction(n)) return;
+        for (const k of Object.keys(n)) {
+          if (k === "start" || k === "end" || k === "loc" ||
+              k === "leadingComments" || k === "trailingComments" || k === "innerComments") continue;
+          const v = n[k];
+          if (Array.isArray(v)) { for (const x of v) calcComplexity(x); }
+          else if (v && typeof v.type === "string") calcComplexity(v);
+        }
+      }
+      calcComplexity(stmt.body);
+
+      // ── C: suspicious structural patterns ──
+      const suspicious = [];
+      function detectSuspicious(n) {
+        if (!n || typeof n !== "object") return;
+        // eval(identifier) — non-literal eval
+        if (t.isCallExpression(n) && t.isIdentifier(n.callee) && n.callee.name === "eval" &&
+            n.arguments.length > 0 && !t.isStringLiteral(n.arguments[0])) {
+          suspicious.push("eval(var)");
+        }
+        // new Function(...)
+        if ((t.isNewExpression(n) || t.isCallExpression(n)) &&
+            t.isIdentifier(n.callee) && n.callee.name === "Function" &&
+            n.arguments.length > 0) {
+          suspicious.push("new Function()");
+        }
+        // obj[computed_key]
+        if (t.isMemberExpression(n) && n.computed && t.isIdentifier(n.property)) {
+          suspicious.push("computed key");
+        }
+        // arguments[i]
+        if (t.isMemberExpression(n) && t.isIdentifier(n.object) && n.object.name === "arguments" &&
+            !t.isIdentifier(n.property)) {
+          suspicious.push("arguments[i]");
+        }
+        // __proto__ assignment
+        if (t.isAssignmentExpression(n) && t.isMemberExpression(n.left) &&
+            t.isIdentifier(n.left.property, { name: "__proto__" })) {
+          suspicious.push("__proto__");
+        }
+        if (t.isFunction(n)) return;
+        for (const k of Object.keys(n)) {
+          if (k === "start" || k === "end" || k === "loc" ||
+              k === "leadingComments" || k === "trailingComments" || k === "innerComments") continue;
+          const v = n[k];
+          if (Array.isArray(v)) { for (const x of v) detectSuspicious(x); }
+          else if (v && typeof v.type === "string") detectSuspicious(v);
+        }
+      }
+      detectSuspicious(stmt.body);
+      if (suspicious.length > 0) suspiciousCount++;
+
+      fns.push({ name, lines, params, bodyLen: bl, calls: [], calledBy: [], comment,
+        complexity, flat: hasFlattening, suspicious: [...new Set(suspicious)] });
       nameMap.set(name, fns.length - 1);
     }
   }
@@ -367,6 +463,9 @@ function analyzeStructure(filepath) {
       originalFunctions: origins.length,
       byType: types,
       maxDepth: Math.max(...subFns.map((f) => (f.name.match(/_/g) || []).length), 0),
+      flattened: flattenedCount,
+      suspicious: suspiciousCount,
+      maxComplexity: Math.max(...fns.map((f) => f.complexity || 1), 1),
     },
     hotspots: { mostCalled, roots, leaves, hotGroups },
     alerts,
@@ -413,6 +512,9 @@ function generateMarkdown(report) {
 | Sub-functions | ${summary.subFunctions} |
 | Original functions | ${summary.originalFunctions} |
 | Max nesting depth | ${summary.maxDepth} |
+| Max complexity | ${summary.maxComplexity || "-"} |
+| Flattened (susp.) | ${summary.flattened || 0} |
+| Suspicious patterns | ${summary.suspicious || 0} |
 
 ### By Extraction Type
 
@@ -483,13 +585,18 @@ ${functions.filter((f) => f.calls.length > 0).map((f) =>
 
 ## Function Inventory
 
-| # | Name | Lines | Params | Calls | Called By |
-|---|------|-------|--------|-------|-----------|
+| # | Name | Lines | Cmp | Params | Calls | Called By | Flags |
+|---|------|-------|-----|--------|-------|-----------|-------|
 ${functions.map((f, i) => {
     const lines = f.lines[0] ? `${f.lines[0]}-${f.lines[1]}` : "-";
     const calls = f.calls.length > 0 ? f.calls.join(", ") : "—";
     const calledBy = f.calledBy.length > 0 ? f.calledBy.join(", ") : "root";
-    return `| ${i + 1} | \`${f.name}\` | ${lines} | ${f.params} | ${calls} | ${calledBy} |`;
+    const flags = [
+      f.flat ? "FLAT" : "",
+      ...(f.suspicious || []).map((s) => s),
+    ].filter(Boolean).join(" · ") || "—";
+    const cmp = f.complexity || 1;
+    return `| ${i + 1} | \`${f.name}\` | ${lines} | ${cmp} | ${f.params} | ${calls} | ${calledBy} | ${flags} |`;
   }).join("\n")}
 
 ---
