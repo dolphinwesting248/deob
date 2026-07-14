@@ -871,11 +871,12 @@ function simplifyRedundantConditions(ast) {
     return node;
   }
 
-  // Run twice — one simplification may expose another
-  const c1 = count;
-  walk(ast);
-  const c2 = count;
-  if (c2 > c1) walk(ast);
+  // Loop until stable — each pass can expose more simplifications
+  for (let pass = 0; pass < 10; pass++) {
+    const before = count;
+    walk(ast);
+    if (count === before) break;
+  }
 
   console.log(`  Simplified ${count} redundant conditions`);
 }
