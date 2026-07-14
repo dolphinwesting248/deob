@@ -1,6 +1,20 @@
 // Structure report: Markdown or JSON output of function inventory + call graph
 const { parser, t, fs, path } = require("./config");
 
+// ── String alert patterns for reverse-engineering ──────────────────
+const ALERT_PATTERNS = [
+  { label: "API Endpoint", regex: /https?:\/\/[^\s"'`,;{}[\]]+/gi, severity: "high" },
+  { label: "API Path", regex: /\/(?:api|v\d+|rest|graphql|rpc)\/[^\s"'`,;{}[\]]*/gi, severity: "medium" },
+  { label: "Token/Key", regex: /\b(?:token|secret|apikey|api_key|accessKey|privateKey|passwd|password|authorization)\b/gi, severity: "high" },
+  { label: "Signature", regex: /\b(?:sign|signature|hmac|md5|sha(?:1|256|384|512)|encrypt|decrypt|encodeURIComponent)\b/gi, severity: "high" },
+  { label: "Crypto", regex: /\b(?:aes|des|rsa|xor|cipher|createHash|createCipher|createHmac|pbkdf2|randomBytes|createDecipher|subtle)\b/gi, severity: "high" },
+  { label: "Eval/Dynamic", regex: /\b(?:eval|Function\s*\(|new\s+Function)\b/gi, severity: "critical" },
+  { label: "Storage", regex: /\b(?:localStorage|sessionStorage|indexedDB|setItem|getItem|removeItem|clear\s*\(\))\b/gi, severity: "medium" },
+  { label: "DOM Sink", regex: /\b(?:innerHTML|outerHTML|insertAdjacentHTML|document\.write|document\.domain|location\s*=)\b/gi, severity: "medium" },
+  { label: "Network", regex: /\b(?:XMLHttpRequest|fetch|axios|WebSocket|EventSource|navigator\.sendBeacon|open\s*\(\s*["'][A-Z]+)\b/gi, severity: "medium" },
+  { label: "Config Field", regex: /\b(?:baseURL|baseUrl|timeout|maxRetries|maxSize|maxLength|maxConcurrency|maxConnections)\b/gi, severity: "low" },
+];
+
 function analyzeStructureFallback(filepath, code) {
   const file = path.basename(filepath);
   const fnPattern = /\bfunction\s+(\w+)\s*\(([^)]*)\)/g;
@@ -77,6 +91,43 @@ function analyzeStructureFallback(filepath, code) {
     else types.other = (types.other || 0) + 1;
   }
 
+  // Phase 5: regex-based string alerts for fallback
+  const alerts = [];
+  for (const f of fns) {
+    const fnStart = code.indexOf("function " + f.name + "(");
+    if (fnStart < 0) continue;
+    let depth = 0, bs = -1, be = -1;
+    for (let i = fnStart; i < code.length; i++) {
+      if (code[i] === "{") { depth++; if (bs < 0) bs = i; }
+      else if (code[i] === "}") { depth--; if (depth === 0) { be = i; break; } }
+    }
+    if (bs < 0 || be < 0) continue;
+    const body = code.substring(bs + 1, be);
+    for (const p of ALERT_PATTERNS) {
+      const matches = [];
+      let m;
+      p.regex.lastIndex = 0;
+      while ((m = p.regex.exec(body)) !== null) matches.push(m[0]);
+      p.regex.lastIndex = 0;
+      if (matches.length > 0) {
+        alerts.push({ fn: f.name, line: f.lines[0], label: p.label, severity: p.severity, matches: [...new Set(matches)] });
+      }
+    }
+  }
+
+  // Phase 6: hotspots (same as AST path)
+  const byIncoming = [...fns].sort((a, b) => b.calledBy.length - a.calledBy.length);
+  const mostCalled = byIncoming.slice(0, 10).filter((f) => f.calledBy.length > 0);
+  const roots = fns.filter((f) => f.calledBy.length === 0 && f.calls.length > 0);
+  const leaves = fns.filter((f) => f.calls.length === 0 && f.calledBy.length > 0);
+  const groupEdges = {};
+  for (const f of fns) {
+    const m = f.name.match(/^_sub_(.+?)_\d{2}_/);
+    const grp = m ? m[1] : "top-level";
+    groupEdges[grp] = (groupEdges[grp] || 0) + f.calls.length + f.calledBy.length;
+  }
+  const hotGroups = Object.entries(groupEdges).sort((a, b) => b[1] - a[1]).slice(0, 10);
+
   return {
     file,
     error: null,
@@ -88,6 +139,8 @@ function analyzeStructureFallback(filepath, code) {
       byType: types,
       maxDepth: Math.max(...subFns.map((f) => (f.name.match(/_/g) || []).length), 0),
     },
+    hotspots: { mostCalled, roots, leaves, hotGroups },
+    alerts,
     naming: {
       format: "_sub_<parent>_<seq>_<description>",
       examples: [
@@ -169,6 +222,62 @@ function analyzeStructure(filepath) {
     else types.other = (types.other || 0) + 1;
   }
 
+  // Phase 4: string alerts — scan function bodies for key patterns
+  const alerts = [];
+  for (const stmt of ast.program.body) {
+    if (!t.isFunctionDeclaration(stmt) || !stmt.id) continue;
+    const fnName = stmt.id.name;
+    function collectStrings(node) {
+      if (!node || typeof node !== "object") return;
+      if (t.isStringLiteral(node) && node.value) {
+        for (const p of ALERT_PATTERNS) {
+          const matches = [];
+          let m;
+          p.regex.lastIndex = 0;
+          while ((m = p.regex.exec(node.value)) !== null) {
+            matches.push(m[0]);
+          }
+          p.regex.lastIndex = 0;
+          if (matches.length > 0) {
+            alerts.push({
+              fn: fnName,
+              line: node.loc ? node.loc.start.line : 0,
+              label: p.label,
+              severity: p.severity,
+              matches: [...new Set(matches)],
+            });
+          }
+        }
+      }
+      // Don't recurse into nested functions (each is its own analysis unit)
+      if (t.isFunction(node)) return;
+      for (const k of Object.keys(node)) {
+        if (k === "start" || k === "end" || k === "loc" ||
+            k.startsWith("lead") || k.startsWith("trail") || k.startsWith("inner")) continue;
+        const v = node[k];
+        if (Array.isArray(v)) { for (const x of v) collectStrings(x); }
+        else if (v && typeof v.type === "string") collectStrings(v);
+      }
+    }
+    collectStrings(stmt);
+  }
+
+  // Phase 5: hotspots — function heat rankings
+  const byIncoming = [...fns].sort((a, b) => b.calledBy.length - a.calledBy.length);
+  const mostCalled = byIncoming.slice(0, 10).filter((f) => f.calledBy.length > 0);
+  const roots = fns.filter((f) => f.calledBy.length === 0 && f.calls.length > 0);
+  const leaves = fns.filter((f) => f.calls.length === 0 && f.calledBy.length > 0);
+  // Hot groups: count edges per parent group
+  const groupEdges = {};
+  for (const f of fns) {
+    const m = f.name.match(/^_sub_(.+?)_\d{2}_/);
+    const grp = m ? m[1] : "top-level";
+    groupEdges[grp] = (groupEdges[grp] || 0) + f.calls.length + f.calledBy.length;
+  }
+  const hotGroups = Object.entries(groupEdges)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10);
+
   return {
     file: path.basename(filepath),
     summary: {
@@ -178,6 +287,8 @@ function analyzeStructure(filepath) {
       byType: types,
       maxDepth: Math.max(...subFns.map((f) => (f.name.match(/_/g) || []).length), 0),
     },
+    hotspots: { mostCalled, roots, leaves, hotGroups },
+    alerts,
     naming: {
       format: "_sub_<parent>_<seq>_<description>",
       examples: [
@@ -208,7 +319,7 @@ function analyzeStructure(filepath) {
 function generateMarkdown(report) {
   if (report.error) return `# Structure Report · ${report.file}\n\n> **${report.error}**\n`;
   const fallbackNote = report.fallback ? " *(regex-based fallback)*" : "";
-  const { file, summary, naming, functions } = report;
+  const { file, summary, hotspots, alerts, naming, functions } = report;
   const typeTable = Object.entries(summary.byType).map(([k, v]) => `| ${k} | ${v} |`).join("\n");
 
   return `# Structure Report · ${file}${fallbackNote}
@@ -228,6 +339,25 @@ function generateMarkdown(report) {
 |------|-------|
 ${typeTable}
 
+### Hotspots
+
+${hotspots.mostCalled.length > 0 ? `| Rank | Type | Details |
+|------|------|---------|
+${hotspots.mostCalled.map((f, i) => `| ${i + 1} | Most-called | \`${f.name}\` — called by ${f.calledBy.length} functions, calls ${f.calls.length} others |`).join("\n")}
+` : ""}${hotspots.roots.length > 0 ? `| — | Roots (${hotspots.roots.length}) | Entry points: ${hotspots.roots.slice(0, 8).map((f) => `\`${f.name}\``).join(", ")}${hotspots.roots.length > 8 ? " …" : ""} |\n` : ""}${hotspots.leaves.length > 0 ? `| — | Leaves (${hotspots.leaves.length}) | Terminal functions: ${hotspots.leaves.slice(0, 8).map((f) => `\`${f.name}\``).join(", ")}${hotspots.leaves.length > 8 ? " …" : ""} |\n` : ""}${hotspots.mostCalled.length === 0 && hotspots.roots.length === 0 && hotspots.leaves.length === 0 ? "_No cross-function calls detected._\n" : ""}
+### Hot Groups
+
+${hotspots.hotGroups.filter(([, c]) => c > 0).length === 0 ? "_No significant group activity._\n" : `| Rank | Group | Edges |
+|------|-------|-------|
+${hotspots.hotGroups.filter(([, c]) => c > 0).map(([g, c], i) => `| ${i + 1} | \`${g}\` | ${c} |`).join("\n")}
+`}
+
+### String Alerts
+
+${alerts.length === 0 ? "_No significant patterns detected._\n" : `| Severity | Pattern | Function | Line | Matches |
+|----------|---------|----------|------|---------|
+${alerts.map((a) => `| ${a.severity} | ${a.label} | \`${a.fn}\` | ${a.line} | ${a.matches.join(" · ")} |`).join("\n")}
+`}
 ## Naming Convention
 
 All sub-functions follow the format: \`_sub_<parent>_<seq>_<description>\`
