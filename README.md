@@ -45,14 +45,10 @@ main.deob/
 Builds a SQLite knowledge graph of the deobfuscated output using `node:sqlite` and `@babel/traverse` (zero extra dependencies). No external CLI required.
 
 **What's indexed:**
+
 - Every function, class, variable, and constant → `nodes` table
 - Call graph (who calls whom), containment, instantiation → `edges` table
 - Full-text search via FTS5 over symbol names and signatures
-
-**Optimizations for deob output:**
-- Skips `index.js` glue files (34% fewer indexed files)
-- Tags every node with `metadata.group` (parent directory) for structured queries
-- Filters noise `MemberExpression` references from obfuscated identifiers
 
 **Example query:**
 ```sql
@@ -65,7 +61,7 @@ SELECT target, COUNT(*) as calls FROM edges
 WHERE kind = 'calls' GROUP BY target ORDER BY calls DESC LIMIT 10;
 ```
 
-## Pipeline (14 passes)
+## Pipeline 
 
 | Step | Pass | Description |
 |------|------|-------------|

@@ -423,6 +423,77 @@ function simplify(ast) {
   console.log(`  Fold:${foldCount} Bool:${boolCount} Str:${strCount} Norm:${normCount}`);
 }
 
+// ---- normalizeShortCircuit: convert logical | / && at statement level into if blocks ----
+// Handles polyfill patterns:  A || B || (u=[], fn1=..., fn2=...)  →  if (!A && !B) { u=[]; fn1=...; fn2=...; }
+// And conditional chains:    A && (x(), y())                        →  if (A) { x(); y(); }
+function normalizeShortCircuit(ast) {
+  let count = 0;
+
+  function collectChain(node, op) {
+    const operands = [];
+    let cur = node;
+    while (t.isLogicalExpression(cur) && cur.operator === op) {
+      operands.unshift(cur.right);
+      cur = cur.left;
+    }
+    operands.unshift(cur);
+    return operands;
+  }
+
+  function expand(node) {
+    if (!t.isLogicalExpression(node)) return [t.expressionStatement(node)];
+
+    const op = node.operator;
+    const operands = collectChain(node, op);
+    const bodyExpr = operands.pop();
+    const conditions = operands;
+
+    let test;
+    if (op === "||") {
+      // A || B || C  →  if (!A && !B) { C }
+      const negated = conditions.map((c) => t.unaryExpression("!", c));
+      test = negated.length === 1 ? negated[0] : negated.reduce((a, b) => t.logicalExpression("&&", a, b));
+    } else {
+      // A && B && C  →  if (A && B) { C }
+      test = conditions.length === 1 ? conditions[0] : conditions.reduce((a, b) => t.logicalExpression("&&", a, b));
+    }
+
+    const bodyStmts = expand(bodyExpr);
+    count++;
+    return [t.ifStatement(test, t.blockStatement(bodyStmts))];
+  }
+
+  function walkStmts(stmtArray) {
+    for (let i = 0; i < stmtArray.length; i++) {
+      const stmt = stmtArray[i];
+      if (t.isExpressionStatement(stmt) && t.isLogicalExpression(stmt.expression)) {
+        const expanded = expand(stmt.expression);
+        stmtArray.splice(i, 1, ...expanded);
+        i += expanded.length - 1;
+      }
+    }
+  }
+
+  function walk(node) {
+    if (!node || typeof node !== "object") return;
+    if (t.isFunction(node)) return;
+    if ((t.isBlockStatement(node) || node.type === "Program") && Array.isArray(node.body)) {
+      walkStmts(node.body);
+    }
+    for (const k of Object.keys(node)) {
+      if (k === "start" || k === "end" || k === "loc" ||
+          k.startsWith("lead") || k.startsWith("trail") || k.startsWith("inner")) continue;
+      const v = node[k];
+      if (Array.isArray(v)) { for (const x of v) walk(x); }
+      else if (v && typeof v.type === "string") walk(v);
+    }
+  }
+  walk(ast);
+
+  if (count > 0) console.log(`  Converted ${count} logical expressions to if blocks`);
+  return count;
+}
+
 // ---- expandSequences: break comma chains into independent statements ----
 function expandSequences(ast) {
   let count = 0;
@@ -479,8 +550,8 @@ function expandSequences(ast) {
       }
     }
 
-    // Don't recurse into functions (they have their own statement lists)
-    if (t.isFunction(node)) return;
+    // Don't recurse into functions or blocks (walkStmtLists handles them)
+    if (t.isFunction(node) || t.isBlockStatement(node)) return;
 
     // Recurse into children
     for (const key of Object.keys(node)) {
@@ -1227,6 +1298,7 @@ function extractInlineFunctions(ast) {
 module.exports = {
   hoistDeclarations,
   simplify,
+  normalizeShortCircuit,
   expandSequences,
   eliminateDeadCode,
   inlineReadOnlyProperties,

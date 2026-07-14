@@ -1,6 +1,105 @@
 // Structure report: Markdown or JSON output of function inventory + call graph
 const { parser, t, fs, path } = require("./config");
 
+function analyzeStructureFallback(filepath, code) {
+  const file = path.basename(filepath);
+  const fnPattern = /\bfunction\s+(\w+)\s*\(([^)]*)\)/g;
+  const commentPattern = /\/\/\s*Original lines\s+(\d+)-(\d+)/g;
+  const callPattern = /(\w+)\s*\(/g;
+
+  const fns = [];
+  const nameMap = new Map();
+  let match;
+
+  // Phase 1: collect all functions via regex
+  while ((match = fnPattern.exec(code)) !== null) {
+    const name = match[1];
+    const params = match[2] ? match[2].split(",").filter((s) => s.trim()).length : 0;
+    const pos = code.lastIndexOf("\n", match.index) + 1;
+    const startLine = code.substring(0, pos).split("\n").length;
+    fns.push({ name, lines: [startLine, startLine], params, bodyLen: 0, calls: [], calledBy: [], comment: "" });
+    nameMap.set(name, fns.length - 1);
+  }
+
+  // Phase 2: extract Original lines comments
+  let ci = 0;
+  while ((match = commentPattern.exec(code)) !== null) {
+    if (ci < fns.length) {
+      // Find the function after this comment
+      const afterComment = code.indexOf("function", match.index);
+      for (let i = ci; i < fns.length; i++) {
+        const fnIdx = code.lastIndexOf("function " + fns[i].name, afterComment);
+        if (fnIdx > match.index - 200 && fnIdx < afterComment + 200) {
+          fns[i].lines = [parseInt(match[1]), parseInt(match[2])];
+          fns[i].comment = "Original lines " + match[1] + "-" + match[2];
+          ci = i + 1;
+          break;
+        }
+      }
+    }
+  }
+
+  // Phase 3: collect call edges (simple: match known names as callees)
+  const knownNames = new Set(fns.map((f) => f.name));
+  for (const f of fns) {
+    const fnStart = code.indexOf("function " + f.name + "(");
+    if (fnStart < 0) continue;
+    // Find the function body
+    let depth = 0, bodyStart = -1, bodyEnd = -1;
+    for (let i = fnStart; i < code.length; i++) {
+      if (code[i] === "{") { depth++; if (bodyStart < 0) bodyStart = i; }
+      else if (code[i] === "}") { depth--; if (depth === 0) { bodyEnd = i; break; } }
+    }
+    if (bodyStart < 0 || bodyEnd < 0) continue;
+    const body = code.substring(bodyStart + 1, bodyEnd);
+    for (const target of knownNames) {
+      if (target === f.name) continue;
+      if (new RegExp("\\b" + target + "\\s*\\(").test(body)) {
+        f.calls.push(target);
+        const tgt = fns[nameMap.get(target)];
+        if (tgt) tgt.calledBy.push(f.name);
+      }
+    }
+  }
+
+  // Phase 4: summary
+  const subFns = fns.filter((f) => f.name.startsWith("_sub_"));
+  const origins = fns.filter((f) => !f.name.startsWith("_sub_"));
+  const types = {};
+  for (const f of subFns) {
+    const n = f.name;
+    if (n.match(/_try$/)) types.tryCatch = (types.tryCatch || 0) + 1;
+    else if (n.match(/_if$/) || n.match(/_else$/)) types.ifElse = (types.ifElse || 0) + 1;
+    else if (n.includes("_iife") || n.includes("_init_")) types.iife = (types.iife || 0) + 1;
+    else if (n.includes("_case")) types.switch = (types.switch || 0) + 1;
+    else if (n.startsWith("_sub_return_fn")) types.inlineFn = (types.inlineFn || 0) + 1;
+    else if (n.startsWith("_sub_program")) types.program = (types.program || 0) + 1;
+    else types.other = (types.other || 0) + 1;
+  }
+
+  return {
+    file,
+    error: null,
+    fallback: true,
+    summary: {
+      totalFunctions: fns.length,
+      subFunctions: subFns.length,
+      originalFunctions: origins.length,
+      byType: types,
+      maxDepth: Math.max(...subFns.map((f) => (f.name.match(/_/g) || []).length), 0),
+    },
+    naming: {
+      format: "_sub_<parent>_<seq>_<description>",
+      examples: [
+        { name: "_sub_0x28bed7_01_try", meaning: "Extracted from function 0x28bed7, sequence 01, try body" },
+        { name: "_sub_constructor_07_if", meaning: "Extracted from method 'constructor', sequence 07, if branch" },
+      ],
+      hints: { try: "try block body", catch: "catch handler", if: "if branch", else: "else branch" },
+    },
+    functions: fns,
+  };
+}
+
 function analyzeStructure(filepath) {
   const code = fs.readFileSync(filepath, "utf-8");
   let ast;
@@ -10,14 +109,9 @@ function analyzeStructure(filepath) {
       allowUndeclaredExports: true, errorRecovery: true,
     });
   } catch (e) {
-    // Fallback for files with sloppy-mode reserved words
-    return {
-      file: path.basename(filepath),
-      error: "Parse failed (sloppy-mode reserved words like let/if as variable names)",
-      summary: { totalFunctions: 0, subFunctions: 0, originalFunctions: 0, byType: {}, maxDepth: 0 },
-      naming: {},
-      functions: [],
-    };
+    // Fallback: regex-based analysis for files that Babel can't re-parse
+    // (sloppy-mode reserved words as identifiers, for-await outside async, etc.)
+    return analyzeStructureFallback(filepath, code);
   }
 
   const fns = []; // {name, lines, params, calls:[], calledBy:[], comment}
@@ -113,10 +207,11 @@ function analyzeStructure(filepath) {
 
 function generateMarkdown(report) {
   if (report.error) return `# Structure Report · ${report.file}\n\n> **${report.error}**\n`;
+  const fallbackNote = report.fallback ? " *(regex-based fallback)*" : "";
   const { file, summary, naming, functions } = report;
   const typeTable = Object.entries(summary.byType).map(([k, v]) => `| ${k} | ${v} |`).join("\n");
 
-  return `# Structure Report · ${file}
+  return `# Structure Report · ${file}${fallbackNote}
 
 ## Summary
 

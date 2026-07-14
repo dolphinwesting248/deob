@@ -127,6 +127,11 @@ function extractSymbols(filePath, source) {
     return { nodes, edges, unresolvedRefs, nameSegments, error: e.message };
   }
 
+  // Wrapped in try/catch: sloppy-mode code (e.g. vendor.js with `let`/`if`
+  // as variable names) can produce broken ASTs that traverse rejects with
+  // "Duplicate declaration" errors even though the parser accepted them.
+  try {
+
   const fileName = path.basename(filePath);
   const group = path.dirname(filePath).replace(/^\.$/, '') || '.';
   const lineCount = source.split("\n").length;
@@ -467,6 +472,10 @@ function extractSymbols(filePath, source) {
 
   // For now, the scope stack might have extra entries. That's fine because
   // our nodes are all collected and scopes are just for call attribution.
+
+  } catch (e) {
+    return { nodes, edges, unresolvedRefs, nameSegments, error: "Traverse error: " + e.message };
+  }
 
   return { nodes, edges, unresolvedRefs, nameSegments, error: null };
 }

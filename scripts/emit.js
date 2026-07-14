@@ -63,5 +63,3 @@ function safeParamList(params) {
 }
 
 module.exports = { addLineComment, createSubFn, safeArgList, safeParamList, RESERVED, safeParam };
-
-module.exports = { addLineComment, createSubFn };

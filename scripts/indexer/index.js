@@ -56,7 +56,7 @@ function indexDirectory(outputDir) {
 
     const result = extractSymbols(relPath, source);
     if (result.error) {
-      storeFile(db, relPath, source, 0);
+      storeFile(db, relPath, filePath, source, 0);
       continue;
     }
 

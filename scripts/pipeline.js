@@ -12,7 +12,7 @@ const { parser, generate, t, fs } = require("./config");
 const path = require("path");
 const { processAllFunctions } = require("./traverse");
 const { extractTopLevelIIFEs } = require("./wrapper");
-const { hoistDeclarations, simplify, expandSequences, eliminateDeadCode, inlineReadOnlyProperties, removeUnusedHelpers, simplifyRedundantConditions, inlinePureWrappers, sortByCallTree, inlineSingleCallerFns, normalizeSyntax, extractInlineFunctions } = require("./passes");
+const { hoistDeclarations, simplify, normalizeShortCircuit, expandSequences, eliminateDeadCode, inlineReadOnlyProperties, removeUnusedHelpers, simplifyRedundantConditions, inlinePureWrappers, sortByCallTree, inlineSingleCallerFns, normalizeSyntax, extractInlineFunctions } = require("./passes");
 
 function main({ input, output, split } = {}) {
   if (!input) throw new Error("main() requires { input: '<path>' }");
@@ -73,10 +73,15 @@ function main({ input, output, split } = {}) {
   simplify(ast);
   console.log(`  Done in ${Date.now() - t3}ms`);
 
-  console.log("Step 6: Expanding sequence expressions...");
+  console.log("Step 6: Normalizing short-circuit to if blocks...");
   const t4 = Date.now();
-  expandSequences(ast);
+  normalizeShortCircuit(ast);
   console.log(`  Done in ${Date.now() - t4}ms`);
+
+  console.log("Step 7: Expanding sequence expressions...");
+  const t5 = Date.now();
+  expandSequences(ast);
+  console.log(`  Done in ${Date.now() - t5}ms`);
 
   console.log("Step 8: Eliminating dead code...");
   const t7 = Date.now();

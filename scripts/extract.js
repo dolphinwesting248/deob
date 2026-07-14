@@ -63,8 +63,8 @@ function extractIIFE(stmt, parentName, seq) {
   const refs = getExternalRefs({ type: "BlockStatement", body }, defined);
 
   const proc = processBody(body, name);
-  const allParams = [...fn.params.map((p) => clone(p)), ...refs.filter((r) => !iifeParamNames.has(r)).map((r) => t.identifier(r))];
-  const allArgs = [...call.arguments.map((a) => clone(a)), ...refs.filter((r) => !iifeParamNames.has(r)).map((r) => t.identifier(r))];
+  const allParams = [...fn.params.map((p) => clone(p)), ...refs.filter((r) => !iifeParamNames.has(r)).map((r) => t.identifier(safeParam(r)))];
+  const allArgs = [...call.arguments.map((a) => clone(a)), ...refs.filter((r) => !iifeParamNames.has(r)).map((r) => t.identifier(safeParam(r)))];
 
   const subFn = createSubFn(name, allParams, proc.newBody, stmt);
   const repl = t.expressionStatement(t.callExpression(t.identifier(name), allArgs));
@@ -81,7 +81,7 @@ function extractTryCatch(stmt, parentName, seq) {
   const tryRefs = getExternalRefs(stmt.block, tryDefined);
   const tryName = subName(parentName, seq, "try");
   const tryProc = processBody(stmt.block.body, tryName);
-  const trySub = createSubFn(tryName, tryRefs.map((r) => t.identifier(r)), tryProc.newBody, stmt.block);
+  const trySub = createSubFn(tryName, tryRefs.map((r) => t.identifier(safeParam(r))), tryProc.newBody, stmt.block);
   subFns.push(trySub, ...tryProc.subFns);
 
   let catchHandler = null;
@@ -92,15 +92,15 @@ function extractTryCatch(stmt, parentName, seq) {
     const catchRefs = getExternalRefs(stmt.handler.body, catchDefined);
     const catchName = subName(parentName, seq, "catch");
     const cProc = processBody(stmt.handler.body.body, catchName);
-    const cSub = createSubFn(catchName, [...(param ? [clone(param)] : []), ...catchRefs.map((r) => t.identifier(r))], cProc.newBody, stmt.handler.body);
+    const cSub = createSubFn(catchName, [...(param ? [clone(param)] : []), ...catchRefs.map((r) => t.identifier(safeParam(r)))], cProc.newBody, stmt.handler.body);
     subFns.push(cSub, ...cProc.subFns);
 
     catchHandler = t.catchClause(param ? clone(param) : null, t.blockStatement([t.expressionStatement(
-      t.callExpression(t.identifier(catchName), [...(param ? [clone(param)] : []), ...catchRefs.map((r) => t.identifier(r))]))]));
+      t.callExpression(t.identifier(catchName), [...(param ? [clone(param)] : []), ...catchRefs.map((r) => t.identifier(safeParam(r)))]))]));
   }
 
   const tryCall = t.blockStatement([t.expressionStatement(
-    t.callExpression(t.identifier(tryName), tryRefs.map((r) => t.identifier(r))))]);
+    t.callExpression(t.identifier(tryName), tryRefs.map((r) => t.identifier(safeParam(r)))))]);
   const repl = t.tryStatement(tryCall, catchHandler, stmt.finalizer ? t.blockStatement(stmt.finalizer.body) : null);
   if (stmt.loc) repl.loc = { ...stmt.loc };
   return { replacement: repl, subFns };
@@ -115,8 +115,8 @@ function extractLoop(stmt, parentName, seq) {
   const defined = collectDefined(body.body);
   const refs = getExternalRefs(body, defined);
   const proc = processBody(body.body, name);
-  const subFn = createSubFn(name, refs.map((r) => t.identifier(r)), proc.newBody, body);
-  const newBody = t.blockStatement([t.expressionStatement(t.callExpression(t.identifier(name), refs.map((r) => t.identifier(r))))]);
+  const subFn = createSubFn(name, refs.map((r) => t.identifier(safeParam(r))), proc.newBody, body);
+  const newBody = t.blockStatement([t.expressionStatement(t.callExpression(t.identifier(name), refs.map((r) => t.identifier(safeParam(r)))))]);
 
   let repl;
   if (t.isForStatement(stmt)) repl = t.forStatement(clone(stmt.init), clone(stmt.test), clone(stmt.update), newBody);
@@ -141,11 +141,11 @@ function extractIfElse(stmt, parentName, seq) {
   const cRefs = getExternalRefs(cBlock, cDefined);
   const ifName = subName(parentName, seq, "if");
   const cProc = processBody(cStmts, ifName);
-  const cFn = createSubFn(ifName, cRefs.map((r) => t.identifier(r)), cProc.newBody, cBlock);
+  const cFn = createSubFn(ifName, cRefs.map((r) => t.identifier(safeParam(r))), cProc.newBody, cBlock);
   subFns.push(cFn, ...cProc.subFns);
 
-  let cCall = t.expressionStatement(t.callExpression(t.identifier(ifName), cRefs.map((r) => t.identifier(r))));
-  if (cHasReturn) cCall = t.returnStatement(t.callExpression(t.identifier(ifName), cRefs.map((r) => t.identifier(r))));
+  let cCall = t.expressionStatement(t.callExpression(t.identifier(ifName), cRefs.map((r) => t.identifier(safeParam(r)))));
+  if (cHasReturn) cCall = t.returnStatement(t.callExpression(t.identifier(ifName), cRefs.map((r) => t.identifier(safeParam(r)))));
 
   let newAlt = null;
   if (stmt.alternate) {
@@ -161,11 +161,11 @@ function extractIfElse(stmt, parentName, seq) {
       const aRefs = getExternalRefs(altBlock, aDefined);
       const elseName = subName(parentName, seq, "else");
       const aProc = processBody(aStmts, elseName);
-      const aFn = createSubFn(elseName, aRefs.map((r) => t.identifier(r)), aProc.newBody, altBlock);
+      const aFn = createSubFn(elseName, aRefs.map((r) => t.identifier(safeParam(r))), aProc.newBody, altBlock);
       subFns.push(aFn, ...aProc.subFns);
 
-      let aCall = t.expressionStatement(t.callExpression(t.identifier(elseName), aRefs.map((r) => t.identifier(r))));
-      if (aHasReturn) aCall = t.returnStatement(t.callExpression(t.identifier(elseName), aRefs.map((r) => t.identifier(r))));
+      let aCall = t.expressionStatement(t.callExpression(t.identifier(elseName), aRefs.map((r) => t.identifier(safeParam(r)))));
+      if (aHasReturn) aCall = t.returnStatement(t.callExpression(t.identifier(elseName), aRefs.map((r) => t.identifier(safeParam(r)))));
       newAlt = t.blockStatement([aCall]);
     } else if (altBlock) { newAlt = altBlock; }
   }
@@ -187,9 +187,9 @@ function extractSwitch(stmt, parentName, seq) {
     const defined = collectDefined(c.consequent);
     const refs = getExternalRefs(c, defined);
     const cProc = processBody(c.consequent, cName);
-    const cFn = createSubFn(cName, refs.map((r) => t.identifier(r)), cProc.newBody, c);
+    const cFn = createSubFn(cName, refs.map((r) => t.identifier(safeParam(r))), cProc.newBody, c);
     subFns.push(cFn, ...cProc.subFns);
-    newCases.push(t.switchCase(clone(c.test), [t.expressionStatement(t.callExpression(t.identifier(cName), refs.map((r) => t.identifier(r))))]));
+    newCases.push(t.switchCase(clone(c.test), [t.expressionStatement(t.callExpression(t.identifier(cName), refs.map((r) => t.identifier(safeParam(r)))))]));
   }
   const repl = t.switchStatement(clone(stmt.discriminant), newCases);
   if (stmt.loc) repl.loc = { ...stmt.loc };
