@@ -86,17 +86,15 @@ function generateReport(before, after) {
 
   const labels = metrics.map((m) => m.label);
 
-  // Normalize: before = 100, after = (after/before)*100
-  // Invert lower-is-better metrics so 100=ideal in both cases
-  const beforeNorm = metrics.map(() => 100);
-  const afterNorm = metrics.map((m) => {
-    const raw = m.before > 0 ? (m.after / m.before) * 100 : 100;
-    // For "lower is better" metrics, invert: going from 42→38 means improvement = 100+(42-38)/42*100
-    if (m.better === "lower" && m.before > 0) {
-      return 100 + ((m.before - m.after) / m.before) * 100;
-    }
-    return raw;
+  // Normalize: before = 100, chart shows deviation from 100%
+  // Increase = green bar above baseline, decrease = red bar below baseline
+  const chartData = metrics.map((m) => {
+    if (m.before === 0) return 0;
+    const raw = (m.after / m.before) * 100;
+    // Convert to deviation from 100%: +20 = 20% increase, -15 = 15% decrease
+    return raw - 100;
   });
+  const chartColors = chartData.map((v) => v > 0 ? "#22c55e" : v < 0 ? "#ef4444" : "#64748b");
 
   const rows = metrics.map((m) => {
     const delta = m.after - m.before;
@@ -165,7 +163,7 @@ function generateReport(before, after) {
     <div class="kpi-card"><div class="val w">${after.fnCount}</div><div class="lbl">Functions</div></div>
   </div>
   <div class="chart-box">
-    <div class="sec">Normalized (Before = 100%)</div>
+    <div class="sec">Change from Baseline (Before = 100%)</div>
     <canvas id="chart"></canvas>
   </div>
   <div class="sec">Details</div>
@@ -184,20 +182,22 @@ new Chart(document.getElementById('chart'), {
   type: 'bar',
   data: {
     labels: ${JSON.stringify(labels)},
-    datasets: [
-      { label: 'Before', data: ${JSON.stringify(beforeNorm)}, backgroundColor: '#475569', borderRadius: 4, borderSkipped: false },
-      { label: 'After',  data: ${JSON.stringify(afterNorm)},  backgroundColor: '#6366f1', borderRadius: 4, borderSkipped: false },
-    ]
+    datasets: [{
+      data: ${JSON.stringify(chartData)},
+      backgroundColor: ${JSON.stringify(chartColors)},
+      borderRadius: 4,
+      borderSkipped: false,
+    }]
   },
   options: {
     responsive: true,
     plugins: {
-      legend: { labels: { color: '#94a3b8', font:{size:13}, usePointStyle:true, pointStyleWidth:10 } },
-      tooltip: { callbacks: { label: (ctx) => ctx.dataset.label + ': ' + ctx.raw.toFixed(1) + '%' } }
+      legend: { display: false },
+      tooltip: { callbacks: { label: (ctx) => (ctx.raw > 0 ? '+' : '') + ctx.raw.toFixed(1) + '%' } }
     },
     scales: {
       x: { ticks: { color:'#64748b', font:{size:11}, maxRotation:45, minRotation:0 }, grid:{color:'#1e293b'} },
-      y: { ticks: { color:'#64748b', callback: (v) => v + '%' }, grid:{color:'#1e293b'}, beginAtZero:false }
+      y: { ticks: { color:'#64748b', callback: (v) => (v > 0 ? '+' : '') + v + '%' }, grid:{color:'#1e293b'} }
     }
   }
 });
