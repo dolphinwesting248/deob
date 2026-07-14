@@ -440,7 +440,16 @@ function normalizeShortCircuit(ast) {
     return operands;
   }
 
+  function toStmts(expr) {
+    if (t.isSequenceExpression(expr)) {
+      return expr.expressions.map((e) => t.expressionStatement(e));
+    }
+    return [t.expressionStatement(expr)];
+  }
+
   function expand(node) {
+    // Unwrap parentheses wrapping the logical expression
+    if (t.isParenthesizedExpression(node)) node = node.expression;
     if (!t.isLogicalExpression(node)) return [t.expressionStatement(node)];
 
     const op = node.operator;
@@ -466,26 +475,62 @@ function normalizeShortCircuit(ast) {
   function walkStmts(stmtArray) {
     for (let i = 0; i < stmtArray.length; i++) {
       const stmt = stmtArray[i];
-      if (t.isExpressionStatement(stmt) && t.isLogicalExpression(stmt.expression)) {
-        const expanded = expand(stmt.expression);
+      let expr = stmt.expression;
+      if (t.isParenthesizedExpression(expr)) expr = expr.expression;
+      if (t.isLogicalExpression(expr)) {
+        const expanded = expand(expr);
         stmtArray.splice(i, 1, ...expanded);
         i += expanded.length - 1;
+      } else if (t.isConditionalExpression(expr)) {
+        stmtArray.splice(i, 1, t.ifStatement(
+          expr.test,
+          t.blockStatement(toStmts(expr.consequent)),
+          t.blockStatement(toStmts(expr.alternate))
+        ));
+        count++;
       }
     }
   }
 
   function walk(node) {
     if (!node || typeof node !== "object") return;
-    if (t.isFunction(node)) return;
     if ((t.isBlockStatement(node) || node.type === "Program") && Array.isArray(node.body)) {
       walkStmts(node.body);
+    }
+    // Walk into children — including function bodies and class methods
+    if (t.isFunction(node)) {
+      if (node.body) walk(node.body);
+      return;
     }
     for (const k of Object.keys(node)) {
       if (k === "start" || k === "end" || k === "loc" ||
           k.startsWith("lead") || k.startsWith("trail") || k.startsWith("inner")) continue;
       const v = node[k];
-      if (Array.isArray(v)) { for (const x of v) walk(x); }
-      else if (v && typeof v.type === "string") walk(v);
+      if (Array.isArray(v)) {
+        for (let i = 0; i < v.length; i++) walk(v[i]);
+      } else if (v && typeof v.type === "string") {
+        // Check for single-statement bodies (for/while/if w/o braces)
+        if (t.isExpressionStatement(v)) {
+          let expr = v.expression;
+          if (t.isParenthesizedExpression(expr)) expr = expr.expression;
+          if (t.isLogicalExpression(expr)) {
+            const expanded = expand(expr);
+            node[k] = expanded.length === 1 ? expanded[0] : t.blockStatement(expanded);
+            count++;
+            walk(node[k]);
+            continue;
+          }
+          if (t.isConditionalExpression(expr)) {
+            node[k] = t.ifStatement(expr.test,
+              t.blockStatement(toStmts(expr.consequent)),
+              t.blockStatement(toStmts(expr.alternate)));
+            count++;
+            walk(node[k]);
+            continue;
+          }
+        }
+        walk(v);
+      }
     }
   }
   walk(ast);

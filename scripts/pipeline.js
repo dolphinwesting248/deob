@@ -83,45 +83,50 @@ function main({ input, output, split } = {}) {
   expandSequences(ast);
   console.log(`  Done in ${Date.now() - t5}ms`);
 
-  console.log("Step 8: Eliminating dead code...");
-  const t7 = Date.now();
-  eliminateDeadCode(ast);
-  console.log(`  Done in ${Date.now() - t7}ms`);
+  console.log("Step 8: Re-normalizing short-circuit after expansion...");
+  const t6 = Date.now();
+  normalizeShortCircuit(ast);
+  console.log(`  Done in ${Date.now() - t6}ms`);
 
-  console.log("Step 9: Inlining read-only property access...");
-  const t8 = Date.now();
-  inlineReadOnlyProperties(ast);
-  console.log(`  Done in ${Date.now() - t8}ms`);
-
-  console.log("Step 10: Removing unused helper functions...");
+  console.log("Step 9: Eliminating dead code...");
   const t9 = Date.now();
-  removeUnusedHelpers(ast);
+  eliminateDeadCode(ast);
   console.log(`  Done in ${Date.now() - t9}ms`);
 
-  console.log("Step 11: Simplifying redundant conditions...");
+  console.log("Step 10: Inlining read-only property access...");
   const t10 = Date.now();
-  simplifyRedundantConditions(ast);
+  inlineReadOnlyProperties(ast);
   console.log(`  Done in ${Date.now() - t10}ms`);
 
-  console.log("Step 12: Inlining pure wrapper functions...");
+  console.log("Step 11: Removing unused helper functions...");
   const t11 = Date.now();
-  inlinePureWrappers(ast);
+  removeUnusedHelpers(ast);
   console.log(`  Done in ${Date.now() - t11}ms`);
 
-  console.log("Step 13: Sorting functions by call tree...");
+  console.log("Step 12: Simplifying redundant conditions...");
   const t12 = Date.now();
-  sortByCallTree(ast);
+  simplifyRedundantConditions(ast);
   console.log(`  Done in ${Date.now() - t12}ms`);
 
-  console.log("Step 14: Inlining single-caller functions...");
+  console.log("Step 13: Inlining pure wrapper functions...");
   const t13 = Date.now();
-  inlineSingleCallerFns(ast);
+  inlinePureWrappers(ast);
   console.log(`  Done in ${Date.now() - t13}ms`);
 
-  console.log("Step 15: Normalizing syntax patterns...");
+  console.log("Step 14: Sorting functions by call tree...");
   const t14 = Date.now();
-  normalizeSyntax(ast);
+  sortByCallTree(ast);
   console.log(`  Done in ${Date.now() - t14}ms`);
+
+  console.log("Step 15: Inlining single-caller functions...");
+  const t15 = Date.now();
+  inlineSingleCallerFns(ast);
+  console.log(`  Done in ${Date.now() - t15}ms`);
+
+  console.log("Step 16: Normalizing syntax patterns...");
+  const t16 = Date.now();
+  normalizeSyntax(ast);
+  console.log(`  Done in ${Date.now() - t16}ms`);
 
   // ==================== Output ====================
   const { t } = require("./config");
@@ -189,22 +194,14 @@ function writeSplitOutput(ast, output, code) {
   }
 
   // --- Phase 1: generate ALL function codes at once ---
-  // Build one big AST with all functions, generate once, then split by regex
-  // Write _all.js (full combined code for reports to analyze)
-  fs.writeFileSync(path.join(outDir, "_all.js"), generate(ast, {
+  // Write main.js with full combined output (used by reports)
+  fs.writeFileSync(path.join(outDir, "main.js"), generate(ast, {
     retainLines: false, retainFunctionParens: false,
     comments: true, compact: false,
   }).code, "utf-8");
 
   // Generate each function separately but without prettier — batch format at end
   const generatedFns = new Map();
-
-  // Write main.js (original functions)
-  const mainAst = { ...ast, program: { ...ast.program, body: otherStmts } };
-  fs.writeFileSync(path.join(outDir, "main.js"), generate(mainAst, {
-    retainLines: false, retainFunctionParens: false,
-    comments: true, compact: false,
-  }).code, "utf-8");
 
   // Generate each _sub_ function
   for (const stmt of ast.program.body) {

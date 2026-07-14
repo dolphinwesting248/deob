@@ -239,9 +239,7 @@ function runMetrics(input, outputDir) {
   console.log("Analyzing before/after metrics...");
   const before = analyze(input);
 
-  // _all.js (full combined) exists in split mode, prefer it; fall back to main.js
-  const allPath = path.join(outputDir, "_all.js");
-  const afterPath = fs.existsSync(allPath) ? allPath : path.join(outputDir, "main.js");
+  const afterPath = path.join(outputDir, "main.js");
   if (!fs.existsSync(afterPath)) {
     console.log("  Metrics skipped: no main.js in output directory");
     return null;
