@@ -475,19 +475,53 @@ function normalizeShortCircuit(ast) {
   function walkStmts(stmtArray) {
     for (let i = 0; i < stmtArray.length; i++) {
       const stmt = stmtArray[i];
-      let expr = stmt.expression;
-      if (t.isParenthesizedExpression(expr)) expr = expr.expression;
-      if (t.isLogicalExpression(expr)) {
-        const expanded = expand(expr);
-        stmtArray.splice(i, 1, ...expanded);
-        i += expanded.length - 1;
-      } else if (t.isConditionalExpression(expr)) {
-        stmtArray.splice(i, 1, t.ifStatement(
-          expr.test,
-          t.blockStatement(toStmts(expr.consequent)),
-          t.blockStatement(toStmts(expr.alternate))
-        ));
-        count++;
+
+      // ExpressionStatement: logical / ternary
+      if (t.isExpressionStatement(stmt)) {
+        let expr = stmt.expression;
+        if (t.isParenthesizedExpression(expr)) expr = expr.expression;
+        if (t.isLogicalExpression(expr)) {
+          const expanded = expand(expr);
+          stmtArray.splice(i, 1, ...expanded);
+          i += expanded.length - 1;
+        } else if (t.isConditionalExpression(expr)) {
+          stmtArray.splice(i, 1, t.ifStatement(
+            expr.test,
+            t.blockStatement(toStmts(expr.consequent)),
+            t.blockStatement(toStmts(expr.alternate))
+          ));
+          count++;
+        }
+      }
+
+      // VariableDeclaration with ternary init: var x = cond ? a : b
+      // → var x; if (cond) { x = a; } else { x = b; }
+      if (t.isVariableDeclaration(stmt) && stmt.kind !== "const") {
+        const splits = [];
+        for (let d = 0; d < stmt.declarations.length; d++) {
+          const decl = stmt.declarations[d];
+          if (decl.init && t.isConditionalExpression(decl.init) && t.isIdentifier(decl.id)) {
+            const ce = decl.init;
+            splits.push({
+              name: decl.id.name,
+              ifStmt: t.ifStatement(
+                ce.test,
+                t.blockStatement([t.expressionStatement(
+                  t.assignmentExpression("=", t.identifier(decl.id.name), ce.consequent)
+                )]),
+                t.blockStatement([t.expressionStatement(
+                  t.assignmentExpression("=", t.identifier(decl.id.name), ce.alternate)
+                )])
+              ),
+            });
+            decl.init = null; // remove init, keep declaration
+            count++;
+          }
+        }
+        if (splits.length > 0) {
+          stmtArray.splice(i + 1, 0, ...splits.map((s) => s.ifStmt));
+          i += splits.length;
+        }
       }
     }
   }
@@ -525,6 +559,31 @@ function normalizeShortCircuit(ast) {
               t.blockStatement(toStmts(expr.consequent)),
               t.blockStatement(toStmts(expr.alternate)));
             count++;
+            walk(node[k]);
+            continue;
+          }
+        }
+        // var x = cond ? a : b  inside single-statement body
+        if (t.isVariableDeclaration(v) && v.kind !== "const") {
+          const splits = [];
+          for (let d = 0; d < v.declarations.length; d++) {
+            const decl = v.declarations[d];
+            if (decl.init && t.isConditionalExpression(decl.init) && t.isIdentifier(decl.id)) {
+              const ce = decl.init;
+              splits.push(t.ifStatement(ce.test,
+                t.blockStatement([t.expressionStatement(
+                  t.assignmentExpression("=", t.identifier(decl.id.name), ce.consequent)
+                )]),
+                t.blockStatement([t.expressionStatement(
+                  t.assignmentExpression("=", t.identifier(decl.id.name), ce.alternate)
+                )])
+              ));
+              decl.init = null;
+              count++;
+            }
+          }
+          if (splits.length > 0) {
+            node[k] = t.blockStatement([v, ...splits]);
             walk(node[k]);
             continue;
           }
