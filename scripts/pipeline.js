@@ -12,7 +12,7 @@ const { parser, generate, t, fs } = require("./config");
 const path = require("path");
 const { processAllFunctions } = require("./traverse");
 const { extractTopLevelIIFEs } = require("./wrapper");
-const { hoistDeclarations, simplify, normalizeShortCircuit, expandSequences, eliminateDeadCode, inlineReadOnlyProperties, removeUnusedHelpers, simplifyRedundantConditions, inlinePureWrappers, sortByCallTree, inlineSingleCallerFns, normalizeSyntax, extractInlineFunctions } = require("./passes");
+const { hoistDeclarations, simplify, normalizeShortCircuit, expandSequences, eliminateDeadCode, inlineReadOnlyProperties, removeUnusedHelpers, simplifyRedundantConditions, inlinePureWrappers, sortByCallTree, inlineSingleCallerFns, normalizeSyntax, extractInlineFunctions, annotateAlerts } = require("./passes");
 
 function main({ input, output, split } = {}) {
   if (!input) throw new Error("main() requires { input: '<path>' }");
@@ -132,6 +132,11 @@ function main({ input, output, split } = {}) {
   const t17 = Date.now();
   extractInlineFunctions(ast);
   console.log(`  Done in ${Date.now() - t17}ms`);
+
+  console.log("Step 18: Annotating functions with security alerts...");
+  const t18 = Date.now();
+  annotateAlerts(ast);
+  console.log(`  Done in ${Date.now() - t18}ms`);
 
   // ==================== Output ====================
   if (split) {

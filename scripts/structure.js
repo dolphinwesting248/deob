@@ -1,19 +1,5 @@
 // Structure report: Markdown or JSON output of function inventory + call graph
-const { parser, t, fs, path } = require("./config");
-
-// ── String alert patterns for reverse-engineering ──────────────────
-const ALERT_PATTERNS = [
-  { label: "API Endpoint", regex: /https?:\/\/[^\s"'`,;{}[\]]+/gi, severity: "high" },
-  { label: "API Path", regex: /\/(?:api|v\d+|rest|graphql|rpc)\/[^\s"'`,;{}[\]]*/gi, severity: "medium" },
-  { label: "Token/Key", regex: /\b(?:token|secret|apikey|api_key|accessKey|privateKey|passwd|password|authorization)\b/gi, severity: "high" },
-  { label: "Signature", regex: /\b(?:sign|signature|hmac|md5|sha(?:1|256|384|512)|encrypt|decrypt|encodeURIComponent)\b/gi, severity: "high" },
-  { label: "Crypto", regex: /\b(?:aes|des|rsa|xor|cipher|createHash|createCipher|createHmac|pbkdf2|randomBytes|createDecipher|subtle)\b/gi, severity: "high" },
-  { label: "Eval/Dynamic", regex: /\b(?:eval|Function\s*\(|new\s+Function)\b/gi, severity: "critical" },
-  { label: "Storage", regex: /\b(?:localStorage|sessionStorage|indexedDB|setItem|getItem|removeItem|clear\s*\(\))\b/gi, severity: "medium" },
-  { label: "DOM Sink", regex: /\b(?:innerHTML|outerHTML|insertAdjacentHTML|document\.write|document\.domain|location\s*=)\b/gi, severity: "medium" },
-  { label: "Network", regex: /\b(?:XMLHttpRequest|fetch|axios|WebSocket|EventSource|navigator\.sendBeacon|open\s*\(\s*["'][A-Z]+)\b/gi, severity: "medium" },
-  { label: "Config Field", regex: /\b(?:baseURL|baseUrl|timeout|maxRetries|maxSize|maxLength|maxConcurrency|maxConnections)\b/gi, severity: "low" },
-];
+const { parser, t, fs, path, ALERT_PATTERNS } = require("./config");
 
 // ── Quick Lookup Index ──────────────────────────────────────────────
 
@@ -345,11 +331,36 @@ function analyzeStructure(filepath) {
     .sort((a, b) => b[1] - a[1])
     .slice(0, 10);
 
+  // Phase 6: suggested trace path — longest route from a root through call graph
+  let tracePath = [];
+  if (roots.length > 0) {
+    const nameIdx = new Map(fns.map((f, i) => [f.name, i]));
+    function longestFrom(fnName, visited) {
+      if (visited.has(fnName)) return [];
+      visited.add(fnName);
+      const fn = fns[nameIdx.get(fnName)];
+      if (!fn || fn.calls.length === 0) return [fnName];
+      let best = [];
+      for (const callee of fn.calls) {
+        const tail = longestFrom(callee, new Set(visited));
+        if (tail.length > best.length) best = tail;
+      }
+      return [fnName, ...best];
+    }
+    // Try from roots, prefer ones with most callers
+    const sortedRoots = roots.sort((a, b) => b.calledBy.length - a.calledBy.length);
+    for (const root of sortedRoots.slice(0, 5)) {
+      const path = longestFrom(root.name, new Set());
+      if (path.length > tracePath.length) tracePath = path;
+    }
+  }
+
   const lookup = buildLookupIndex(fns);
 
   return {
     file: path.basename(filepath),
     lookup,
+    tracePath,
     summary: {
       totalFunctions: fns.length,
       subFunctions: subFns.length,
@@ -389,7 +400,7 @@ function analyzeStructure(filepath) {
 function generateMarkdown(report) {
   if (report.error) return `# Structure Report · ${report.file}\n\n> **${report.error}**\n`;
   const fallbackNote = report.fallback ? " *(regex-based fallback)*" : "";
-  const { file, summary, lookup, hotspots, alerts, naming, functions } = report;
+  const { file, summary, lookup, hotspots, tracePath, alerts, naming, functions } = report;
   const typeTable = Object.entries(summary.byType).map(([k, v]) => `| ${k} | ${v} |`).join("\n");
 
   return `# Structure Report · ${file}${fallbackNote}
@@ -422,7 +433,11 @@ ${hotspots.hotGroups.filter(([, c]) => c > 0).length === 0 ? "_No significant gr
 ${hotspots.hotGroups.filter(([, c]) => c > 0).map(([g, c], i) => `| ${i + 1} | \`${g}\` | ${c} |`).join("\n")}
 `}
 
-### Quick Lookup
+${tracePath && tracePath.length > 1 ? `### Suggested Trace
+
+\`${tracePath.join("` → `")}\`
+
+` : ""}### Quick Lookup
 
 | Word | Functions |
 |------|-----------|

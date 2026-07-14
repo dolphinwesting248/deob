@@ -1,6 +1,6 @@
 // Post-traverse passes: hoisting, constant folding, boolean simplification
 
-const { t } = require("./config");
+const { t, ALERT_PATTERNS } = require("./config");
 const { clone, walkStmtLists, walkAST, walkASTDeep } = require("./ast-utils");
 const { collectDefined, getExternalRefs } = require("./scope");
 
@@ -1124,6 +1124,60 @@ function extractInlineFunctions(ast) {
   console.log(`  Extracted ${count} inline function expressions`);
 }
 
+// ---- annotateAlerts: inject [Label] comments before functions with security-relevant strings ----
+function annotateAlerts(ast) {
+  let count = 0;
+
+  function walkFn(node) {
+    if (!node || typeof node !== "object") return;
+    if (t.isFunctionDeclaration(node) && node.id) {
+      const matches = [];
+      function collectStrings(n) {
+        if (!n || typeof n !== "object") return;
+        if (t.isStringLiteral(n) && n.value) {
+          for (const p of ALERT_PATTERNS) {
+            const found = [];
+            let m;
+            p.regex.lastIndex = 0;
+            while ((m = p.regex.exec(n.value)) !== null) found.push(m[0]);
+            p.regex.lastIndex = 0;
+            if (found.length > 0) {
+              const existing = matches.find((a) => a.label === p.label);
+              if (existing) { for (const f of found) if (!existing.matches.includes(f)) existing.matches.push(f); }
+              else matches.push({ label: p.label, severity: p.severity, matches: [...new Set(found)] });
+            }
+          }
+        }
+        if (t.isFunction(n)) return;
+        for (const k of Object.keys(n)) {
+          if (k === "start" || k === "end" || k === "loc" ||
+              k === "leadingComments" || k === "trailingComments" || k === "innerComments") continue;
+          const v = n[k];
+          if (Array.isArray(v)) { for (const x of v) collectStrings(x); }
+          else if (v && typeof v.type === "string") collectStrings(v);
+        }
+      }
+      collectStrings(node.body);
+      if (matches.length > 0) {
+        if (!node.leadingComments) node.leadingComments = [];
+        const parts = matches.map((a) => `[${a.label}] ${a.matches.join(" · ")}`);
+        node.leadingComments.push({ type: "CommentLine", value: " " + parts.join("  ") });
+        count++;
+      }
+    }
+    for (const k of Object.keys(node)) {
+      if (k === "start" || k === "end" || k === "loc" ||
+          k === "leadingComments" || k === "trailingComments" || k === "innerComments") continue;
+      const v = node[k];
+      if (Array.isArray(v)) { for (const x of v) walkFn(x); }
+      else if (v && typeof v.type === "string") walkFn(v);
+    }
+  }
+  walkFn(ast);
+
+  console.log(`  Annotated ${count} functions with security alerts`);
+}
+
 module.exports = {
   hoistDeclarations,
   simplify,
@@ -1138,6 +1192,7 @@ module.exports = {
   inlineSingleCallerFns,
   normalizeSyntax,
   extractInlineFunctions,
+  annotateAlerts,
 };
 
 // ---- inlinePureWrappers: remove functions that are just return call(args) ----

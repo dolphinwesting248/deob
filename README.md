@@ -1,6 +1,8 @@
 # deob
 
-A general-purpose AST-level JavaScript deobfuscation preprocessing framework. All transformations are **semantics-preserving** — they restructure code without changing runtime behavior. Designed as a **data-preparation step for LLM-assisted reverse engineering**.
+A general-purpose AST-level JavaScript deobfuscation preprocessing framework. 
+
+All transformations are **semantics-preserving** — they restructure code without changing runtime behavior. Designed as a **data-preparation step for LLM-assisted reverse engineering**.
 
 - **Universal.** No obfuscator detection, no signature matching. obfuscator.io, JSVMP, webpack bundles, custom obfuscators — all treated the same.
 - **Semantics-preserving.** Splitting, expansion, simplification, inlining — every pass keeps the original logic intact. Only the structure changes.
