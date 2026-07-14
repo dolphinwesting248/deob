@@ -1,39 +1,26 @@
 #!/usr/bin/env node
-// CLI entry point for the deobfuscation pipeline.
-//
-// Usage:
-//   node transform.js <input> [output] [--split]
-//
-//   node transform.js obfuscated.js
-//     → writes obfuscated.deob.js
-//
-//   node transform.js obfuscated.js clean.js
-//     → writes clean.js
-//
-//   node transform.js obfuscated.js --split
-//     → writes obfuscated.deob/ directory (split by parent function)
-//
-//   node transform.js obfuscated.js clean/ --split
-//     → writes clean/ directory
-//
-// From code:
-//   const { main } = require('./scripts/pipeline');
-//   main({ input: 'obfuscated.js', output: 'clean.js', split: true });
-
 const path = require("path");
 const { main } = require("./scripts/pipeline");
+const { runMetrics } = require("./scripts/metrics");
 
 const args = process.argv.slice(2);
 const splitFlag = args.includes("--split");
-const filtered = args.filter((a) => a !== "--split");
+const metricsFlag = args.includes("--metrics");
+const filtered = args.filter((a) => a !== "--split" && a !== "--metrics");
 const inputPath = filtered[0];
 
-if (!inputPath) {
-  console.error("Usage: node transform.js <input> [output] [--split]");
-  console.error("  input   — path to the obfuscated JavaScript file");
-  console.error("  output  — path for output (default: <input>.deob.js");
-  console.error("  --split — split output into per-function files in a directory");
-  process.exit(1);
+if (!inputPath || inputPath === "--help" || inputPath === "-h") {
+  console.log("deob — universal JS deobfuscation pipeline\n");
+  console.log("Usage: deob <input> [output] [options]\n");
+  console.log("  input     — path to the obfuscated JavaScript file");
+  console.log("  output    — path for output (default: <input>.deob.js)");
+  console.log("  --split   — split output into per-function files");
+  console.log("  --metrics — generate HTML metrics report\n");
+  console.log("Examples:");
+  console.log("  deob main.js");
+  console.log("  deob main.js --split");
+  console.log("  deob main.js --split --metrics");
+  process.exit(0);
 }
 
 const defaultOut = splitFlag
@@ -43,6 +30,11 @@ const outputPath = filtered[1] || defaultOut;
 
 console.log(`Input:  ${inputPath}`);
 console.log(`Output: ${outputPath}${splitFlag ? " (split mode)" : ""}`);
+if (metricsFlag) console.log("        + metrics report");
 console.log("");
 
 main({ input: inputPath, output: outputPath, split: splitFlag });
+
+if (metricsFlag) {
+  runMetrics(inputPath, outputPath);
+}
