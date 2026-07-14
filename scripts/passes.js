@@ -1225,7 +1225,7 @@ function extractInlineFunctions(ast) {
     // --- Return statement with FunctionExpression/ArrowFunction ---
     if (t.isReturnStatement(node) && node.argument) {
       const fn = findEmbeddedFn(node.argument);
-      if (fn && t.isBlockStatement(fn.body) && fn.body.body.length > 0) {
+      if (fn && t.isBlockStatement(fn.body)) {
         const name = `_sub_return_fn${++count}`;
         // Collect external refs from the function body
         const fnParamNames = new Set(fn.params.map((p) => (t.isIdentifier(p) ? p.name : null)).filter(Boolean));
@@ -1276,6 +1276,21 @@ function extractInlineFunctions(ast) {
 
   function findEmbeddedFn(node) {
     if (t.isFunctionExpression(node) || t.isArrowFunctionExpression(node)) return t.isBlockStatement(node.body) ? node : null;
+    // return function(){...}()  — IIFE: function expression as callee
+    if (t.isCallExpression(node)) {
+      if (t.isFunctionExpression(node.callee) || t.isArrowFunctionExpression(node.callee)) {
+        return t.isBlockStatement(node.callee.body) ? node.callee : null;
+      }
+      // Drill through: fnExpr[key]() → function is the callee's object
+      return findEmbeddedFn(node.callee);
+    }
+    // return function(){}[key]  — function expression as MemberExpression object
+    if (t.isMemberExpression(node)) {
+      if (t.isFunctionExpression(node.object) || t.isArrowFunctionExpression(node.object)) {
+        return t.isBlockStatement(node.object.body) ? node.object : null;
+      }
+      return findEmbeddedFn(node.object);
+    }
     // a0_0x5465 = function(...){...}  — the assignment's RHS is the function
     if (t.isAssignmentExpression(node) && node.operator === "=") return findEmbeddedFn(node.right);
     // (function(){...})(), a0_0x5465(args)  — comma expressions
@@ -1292,6 +1307,12 @@ function extractInlineFunctions(ast) {
     const node = parent[key];
     if (t.isFunctionExpression(node) || t.isArrowFunctionExpression(node)) {
       parent[key] = newId;
+    } else if (t.isCallExpression(node)) {
+      if (node.callee === oldFn) { node.callee = newId; }
+      else replaceFnRef(node, "callee", oldFn, newId);
+    } else if (t.isMemberExpression(node)) {
+      if (node.object === oldFn) { node.object = newId; }
+      else replaceFnRef(node, "object", oldFn, newId);
     } else if (t.isAssignmentExpression(node) && node.operator === "=") {
       replaceFnRef(node, "right", oldFn, newId);
     } else if (t.isSequenceExpression(node)) {

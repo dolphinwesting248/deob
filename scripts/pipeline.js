@@ -128,6 +128,11 @@ function main({ input, output, split } = {}) {
   normalizeSyntax(ast);
   console.log(`  Done in ${Date.now() - t16}ms`);
 
+  console.log("Step 17: Re-extracting exposed inline functions...");
+  const t17 = Date.now();
+  extractInlineFunctions(ast);
+  console.log(`  Done in ${Date.now() - t17}ms`);
+
   // ==================== Output ====================
   const { t } = require("./config");
   const path = require("path");
