@@ -184,7 +184,6 @@ function analyzeStructureFallback(filepath, code) {
     file,
     error: null,
     fallback: true,
-    lookup,
     summary: {
       totalFunctions: fns.length,
       subFunctions: subFns.length,
@@ -194,6 +193,7 @@ function analyzeStructureFallback(filepath, code) {
     },
     hotspots: { mostCalled, roots, leaves, hotGroups },
     alerts,
+    lookup,
     naming: {
       format: "_sub_<parent>_<seq>_<description>",
       examples: [
@@ -455,8 +455,6 @@ function analyzeStructure(filepath) {
 
   return {
     file: path.basename(filepath),
-    lookup,
-    tracePath,
     summary: {
       totalFunctions: fns.length,
       subFunctions: subFns.length,
@@ -468,7 +466,9 @@ function analyzeStructure(filepath) {
       maxComplexity: Math.max(...fns.map((f) => f.complexity || 1), 1),
     },
     hotspots: { mostCalled, roots, leaves, hotGroups },
+    tracePath,
     alerts,
+    lookup,
     naming: {
       format: "_sub_<parent>_<seq>_<description>",
       examples: [
