@@ -15,6 +15,70 @@ const ALERT_PATTERNS = [
   { label: "Config Field", regex: /\b(?:baseURL|baseUrl|timeout|maxRetries|maxSize|maxLength|maxConcurrency|maxConnections)\b/gi, severity: "low" },
 ];
 
+// ── Quick Lookup Index ──────────────────────────────────────────────
+
+function splitWords(name) {
+  // Split on _ and camelCase boundaries, filter noise
+  const parts = name.split(/[^a-zA-Z0-9]+/).filter(Boolean);
+  const words = [];
+  for (const p of parts) {
+    // Skip obfuscated hex-like, single char, all digits
+    if (/^[0-9a-fA-F]{4,}$/.test(p)) continue;
+    if (/^0x/.test(p)) continue;
+    if (/^[a-z]_[a-z]/.test(p) && p.length <= 3) continue; // a_b, x_y patterns
+    // Split camelCase
+    const sub = p.split(/(?=[A-Z])/).filter(Boolean);
+    for (const s of sub) {
+      const lower = s.toLowerCase();
+      if (lower.length < 2) continue;
+      if (/^\d+$/.test(lower)) continue;
+      words.push(lower);
+    }
+  }
+  // Deduplicate within the same name
+  return [...new Set(words)];
+}
+
+function buildLookupIndex(fns) {
+  const STOP = new Set(["sub", "fn", "ln", "var", "val", "body", "block", "case", "iife", "if", "else"]);
+  const index = new Map(); // word → [fn names]
+
+  for (const f of fns) {
+    const words = splitWords(f.name);
+    // Add description hints from _sub_ patterns
+    const descMatch = f.name.match(/_([a-z]+(?:_[a-z]+)*)$/);
+    if (descMatch) {
+      const desc = descMatch[1].split("_").filter((w) => w.length > 1 && !/^\d+$/.test(w));
+      for (const w of desc) words.push(w);
+    }
+    for (const w of words) {
+      if (STOP.has(w)) continue;
+      if (/^fn\d+$/.test(w)) continue; // fn1, fn2, ...
+      if (/^[a-z]\d+$/i.test(w)) continue; // a0, x1 type obfuscated prefixes
+      if (/^[a-z]_[a-z]$/i.test(w)) continue; // a_b patterns
+      if (!index.has(w)) index.set(w, []);
+      const entry = index.get(w);
+      if (!entry.includes(f.name)) entry.push(f.name);
+    }
+  }
+
+  // Separate semantic words from line-number references
+  const semantic = [];
+  const locations = [];
+  for (const [word, fns] of index) {
+    if (/^ln\d+$/.test(word)) {
+      if (fns.length >= 2) locations.push([word, fns]); // Only multi-function locations
+    } else {
+      semantic.push([word, fns]);
+    }
+  }
+  // Sort each group by frequency, take top from each
+  semantic.sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]));
+  locations.sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]));
+
+  return [...semantic.slice(0, 25), ...locations.slice(0, 15)];
+}
+
 function analyzeStructureFallback(filepath, code) {
   const file = path.basename(filepath);
   const fnPattern = /\bfunction\s+(\w+)\s*\(([^)]*)\)/g;
@@ -128,10 +192,13 @@ function analyzeStructureFallback(filepath, code) {
   }
   const hotGroups = Object.entries(groupEdges).sort((a, b) => b[1] - a[1]).slice(0, 10);
 
+  const lookup = buildLookupIndex(fns);
+
   return {
     file,
     error: null,
     fallback: true,
+    lookup,
     summary: {
       totalFunctions: fns.length,
       subFunctions: subFns.length,
@@ -278,8 +345,11 @@ function analyzeStructure(filepath) {
     .sort((a, b) => b[1] - a[1])
     .slice(0, 10);
 
+  const lookup = buildLookupIndex(fns);
+
   return {
     file: path.basename(filepath),
+    lookup,
     summary: {
       totalFunctions: fns.length,
       subFunctions: subFns.length,
@@ -319,7 +389,7 @@ function analyzeStructure(filepath) {
 function generateMarkdown(report) {
   if (report.error) return `# Structure Report · ${report.file}\n\n> **${report.error}**\n`;
   const fallbackNote = report.fallback ? " *(regex-based fallback)*" : "";
-  const { file, summary, hotspots, alerts, naming, functions } = report;
+  const { file, summary, lookup, hotspots, alerts, naming, functions } = report;
   const typeTable = Object.entries(summary.byType).map(([k, v]) => `| ${k} | ${v} |`).join("\n");
 
   return `# Structure Report · ${file}${fallbackNote}
@@ -351,6 +421,12 @@ ${hotspots.hotGroups.filter(([, c]) => c > 0).length === 0 ? "_No significant gr
 |------|-------|-------|
 ${hotspots.hotGroups.filter(([, c]) => c > 0).map(([g, c], i) => `| ${i + 1} | \`${g}\` | ${c} |`).join("\n")}
 `}
+
+### Quick Lookup
+
+| Word | Functions |
+|------|-----------|
+${lookup.map(([word, fns]) => `| \`${word}\` | ${fns.slice(0, 6).map((f) => `\`${f}\``).join(" · ")}${fns.length > 6 ? ` _+${fns.length - 6} more_` : ""} |`).join("\n")}
 
 ### String Alerts
 
