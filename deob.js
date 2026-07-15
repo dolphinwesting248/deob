@@ -167,6 +167,9 @@ function parseConfig(filepath) {
 
 // ── init command ─────────────────────────────────────────────────────
 const CONFIG_TEMPLATE = `
+/// <reference types="deob" />
+
+/** @type {import('deob').DeobConfig} */
 module.exports = {
   // Input: a single file, a directory, or an array of paths
   input: "src/main.js",
@@ -199,10 +202,9 @@ module.exports = {
     { match: "example\\\\.com|test\\\\.com",  label: "Placeholder URL", severity: "low" },
   ],
 };
-
-// For TypeScript IDE support, copy scripts/config-types.d.ts to your project and add:
-// /// <reference path="./config-types.d.ts" />
-// /** @type {import('./config-types').DeobConfig} */ module.exports = { ... };
+// If IDE has no IntelliSense here, copy scripts/config-types.d.ts alongside this file:
+//   /// <reference path="./deob.config-types.d.ts" />
+//   /** @type {import('./deob.config-types').DeobConfig} */
 `;
 
 function initConfig(force) {
@@ -213,6 +215,10 @@ function initConfig(force) {
   }
   fs.writeFileSync(target, CONFIG_TEMPLATE, "utf-8");
   console.log(`Created ${target}`);
+  // Copy type definitions alongside config for IDE IntelliSense fallback
+  const typesDest = path.resolve("deob.config-types.d.ts");
+  const typesSrc = path.join(__dirname, "scripts", "config-types.d.ts");
+  try { fs.copyFileSync(typesSrc, typesDest); console.log(`Created ${typesDest}`); } catch (e) {}
 }
 
 // ── CLI parsing ──────────────────────────────────────────────────────
@@ -237,7 +243,8 @@ if (args.includes("--help") || args.includes("-h")) {
   console.log("    output: 'out/',               // optional");
   console.log("    split: false, metrics: false,");
   console.log("    md: true, index: false,");
-  console.log("    tier: 3, fold: false,    // tier: 1|2|3, fold: collapse polyfill/forward/compute");
+  console.log("    tier: 3, fold: false,");
+  console.log("    denoise: [{ match, label, severity }, ...],  // alert denoising rules");
 
   console.log("  };\n");
   console.log("Examples:");
