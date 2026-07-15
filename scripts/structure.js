@@ -333,7 +333,8 @@ function analyzeStructure(filepath) {
 
       fns.push({ name, lines, params, bodyLen: bl, calls: [], calledBy: [], comment,
         complexity, flat: hasFlattening, suspicious: [...new Set(suspicious)],
-        semanticTags: detectSemanticTags(name, stmt), description: describeFn(stmt) });
+        semanticTags: detectSemanticTags(name, stmt), description: describeFn(stmt),
+        paramRoles: detectParamRoles(stmt) });
       nameMap.set(name, fns.length - 1);
     }
   }
@@ -525,27 +526,18 @@ function analyzeStructure(filepath) {
   return report;
 }
 
-// ── Semantic Tags ───────────────────────────────────────────────────
+// ── Jump Table Detection ───────────────────────────────────────────
 
-// Detect array/object-based jump tables (alternative to while+switch flattening)
 function detectJumpTable(body) {
   let hasTable = false, hasComputedCall = false;
-
   function scan(n) {
     if (!n || typeof n !== "object" || (hasTable && hasComputedCall)) return;
     if (t.isFunction(n)) return;
-
-    // Large array of function identifiers → potential jump table
     if (t.isArrayExpression(n) && n.elements.length >= 5 &&
         n.elements.every((e) => t.isIdentifier(e) || e === null)) hasTable = true;
-
-    // Object with numeric keys → potential jump table
     if (t.isObjectExpression(n) && n.properties.length >= 5 &&
         n.properties.every((p) => (t.isNumericLiteral(p.key) || (t.isStringLiteral(p.key) && /^\d+$/.test(p.key.value))))) hasTable = true;
-
-    // Computed member call → dispatch pattern
     if (t.isCallExpression(n) && t.isMemberExpression(n.callee) && n.callee.computed) hasComputedCall = true;
-
     for (const k of Object.keys(n)) {
       if (k === "start" || k === "end" || k === "loc" ||
           k === "leadingComments" || k === "trailingComments" || k === "innerComments") continue;
@@ -556,6 +548,56 @@ function detectJumpTable(body) {
   }
   scan(body);
   return hasTable && hasComputedCall;
+}
+
+// ── Parameter Roles ─────────────────────────────────────────────────
+
+function detectParamRoles(fnNode) {
+  const params = fnNode.params.filter((p) => t.isIdentifier(p));
+  if (params.length === 0) return "";
+  const roles = new Map();
+  function scan(n) {
+    if (!n || typeof n !== "object") return;
+    if (t.isFunction(n) && n !== fnNode) return;
+    if (t.isCallExpression(n) && t.isIdentifier(n.callee)) {
+      const p = params.find((pp) => pp.name === n.callee.name);
+      if (p) { if (!roles.has(p.name)) roles.set(p.name, new Set()); roles.get(p.name).add("cb"); }
+    }
+    if (t.isMemberExpression(n) && t.isIdentifier(n.object)) {
+      const p = params.find((pp) => pp.name === n.object.name);
+      if (p) {
+        if (t.isIdentifier(n.property) && /^(getAttribute|getBoundingClientRect|addEventListener|removeEventListener|querySelector|appendChild|removeChild|setAttribute|closest|matches|classList)$/.test(n.property.name)) {
+          if (!roles.has(p.name)) roles.set(p.name, new Set()); roles.get(p.name).add("elem");
+        }
+        if (t.isStringLiteral(n.property)) {
+          if (!roles.has(p.name)) roles.set(p.name, new Set()); roles.get(p.name).add("cfg");
+        }
+        if (!roles.has(p.name)) roles.set(p.name, new Set()); roles.get(p.name).add("this");
+      }
+    }
+    if (t.isAssignmentExpression(n) && t.isIdentifier(n.left)) {
+      const p = params.find((pp) => pp.name === n.left.name);
+      if (p) { if (!roles.has(p.name)) roles.set(p.name, new Set()); roles.get(p.name).add("out"); }
+    }
+    if (t.isForOfStatement(n) && t.isIdentifier(n.right)) {
+      const p = params.find((pp) => pp.name === n.right.name);
+      if (p) { if (!roles.has(p.name)) roles.set(p.name, new Set()); roles.get(p.name).add("iter"); }
+    }
+    for (const k of Object.keys(n)) {
+      if (k === "start" || k === "end" || k === "loc" ||
+          k === "leadingComments" || k === "trailingComments" || k === "innerComments") continue;
+      const v = n[k];
+      if (Array.isArray(v)) { for (const x of v) scan(x); }
+      else if (v && typeof v.type === "string") scan(v);
+    }
+  }
+  scan(fnNode.body);
+  const parts = [];
+  for (const p of params) {
+    const r = roles.get(p.name);
+    if (r && r.size > 0) parts.push([...r].sort().join(":") + "=" + p.name);
+  }
+  return parts.length > 0 ? parts.join(", ") : "";
 }
 
 // ── Semantic Tags ───────────────────────────────────────────────────
@@ -1133,7 +1175,8 @@ function generateIndex(outputDir) {
         f.flat ? "FLAT" : "",
         ...(f.suspicious || []),
       ].filter(Boolean).join(" ");
-      const extras = [semTags, desc, flags].filter(Boolean).join(" ; ");
+      const roles = f.paramRoles || "";
+      const extras = [roles, semTags, desc, flags].filter(Boolean).join(" ; ");
       lines.push(`${f.name} | ${flines} | ${size} | cc=${f.complexity || 1}${calls}${calledBy}${extras ? " | " + extras : ""}`);
     }
     lines.push("");
