@@ -108,9 +108,9 @@ Approximate, based on real vendor.js files (2000+ functions):
 
 ## Interaction with `md` and `index`
 
-Tier filtering runs *before* report generation. Both `structure.md` and `index.txt` are built from the filtered `main.js`, so they always reflect the same view of the code.
+Tier filtering runs *before* report generation. Both `2-structure.md` and `3-index.txt` are built from the filtered `main.js`, so they always reflect the same view of the code.
 
-| Config | structure.md / index.txt content |
+| Config | `2-structure.md` / `3-index.txt` content |
 |--------|----------------------------------|
 | `tier: 3, md: true, index: true` | Full analysis — all functions present in both reports |
 | `tier: 1, md: true, index: true` | Signal functions analyzed normally; non-signal functions appear as signatures (`{ /* L32-36 */ }`) with no body content |

@@ -17,17 +17,20 @@ deob                         # run with config
 deob --config other.js       # or: deob -c other.js
 ```
 
-All output goes into a directory:
+All output goes into a directory. Files are numbered to guide LLM agents through a natural reading order:
 
 ```
 output.deob/
-├── main.js           ← deobfuscated code
-├── metrics.html      ← readability report (metrics: true)
-├── structure.md      ← function analysis + hotspots + alerts (md: true)
-└── index.txt         ← compact function catalog for LLM navigation (index: true)
+├── 1-readme.md       ← analysis entry — "what to read and why" (md: true)
+├── 2-structure.md    ← hotspots, alerts, call graph, naming convention (md: true)
+├── 3-index.txt       ← function catalog with line numbers for jump-reading (index: true)
+├── main.js           ← deobfuscated code — jump-read only, do not read first
+└── metrics.html      ← readability report (metrics: true)
 ```
 
-**Directory input** recursively processes nested subdirectories. Source paths are preserved in the cross-file `summary.md`.
+The numbered prefix (`1-`, `2-`, `3-`) guides the `ls` sort order. `main.js` has no prefix, signaling it should not be the first read. Each file contains navigation headers pointing to the next step.
+
+**Directory input** recursively processes nested subdirectories. A top-level `0-readme.md` provides the cross-file entry point. Source paths are preserved in `summary.md`.
 
 Run `deob init` to generate a template:
 
@@ -46,7 +49,23 @@ module.exports = {
 
 See [Tiered Output](docs/tier-and-fold.md) for detailed guidance on `tier` and `fold`.
 
-## Structure Report (`structure.md`)
+## Agent-Oriented Navigation
+
+Output files are designed for LLM agents (Claude Code, Codex, etc.) to discover and follow naturally:
+
+| Step | File | Purpose |
+|------|------|---------|
+| 1 | `1-readme.md` | "What to read and why" — entry points, most interesting functions, what to skip |
+| 2 | `2-structure.md` | "What this file contains" — domain, density, hotspots, alerts, call graph, naming |
+| 3 | `3-index.txt` | "Where things are" — function catalog with line numbers for jump-reading |
+
+**Single file**: Agent `ls` sees `1-`, `2-`, `3-` in sort order → reads in sequence → jump-reads `main.js` by line number.
+
+**Directory**: Agent `ls` sees `0-readme.md` first → picks interesting files → enters subdirectory → follows `1-` → `2-` → `3-` → jump-reads.
+
+The `main.js` file has no numeric prefix, signaling it should not be read first.
+
+## Structure Report (`2-structure.md`)
 
 | Section | Content |
 |---------|---------|
@@ -58,7 +77,7 @@ See [Tiered Output](docs/tier-and-fold.md) for detailed guidance on `tier` and `
 | Call Graph | Mermaid diagram of cross-function calls (suppressed when no edges exist) |
 | Naming Convention | Reference for `_sub_<parent>_<seq>_<description>` format and hint suffixes |
 
-## Compact Index (`index.txt`)
+## Compact Index (`3-index.txt`)
 
 A token-optimized function catalog in custom text format, designed for LLM consumption. Contains:
 
@@ -218,16 +237,17 @@ deob.js               ← CLI entry point
 scripts/
 ├── pipeline.js       ← Main orchestration (20 passes)
 ├── extract.js        ← Syntactic splitting (IIFE, try-catch, if-else, switch…)
-├── passes.js         ← All post-processing passes (hoist, simplify, short-circuit, dead-code, sanitize…)
+├── passes.js         ← Post-processing passes (hoist, simplify, short-circuit, dead-code, sanitize…)
 ├── traverse.js       ← Innermost-first function collection
 ├── metrics.js        ← Readability analysis + HTML Chart.js report
-├── structure.js      ← Structure reports, compact index, tier filter, domain classification
+├── structure.js      ← Reports, index, tier filter, domain, reading guide, cross-file readme
+├── config-types.d.ts ← TypeScript definitions for deob.config.js
 ├── ast-utils.js      ← AST walker, detectors, clone, await/yield detection
 ├── scope.js          ← Variable scope & external reference analysis
-├── emit.js           ← Sub-function declaration builder with reserved-word sanitization
+├── emit.js           ← Sub-function declaration builder
+├── naming.js         ← Naming convention helpers
 ├── wrapper.js        ← Top-level IIFE extraction
 ├── config.js         ← Parser, generator, alert patterns, globals
-├── index.js          ← Public API exports
 ```
 
 ## License
