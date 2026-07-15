@@ -1072,7 +1072,9 @@ function generateIndex(outputDir) {
     const fnLines = code.split("\n").slice(start - 1, end);
     const totalLines = fnLines.length;
     const hexLines = fnLines.filter((l) => l.length > 400 && /0x[0-9a-fA-F]{3,}/.test(l));
-    const heavyHex = hexLines.length > 0 && hexLines.length / totalLines > 0.2;
+    const hugeLines = fnLines.filter((l) => l.length > 2000);
+    const heavyHex = (hexLines.length > 0 && hexLines.length / totalLines > 0.2) ||
+                     (hugeLines.length > 0 && hugeLines.length / totalLines > 0.1);
     fnMeta.set(fn.name, { totalLines, stmts: fn.bodyLen, heavyHex, alertLabels: alertLabels.get(fn.name), srcText: fnLines.join("\n") });
   }
 
