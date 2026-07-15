@@ -3,7 +3,7 @@ const path = require("path");
 const fs = require("fs");
 const { main } = require("./scripts/pipeline");
 const { runMetrics } = require("./scripts/metrics");
-const { runStructure, generateCrossSummary, applyTierFilter, generateIndex } = require("./scripts/structure");
+const { runStructure, generateCrossSummary, applyTierFilter, generateIndex, writeReadingGuide } = require("./scripts/structure");
 
 // ── helpers ──────────────────────────────────────────────────────────
 
@@ -36,7 +36,7 @@ function processOneFile(file, outDir, opts) {
 
   const reports = [];
   if (opts.metrics) runMetrics(file, outDir);
-  if (opts.md) reports.push(runStructure(file, outDir, { brief: true, denoise: opts.denoise }));
+  if (opts.md) { reports.push(runStructure(file, outDir, { brief: true, denoise: opts.denoise })); writeReadingGuide(outDir); }
   if (opts.index) generateIndex(outDir, { denoise: opts.denoise });
   return reports;
 }
@@ -114,7 +114,7 @@ function processSingleFile(inputPath, outputDir, opts) {
   if (opts.tier && opts.tier < 3) applyTierFilter(outputDir, opts.tier, opts.fold);
 
   if (opts.metrics) runMetrics(inputPath, outputDir);
-  if (opts.md) runStructure(inputPath, outputDir, { denoise: opts.denoise });
+  if (opts.md) { runStructure(inputPath, outputDir, { denoise: opts.denoise }); writeReadingGuide(outputDir); }
   if (opts.index) generateIndex(outputDir, { denoise: opts.denoise });
 }
 
