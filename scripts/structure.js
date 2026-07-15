@@ -930,7 +930,7 @@ function generateReadingGuide(report) {
 }
 
 function generateMarkdown(report, opts) {
-  if (report.error) return `# Structure Report · ${report.file}\n\n> **${report.error}**\n`;
+  if (report.error) return `# ${report.file} · Structure Report (2/3)\n\n> **${report.error}**\n`;
   const brief = opts && opts.brief;
   const fallbackNote = report.fallback ? " *(regex-based fallback)*" : "";
   const { file, summary, hotspots, tracePath, alerts, naming, functions } = report;
@@ -938,11 +938,11 @@ function generateMarkdown(report, opts) {
   const tldr = report.tldr || generateTLDR(report);
   const domain = report._filepath ? classifyDomain(report._filepath) : "Unknown";
   const density = computeDensity(functions, file);
-  let result = `# Structure Report · ${file}${fallbackNote}
+  let result = `# ${file} · Structure Report (2/3)${fallbackNote}
 
+> Previous: 1-readme.md  →  **Now: 2-structure.md**  →  Next: 3-index.txt → jump to main.js
+>
 > ${tldr}
-
-*For a guided tour: see \`reading-guide.md\`. For function lookup: see \`index.txt\`.*
 
 ## Summary
 
@@ -1034,18 +1034,26 @@ function writeReadingGuide(outputDir) {
   const report = analyzeStructure(mainPath);
   const { file } = report;
   const guide = generateReadingGuide(report);
-  const domain = classifyDomain(mainPath);
 
-  const content = `# Reading Guide · ${file}
+  const content = `# ${file} · Analysis Entry (1/3)
 
-${guide}
+> **Now: 1-readme.md**  →  Next: 2-structure.md  →  Finally: 3-index.txt → jump to main.js
+>
+> This is your first read. Follow the numbered files in order.
+> **Do not start with main.js** — use it only for line-number jumps to specific functions.
+
+## Reading Path
+1. **This file** (1-readme.md) — note function names under "Most interesting"
+2. **2-structure.md** — check String Alerts and their Trace paths
+3. **3-index.txt** — look up line numbers, jump-read \`main.js\`
 
 ---
-*See \`structure.md\` for summary and hotspots. See \`index.txt\` for function catalog.*
+
+${guide}
 `;
-  const outPath = path.join(outputDir, "reading-guide.md");
+  const outPath = path.join(outputDir, "1-readme.md");
   fs.writeFileSync(outPath, content, "utf-8");
-  console.log(`  Reading guide: ${outPath}`);
+  console.log(`  1-readme: ${outPath}`);
 }
 
 function runStructure(input, outputDir, opts) {
@@ -1056,10 +1064,10 @@ function runStructure(input, outputDir, opts) {
   }
   const report = analyzeStructure(afterPath, opts);
   report._filepath = afterPath;
-  const outPath = path.join(outputDir, "structure.md");
+  const outPath = path.join(outputDir, "2-structure.md");
   const content = generateMarkdown(report, opts);
   fs.writeFileSync(outPath, content, "utf-8");
-  console.log(`  Structure report: ${outPath}`);
+  console.log(`  2-structure: ${outPath}`);
   return report;
 }
 
@@ -1095,8 +1103,8 @@ function generateIndex(outputDir, opts) {
   }
 
   const lines = [];
-  lines.push(`# deob index · ${report.file} · ${summary.totalFunctions} functions`);
-  lines.push("_See reading-guide.md for orientation. See structure.md for hotspots and alerts._");
+  lines.push(`# ${report.file} · Function Index (3/3) · ${summary.totalFunctions} functions`);
+  lines.push("_Previous: 2-structure.md  →  **Now: 3-index.txt**  →  Jump to main.js by line number._");
   lines.push("");
 
   // Entry points
@@ -1201,9 +1209,9 @@ function generateIndex(outputDir, opts) {
     lines.push("");
   }
 
-  const outPath = path.join(outputDir, "index.txt");
+  const outPath = path.join(outputDir, "3-index.txt");
   fs.writeFileSync(outPath, lines.join("\n"), "utf-8");
-  console.log(`  Index: ${outPath}`);
+  console.log(`  3-index: ${outPath}`);
 }
 
 function categorizeFn(name, fn, meta) {

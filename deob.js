@@ -68,8 +68,8 @@ function processDirectory(inputDir, outputDir, opts) {
   console.log(`Output: ${outputDir}/`);
   if (opts.split) console.log("        (split mode)");
   if (opts.metrics) console.log("        + metrics report");
-  if (opts.md) console.log("        + structure report (.md)");
-  if (opts.index) console.log("        + compact index");
+  if (opts.md) console.log("        + 1-readme.md, 2-structure.md");
+  if (opts.index) console.log("        + 3-index.txt");
 
   const allReports = [];
 
@@ -101,8 +101,8 @@ function processSingleFile(inputPath, outputDir, opts) {
   console.log(`Output: ${outputDir}/`);
   if (opts.split) console.log("        (split mode)");
   if (opts.metrics) console.log("        + metrics report");
-  if (opts.md) console.log("        + structure report (.md)");
-  if (opts.index) console.log("        + compact index");
+  if (opts.md) console.log("        + 1-readme.md, 2-structure.md");
+  if (opts.index) console.log("        + 3-index.txt");
   if (opts.tier < 3) {
     const s = opts.fold ? " + fold" : "";
     console.log(`        (tier ${opts.tier}${s} output)`);
@@ -186,10 +186,10 @@ module.exports = {
   split: false,  // per-function file output
   metrics: false, // HTML readability comparison report
   md: true,       // Markdown structure report
-  index: false,   // compact index.txt for LLM navigation
+  index: true,   // compact index.txt for LLM navigation
 
   // LLM-oriented output tuning
-  tier: 3,        // 1=alerts+hotspots only, 2=+callees, 3=all functions
+  tier: 2,        // 1=alerts+hotspots only, 2=+callees, 3=all functions
   fold: false,    // collapse mechanical functions (polyfill/pure compute/forward) to comments
 
   // Alert denoising — downgrade false-positive alerts.
