@@ -47,7 +47,7 @@ module.exports = {
 };
 ```
 
-See [Tiered Output](docs/tier-and-fold.md) for detailed guidance on `tier` and `fold`.
+See [Tiered Output](docs/llm-output-tuning.md) for detailed guidance on `tier` and `fold`.
 
 ## Agent-Oriented Navigation
 
@@ -121,7 +121,7 @@ Each `fn/*` entry includes: size triplets (`lines/stmts/params`), semantic tags,
 
 ## Tiered Output
 
-The `tier` and `fold` options control how much code reaches the LLM. See **[docs/tier-and-fold.md](docs/tier-and-fold.md)** for detailed guidance, behavior matrix, and best practices.
+The `tier` and `fold` options control how much code reaches the LLM. See **[docs/llm-output-tuning.md](docs/llm-output-tuning.md)** for detailed guidance, behavior matrix, and best practices.
 
 Quick reference:
 
