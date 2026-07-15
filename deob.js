@@ -3,7 +3,7 @@ const path = require("path");
 const fs = require("fs");
 const { main } = require("./scripts/pipeline");
 const { runMetrics } = require("./scripts/metrics");
-const { runStructure, generateCrossSummary, applyTierFilter, generateIndex, writeReadingGuide } = require("./scripts/structure");
+const { runStructure, generateCrossSummary, applyTierFilter, generateIndex, writeReadingGuide, writeCrossReadme } = require("./scripts/structure");
 
 // ── helpers ──────────────────────────────────────────────────────────
 
@@ -85,9 +85,10 @@ function processDirectory(inputDir, outputDir, opts) {
   // Cross-file summary
   if (opts.md && allReports.length > 0) {
     console.log(`\nGenerating cross-file summary...`);
+    writeCrossReadme(outputDir, allReports);
     const summary = generateCrossSummary(allReports);
     fs.writeFileSync(path.join(outputDir, "summary.md"), summary, "utf-8");
-    console.log(`  Summary report: ${path.join(outputDir, "summary.md")}`);
+    console.log(`  Summary: ${path.join(outputDir, "summary.md")}`);
   }
 
   // Cross-file index
