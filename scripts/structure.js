@@ -414,6 +414,27 @@ function analyzeStructure(filepath) {
     collectStrings(stmt.body);
   }
 
+  // Phase 4b: denoise alerts — downgrade test URLs, doc refs, placeholders
+  for (const a of alerts) {
+    if (!a.matches) continue;
+    const url = a.matches[0] || "";
+    if (/https?:\/\/[a-zA-Z](?:\/|$)/.test(url) && !/https?:\/\/[a-zA-Z]{2,}/.test(url)) {
+      a.severity = "low"; a.label = "Test URL";
+    }
+    if (/github\.io|developer\.mozilla\.org|npmjs\.com|nodejs\.org|w3\.org/i.test(url)) {
+      a.severity = "low"; a.label = "Doc URL";
+    }
+    if (/localhost|127\.0\.0\.1|\[::1\]/.test(url)) {
+      a.severity = "low"; a.label = "Local URL";
+    }
+    if (/example\.com|test\.com|myapp\.com|acme\.com/i.test(url)) {
+      a.severity = "low"; a.label = "Placeholder URL";
+    }
+    if (/\$\{/.test(url)) {
+      a.label = a.label + " (interpolated)";
+    }
+  }
+
   // Phase 5: hotspots — function heat rankings
   const byIncoming = [...fns].sort((a, b) => b.calledBy.length - a.calledBy.length);
   const mostCalled = byIncoming.slice(0, 10).filter((f) => f.calledBy.length > 0);
