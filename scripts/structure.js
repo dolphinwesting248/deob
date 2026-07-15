@@ -1291,52 +1291,57 @@ function classifyFileType(report) {
   return "module";
 }
 
-// ── Cross-File Readme ──────────────────────────────────────────────
+// ── Cross-File Prompt ──────────────────────────────────────────────
 
 function writeCrossReadme(outputDir, allReports) {
   if (!allReports || allReports.length === 0) return;
   const lines = [];
-  lines.push(`# Cross-File Analysis Entry (0) · ${allReports.length} files`);
-  lines.push("");
-  lines.push("> **Now: 0-readme.md** → Next: pick a file below → Read its 0-prompt.md → 1-structure.md → 2-index.txt → jump to main.js");
-  lines.push("");
 
-  // Priority-ranked file list
   const sorted = [...allReports].sort((a, b) => {
     const sa = (a.report.alerts?.length || 0) * 2 + (a.report.summary.totalFunctions || 0);
     const sb = (b.report.alerts?.length || 0) * 2 + (b.report.summary.totalFunctions || 0);
     return sb - sa;
   });
 
-  lines.push("## Files");
+  const totalFns = sorted.reduce((s, r) => s + r.report.summary.totalFunctions, 0);
+  const totalAlerts = sorted.reduce((s, r) => s + (r.report.alerts || []).length, 0);
+  const skipFiles = sorted.filter(r => r.report.summary.totalFunctions === 0).length;
+
+  lines.push(`You are analyzing deobfuscated JavaScript across **${allReports.length} files**. The preprocessor already determined:`);
   lines.push("");
-  lines.push("| # | File | Fns | Alerts | Type | Action |");
-  lines.push("|---|------|-----|--------|------|--------|");
+  lines.push(`## Architecture`);
+  lines.push(`- ${totalFns} total functions across ${allReports.length} files`);
+  lines.push(`- ${totalAlerts} total alerts across ${totalFns > 0 ? allReports.filter(r => (r.report.alerts||[]).length > 0).length : 0} files`);
+  if (skipFiles > 0) lines.push(`- ${skipFiles} proxy/empty file${skipFiles > 1 ? "s" : ""} — skip`);
+  lines.push("");
+
+  lines.push("## Files (priority order)");
+  lines.push("");
+  lines.push("| # | File | Fns | Alerts | Action |");
+  lines.push("|---|------|-----|--------|--------|");
   for (let i = 0; i < sorted.length; i++) {
     const r = sorted[i];
     const name = r.file;
     const total = r.report.summary.totalFunctions;
     const alerts = (r.report.alerts || []).length;
     const src = r.srcPath || "";
-    const type = r.report.summary.totalFunctions === 0 ? "proxy/skip" : "module";
-    const action = total === 0 ? "Skip (empty)" : alerts > 0 ? "**Read** (has alerts)" : total > 20 ? "Read (large)" : "Read";
-    lines.push(`| ${i + 1} | \`${name}\`${src ? " (" + src + ")" : ""} | ${total} | ${alerts} | ${type} | ${action} |`);
+    const action = total === 0 ? "Skip" : alerts > 0 ? "**Read first**" : total > 20 ? "Read" : "Optional";
+    lines.push(`| ${i + 1} | \`${name}\`${src ? " (" + src + ")" : ""} | ${total} | ${alerts} | ${action} |`);
   }
   lines.push("");
 
   lines.push("## Reading Path");
   lines.push("");
-  lines.push("1. Scan the table above — pick files marked **Read**");
-  lines.push("2. Enter the file's subdirectory");
+  lines.push("1. Pick a file from the table above (start with **Read first** entries)");
+  lines.push("2. Enter its subdirectory");
   lines.push("3. Read `0-prompt.md` → `1-structure.md` → `2-index.txt` → jump to `main.js`");
   lines.push("4. Repeat for each file you need");
   lines.push("");
-  lines.push("---");
-  lines.push("*Cross-file summary data: see `summary.md`*");
+  lines.push("*Data reference: see `summary.md` for cross-file hotspots and keyword index.*");
 
-  const outPath = path.join(outputDir, "0-readme.md");
+  const outPath = path.join(outputDir, "0-prompt.md");
   fs.writeFileSync(outPath, lines.join("\n"), "utf-8");
-  console.log(`  0-readme: ${outPath}`);
+  console.log(`  0-prompt: ${outPath}`);
 }
 
 function generateCrossSummary(results) {
