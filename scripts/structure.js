@@ -331,7 +331,7 @@ function analyzeStructure(filepath) {
 
       fns.push({ name, lines, params, bodyLen: bl, calls: [], calledBy: [], comment,
         complexity, flat: hasFlattening, suspicious: [...new Set(suspicious)],
-        semanticTags: detectSemanticTags(name, stmt), description: describeFn(stmt.body, bl) });
+        semanticTags: detectSemanticTags(name, stmt), description: describeFn(stmt) });
       nameMap.set(name, fns.length - 1);
     }
   }
@@ -593,43 +593,69 @@ function detectSemanticTags(name, stmt) {
   return tags;
 }
 
-function describeFn(body, stmtCount) {
+function describeFn(fnNode) {
+  const body = fnNode.body;
   if (!t.isBlockStatement(body)) return "";
   const stmts = body.body;
-  if (stmtCount === 0) { return stmts.length <= 1 ? "[pass-through]" : `[void, ${stmts.length}S]`; }
+  const stmtCount = stmts.length;
+  if (stmtCount === 0) return "[pass-through]";
 
-  // Count returns
+  // Collect param names for callback-driven detection
+  const paramNames = new Set(fnNode.params.filter((p) => t.isIdentifier(p)).map((p) => p.name));
+
+  // Scan body for patterns
   let returnCount = 0, lastReturn = null;
-  function findReturns(n) {
+  let hasThrow = false, hasCallbackCall = false, hasMemberAssign = false;
+  let returnsObject = false;
+
+  function scan(n) {
     if (!n || typeof n !== "object") return;
-    if (t.isReturnStatement(n) && n.argument) { returnCount++; lastReturn = n.argument; }
+    if (t.isReturnStatement(n)) {
+      if (n.argument) { returnCount++; lastReturn = n.argument; }
+      if (t.isObjectExpression(n.argument)) returnsObject = true;
+    }
+    if (t.isThrowStatement(n)) hasThrow = true;
+    // Callback-driven: a param is used as callee
+    if (t.isCallExpression(n) && t.isIdentifier(n.callee) && paramNames.has(n.callee.name)) hasCallbackCall = true;
+    // Side effects: assignment to member expression (modifies external state)
+    if (t.isAssignmentExpression(n) && t.isMemberExpression(n.left)) hasMemberAssign = true;
     if (t.isFunction(n)) return;
     for (const k of Object.keys(n)) {
       if (k === "start" || k === "end" || k === "loc" ||
           k === "leadingComments" || k === "trailingComments" || k === "innerComments") continue;
       const v = n[k];
-      if (Array.isArray(v)) { for (const x of v) findReturns(x); }
-      else if (v && typeof v.type === "string") findReturns(v);
+      if (Array.isArray(v)) { for (const x of v) scan(x); }
+      else if (v && typeof v.type === "string") scan(v);
     }
   }
-  findReturns(body);
+  scan(body);
 
-  if (returnCount > 1) return `[returns via ${returnCount} paths]`;
-  if (returnCount === 0) return `[void, ${stmtCount}S]`;
+  // Build primary description
+  let desc;
+  if (returnCount > 1) desc = `returns via ${returnCount} paths`;
+  else if (returnCount === 1) {
+    const ret = lastReturn;
+    if (t.isCallExpression(ret) && t.isIdentifier(ret.callee)) desc = `calls → ${ret.callee.name}`;
+    else if (t.isCallExpression(ret)) desc = "calls expr";
+    else if (t.isIdentifier(ret)) desc = "returns arg";
+    else if (t.isStringLiteral(ret)) desc = "returns str";
+    else if (t.isNumericLiteral(ret)) desc = "returns num";
+    else if (t.isConditionalExpression(ret)) desc = "returns conditional";
+    else if (t.isBinaryExpression(ret)) desc = "returns expr";
+    else if (t.isMemberExpression(ret)) desc = "returns prop";
+    else if (t.isObjectExpression(ret)) desc = returnsObject ? "factory" : "returns object";
+    else desc = "returns value";
+  } else {
+    desc = `void, ${stmtCount}S`;
+  }
 
-  const ret = lastReturn;
-  if (t.isCallExpression(ret) && t.isIdentifier(ret.callee)) return `[calls → ${ret.callee.name}]`;
-  if (t.isCallExpression(ret)) return `[calls expr]`;
-  if (t.isIdentifier(ret)) return `[returns arg]`;
-  if (t.isStringLiteral(ret)) return `[returns str]`;
-  if (t.isNumericLiteral(ret)) return `[returns num]`;
-  if (t.isBooleanLiteral(ret)) return `[returns bool]`;
-  if (t.isConditionalExpression(ret)) return `[returns conditional]`;
-  if (t.isBinaryExpression(ret)) return `[returns expr]`;
-  if (t.isMemberExpression(ret)) return `[returns prop]`;
-  if (t.isArrayExpression(ret)) return `[returns array]`;
-  if (t.isObjectExpression(ret)) return `[returns object]`;
-  return `[returns value]`;
+  // Append additional signals
+  const tags = [];
+  if (hasCallbackCall) tags.push("callback-driven");
+  if (hasThrow) tags.push("can throw");
+  if (hasMemberAssign && returnCount === 0) tags.push("side-effects");
+
+  return tags.length > 0 ? `[${desc}; ${tags.join(", ")}]` : `[${desc}]`;
 }
 
 // ── Alert Trace ────────────────────────────────────────────────────
