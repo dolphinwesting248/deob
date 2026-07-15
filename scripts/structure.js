@@ -1,5 +1,5 @@
 // Structure report: Markdown output of function analysis
-const { parser, t, fs, path, ALERT_PATTERNS } = require("./config");
+const { parser, t, fs, path, ALERT_PATTERNS, ALERT_DENOISE } = require("./config");
 
 // ── Quick Lookup Index ──────────────────────────────────────────────
 
@@ -417,24 +417,16 @@ function analyzeStructure(filepath) {
     collectStrings(stmt.body);
   }
 
-  // Phase 4b: denoise alerts — downgrade test URLs, doc refs, placeholders
+  // Phase 4b: denoise alerts via configurable rules (ALERT_DENOISE)
   for (const a of alerts) {
     if (!a.matches) continue;
     const url = a.matches[0] || "";
-    if (/https?:\/\/[a-zA-Z](?:\/|$)/.test(url) && !/https?:\/\/[a-zA-Z]{2,}/.test(url)) {
-      a.severity = "low"; a.label = "Test URL";
-    }
-    if (/github\.io|developer\.mozilla\.org|npmjs\.com|nodejs\.org|w3\.org/i.test(url)) {
-      a.severity = "low"; a.label = "Doc URL";
-    }
-    if (/localhost|127\.0\.0\.1|\[::1\]/.test(url)) {
-      a.severity = "low"; a.label = "Local URL";
-    }
-    if (/example\.com|test\.com|myapp\.com|acme\.com/i.test(url)) {
-      a.severity = "low"; a.label = "Placeholder URL";
-    }
-    if (/\$\{/.test(url)) {
-      a.label = a.label + " (interpolated)";
+    // Interpolated URL annotation (always applied)
+    if (/\$\{/.test(url)) a.label = a.label + " (interpolated)";
+    // Config-driven denoising rules
+    for (const rule of ALERT_DENOISE) {
+      if (rule.guard && !rule.guard(url)) continue;
+      if (rule.test.test(url)) { a.severity = rule.severity; a.label = rule.label; break; }
     }
   }
 
