@@ -735,6 +735,79 @@ function classifyDomain(filepath) {
   }
 }
 
+// ── Reading Guide ──────────────────────────────────────────────────
+
+function generateReadingGuide(report) {
+  const { functions, hotspots, alerts, tracePath, summary } = report;
+  const lines = [];
+
+  // 1. Start here: entry points by importance
+  const roots = (hotspots.roots || []).filter((f) => f.calls.length > 0)
+    .sort((a, b) => (b.calledBy.length + b.calls.length) - (a.calledBy.length + a.calls.length));
+  if (roots.length > 0) {
+    lines.push("**Start here:**");
+    const top = roots.slice(0, 5);
+    for (const r of top) {
+      const desc = r.description || "";
+      lines.push(`- \`${r.name}\` → ${r.calls.slice(0, 5).join(", ")}${r.calls.length > 5 ? " +" + (r.calls.length - 5) : ""}${desc ? " (" + desc.replace(/[[\]]/g, "") + ")" : ""}`);
+    }
+    if (roots.length > 5) lines.push(`- _+${roots.length - 5} more entry points_`);
+    lines.push("");
+  }
+
+  // 2. Top functions by interest score (alerts × complexity × heat)
+  const scored = functions.map((f) => {
+    const alertCount = alerts.filter((a) => a.fn === f.name).length;
+    const heat = f.calledBy.length;
+    const score = (alertCount * 3) + (f.complexity || 1) + (Math.min(heat, 20));
+    return { ...f, score };
+  }).sort((a, b) => b.score - a.score).slice(0, 10).filter((f) => f.score > 2);
+
+  if (scored.length > 0) {
+    lines.push("**Most interesting:**");
+    for (const f of scored) {
+      const why = [];
+      if (alerts.some((a) => a.fn === f.name)) why.push("alerts");
+      if (f.flat) why.push("flattened");
+      if (f.complexity > 5) why.push("cc=" + f.complexity);
+      if (f.calledBy.length >= 10) why.push("hot");
+      if ((f.suspicious || []).length > 0) why.push("suspicious");
+      lines.push(`- \`${f.name}\` (${why.join(", ")})`);
+    }
+    lines.push("");
+  }
+
+  // 3. Alert trace summary
+  const alertTraces = report.alertTraces || [];
+  if (alertTraces.length > 0) {
+    lines.push("**Key traces:**");
+    for (const t of alertTraces.slice(0, 5)) {
+      lines.push(`- [${t.label}] ${t.path.join(" → ")}`);
+    }
+    lines.push("");
+  }
+
+  // 4. What you can skip
+  const skippable = functions.filter((f) => {
+    const isMech = /forward|pure computation|pass-through/.test(f.description || "");
+    const isData = f.name.includes("_sub_return_fn") && f.bodyLen <= 3;
+    const isUtil = !f.flat && f.complexity <= 1 && f.calledBy.length === 0 && f.calls.length === 0;
+    return isMech || isData || isUtil;
+  });
+  if (skippable.length > 5) {
+    const types = {};
+    for (const f of skippable) {
+      const t = f.description || "low-signal";
+      types[t] = (types[t] || 0) + 1;
+    }
+    const summary = Object.entries(types).sort((a, b) => b[1] - a[1]).slice(0, 4)
+      .map(([t, c]) => `${c}× ${t.replace(/[[\]]/g, "")}`).join(", ");
+    lines.push(`**Skip:** ${skippable.length} low-signal functions (${summary})`);
+  }
+
+  return lines.length > 0 ? lines.join("\n") : "_This file has no function-level structure._";
+}
+
 function generateMarkdown(report, opts) {
   if (report.error) return `# Structure Report · ${report.file}\n\n> **${report.error}**\n`;
   const brief = opts && opts.brief;
@@ -744,10 +817,15 @@ function generateMarkdown(report, opts) {
   const tldr = report.tldr || generateTLDR(report);
   const domain = report._filepath ? classifyDomain(report._filepath) : "Unknown";
   const density = computeDensity(functions, file);
+  const guide = generateReadingGuide(report);
 
   let result = `# Structure Report · ${file}${fallbackNote}
 
 > ${tldr}
+
+## Reading Guide
+
+${guide}
 
 ## Summary
 
