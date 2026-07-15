@@ -970,15 +970,16 @@ ${hotspots.mostCalled.map((f, i) => `| ${i + 1} | Most-called | \`${f.name}\` �
 ` : ""}${hotspots.roots.length > 0 ? `| — | Roots (${hotspots.roots.length}) | Entry points: ${hotspots.roots.slice(0, 8).map((f) => `\`${f.name}\``).join(", ")}${hotspots.roots.length > 8 ? " …" : ""} |\n` : ""}${hotspots.leaves.length > 0 ? `| — | Leaves (${hotspots.leaves.length}) | Terminal functions: ${hotspots.leaves.slice(0, 8).map((f) => `\`${f.name}\``).join(", ")}${hotspots.leaves.length > 8 ? " …" : ""} |\n` : ""}${hotspots.mostCalled.length === 0 && hotspots.roots.length === 0 && hotspots.leaves.length === 0 ? "_No cross-function calls detected._\n" : ""}
 ## String Alerts
 
-${alerts.length === 0 ? "_No significant patterns detected._\n" : `| Severity | Pattern | Function | Line | Trace | Matches |
+${alerts.length === 0 ? "_No significant patterns detected._\n" : (() => { const deduped = []; const seen = new Map(); for (const a of alerts) { const key = a.label + "|" + (a.matches||[])[0]; if (seen.has(key)) { const prev = deduped[seen.get(key)]; if (!prev._dupes) prev._dupes = []; prev._dupes.push(a.fn + " L" + a.line); continue; } seen.set(key, deduped.length); deduped.push({...a}); } return `| Severity | Pattern | Function | Line | Trace | Matches |
 |----------|---------|----------|------|-------|---------|
-${alerts.map((a) => {
+${deduped.map((a) => {
     const tr = (report.alertTraces || []).find((t) => t.fn === a.fn);
     const afn = functions.find((f) => f.name === a.fn);
     const traceStr = tr ? tr.path.join(" → ") : (afn && afn.calledBy.length === 0) ? "no callers" : "no path";
-    return `| ${a.severity} | ${a.label} | \`${a.fn}\` | ${a.line} | ${traceStr} | ${a.matches.join(" · ")} |`;
+    const dupes = a._dupes ? " (+ " + a._dupes.length + " dupes)" : "";
+    return `| ${a.severity} | ${a.label} | \`${a.fn}\` | ${a.line} | ${traceStr} | ${a.matches.join(" · ")}${dupes} |`;
   }).join("\n")}
-`}
+`})()}
 ## Hot Groups
 
 ${hotspots.hotGroups.filter(([, c]) => c > 0).length === 0 ? "_No significant group activity._\n" : `| Rank | Group | Edges |
@@ -1156,7 +1157,7 @@ function generateIndex(outputDir, opts) {
     if (!groups[cat]) groups[cat] = [];
     groups[cat].push(f);
   }
-  const groupLabels = { core: "Core runtime", branch: "Branches", callback: "Callbacks", data: "Data tables", network: "Network", websocket: "WebSocket", crypto: "Crypto", parser: "Parser", i18n: "i18n", polyfill: "Polyfill", filesystem: "Filesystem", other: "Other" };
+  const groupLabels = { core: "Core runtime", branch: "Branches", callback: "Callbacks", data: "Data tables", network: "Network", websocket: "WebSocket", crypto: "Crypto", parser: "Parser", i18n: "i18n", polyfill: "Polyfill", filesystem: "Filesystem", timer: "Timers", construct: "Constructors", delegate: "Delegates", varargs: "Varargs", other: "Other" };
 
   for (const [cat, fns] of Object.entries(groups)) {
     if (fns.length === 0) continue;
@@ -1194,6 +1195,7 @@ function categorizeFn(name, fn, meta) {
 
   const labels = meta && meta.alertLabels ? meta.alertLabels : null;
   const src = meta && meta.srcText ? meta.srcText : "";
+  const desc = fn.description || "";
 
   if (labels && labels.has("Network")) return "network";
   if (labels && labels.has("Crypto")) return "crypto";
@@ -1207,6 +1209,13 @@ function categorizeFn(name, fn, meta) {
   if (/\b(i18n|i18next|translat|lng\b|interpolat|plural|namespace|resStore|ns\b)\b/i.test(src)) return "i18n";
   if (/\b(core-js|polyfill|prototype\.\w+\s*=\s*function|__core-js_shared__)\b/i.test(src)) return "polyfill";
   if (/\b(fs\.|fse\.|chmod|chown|statSync|mkdir|readFile|writeFile|copyFile|unlink|Buffer\.|glob\b|readdir|rmSync)\b/i.test(src)) return "filesystem";
+
+  // Sub-categorize "other" by behavioral descriptions (shrink the junk drawer)
+  if (/_setTimeout|_setInterval|_debounce|_throttle/.test(name)) return "timer";
+  if (desc.includes("factory") || desc.includes("construct")) return "construct";
+  if (desc.includes("pass-through") || desc.includes("returns arg") || desc.includes("calls expr")) return "delegate";
+  if (/arguments\[/.test((fn.suspicious || []).join(" "))) return "varargs";
+
   return "other";
 }
 

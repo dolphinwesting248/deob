@@ -131,6 +131,7 @@ const DEFAULT_DENOISE = [
   { match: "github\\.io|mozilla\\.org",   label: "Doc URL",        severity: "low" },
   { match: "localhost|127\\.0\\.0\\.1",   label: "Local URL",      severity: "low" },
   { match: "example\\.com|test\\.com",    label: "Placeholder URL", severity: "low" },
+  { match: "w3\\.org/(svg|Math|XML|xhtml|rdf)", label: "XML Namespace", severity: "info" },
 ];
 
 function parseConfig(filepath) {
@@ -200,6 +201,8 @@ module.exports = {
     { match: "localhost|127\\\\.0\\\\.0\\\\.1", label: "Local URL", severity: "low" },
     // Placeholder / example domains
     { match: "example\\\\.com|test\\\\.com",  label: "Placeholder URL", severity: "low" },
+    // XML namespace URIs — not real endpoints (React DOM internals)
+    { match: "w3\\\\.org/(svg|Math|XML|xhtml|rdf)", label: "XML Namespace", severity: "info" },
   ],
 };
 `;
