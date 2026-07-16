@@ -22,21 +22,16 @@
 ### Score Comparison
 
 ```mermaid
-%%{init: {'theme': 'base'}}%%
-graph LR
-    subgraph L[" "]
-        direction LR
-        A_d["A deob<br/>0.55"]:::deob --- A_r["A raw<br/>0.48"]:::raw
-        B_d["B deob<br/>0.42"]:::deob --- B_r["B raw<br/>0.33"]:::raw
-        C_d["C deob<br/>0.84"]:::deob --- C_r["C raw<br/>0.79"]:::raw
-        D_d["D deob<br/>0.77"]:::deob === D_r["D raw<br/>0.17"]:::raw
-        E_d["E deob<br/>0.63"]:::deob === E_r["E raw<br/>0.29"]:::raw
-    end
-    classDef deob fill:#4a9eff,color:#fff,stroke:#2563eb
-    classDef raw fill:#ff6b6b,color:#fff,stroke:#dc2626
+%%{init: {'theme': 'base', 'themeVariables': {'fontSize': '14px'}}}%%
+xychart-beta
+    title "Total Score: deob vs raw"
+    x-axis ["A", "B", "C", "D", "E"]
+    y-axis "Score" 0 --> 1
+    bar [0.55, 0.42, 0.84, 0.77, 0.63]
+    bar [0.48, 0.33, 0.79, 0.17, 0.29]
 ```
 
-_Gap widens dramatically for Hard scenarios. Thick lines = 3x+ gap._
+_Blue = deob, orange = raw. Gap explodes from scenario D onward._
 
 ---
 
@@ -145,14 +140,14 @@ Deob correctly identified `validateCard` (Luhn algorithm), `detectCardType` (Vis
 ### Improvement by Difficulty
 
 ```mermaid
-%%{init: {'theme': 'base'}}%%
-graph LR
-    A("A<br/>Easy<br/>1.2x"):::easy --> B("B<br/>Medium<br/>1.3x"):::easy --> C("C<br/>Medium<br/>1.1x"):::easy --> D("D<br/>Hard<br/>4.6x"):::hard --> E("E<br/>Hard<br/>2.2x"):::hard
-    classDef easy fill:#90EE90,color:#000,stroke:#22c55e
-    classDef hard fill:#ff6b6b,color:#fff,stroke:#dc2626
+%%{init: {'theme': 'base', 'themeVariables': {'pieSectionTextSize': '11px'}}}%%
+pie showData
+    title "Where deob adds value (score gap analysis)"
+    "Easy/Medium (A,B,C) - deob helps 10-20%" : 35
+    "Hard (D,E) - deob makes 2-5x difference" : 65
 ```
 
-> The gap widens dramatically with obfuscation intensity. Hard scenarios: 3-5x. Easy/Medium: 1.1-1.3x.
+> Hard scenarios account for 65% of deob's total value-add. For Easy/Medium code, raw analysis is often sufficient.
 
 | Difficulty | deob Total | raw Total | Gain |
 |-----------|-----------|-----------|------|
