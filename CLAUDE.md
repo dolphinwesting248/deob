@@ -1,4 +1,4 @@
-# deob — Universal JS Deobfuscation Pipeline
+# deobscura — Universal JS Deobfuscation Pipeline
 
 ## Quick Start
 
@@ -10,7 +10,7 @@ deob -c path/to/config.js        # explicit config
 
 ## Configuration
 
-`deob.config.js` format:
+`deobscura.config.js` format:
 
 ```js
 module.exports = {

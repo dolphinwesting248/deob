@@ -1,6 +1,6 @@
-# deob
+# deobscura
 
-Deob is an AST-based JavaScript deobfuscation framework, purpose-built as a **data preprocessing tool for LLM-driven reverse engineering**.
+Deobscura is an AST-based JavaScript deobfuscation framework, purpose-built as a **data preprocessing tool for LLM-driven reverse engineering**.
 
 - **Universal.** No obfuscator detection, no signature matching. obfuscator.io, JSVMP, webpack bundles, custom obfuscators — all treated the same.
 - **LLM-oriented.** Structure reports, call graphs, string alerts, compact index, function categorization — output designed for LLM consumption, not just human readability.
@@ -10,15 +10,15 @@ Deob is an AST-based JavaScript deobfuscation framework, purpose-built as a **da
 ```bash
 npm install
 npm link
-deob init                    # create deob.config.js
-# edit deob.config.js — set input path and options
+deobscura init               # create deobscura.config.js
+# edit deobscura.config.js — set input path and options
 deob                         # run with config
-deob -c other.config.js      # explicit config path
+deobscura -c other.config.js      # explicit config path
 ```
 
 ## Configuration
 
-`deob.config.js` format:
+`deobscura.config.js` format:
 
 ```javascript
 module.exports = {

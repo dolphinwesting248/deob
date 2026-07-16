@@ -1,4 +1,4 @@
-// Type definitions for deob.config.js — resolved via npm link + package.json "types" field
+// Type definitions for deobscura.config.js — resolved via npm link + package.json "types" field
 
 export type Severity = "critical" | "high" | "medium" | "low" | "info";
 

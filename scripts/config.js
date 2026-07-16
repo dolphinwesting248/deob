@@ -5,7 +5,7 @@ const t = require("@babel/types");
 const fs = require("fs");
 const path = require("path");
 
-// ── Default denoise rules (user-configurable via deob.config.js) ───
+// ── Default denoise rules (user-configurable via deobscura.config.js) ───
 const DEFAULT_DENOISE = [
   { match: "https?://[a-zA-Z](/|$)",     label: "Test URL",       severity: "low" },
   { match: "github\\.io|mozilla\\.org",   label: "Doc URL",        severity: "low" },
