@@ -1,0 +1,32 @@
+{
+  "purpose": "A JavaScript API client that authenticates a hardcoded user via POST to /auth/login using a weak hash, stores the session token in localStorage, then fetches and logs the user profile.",
+  "functions": [
+    {"name":"hashPassword","purpose":"Hashes a password using Java-style hashCode","calls":[],"calledBy":["login"]},
+    {"name":"buildHeaders","purpose":"Builds HTTP request headers with Bearer token","calls":[],"calledBy":["apiCall"]},
+    {"name":"apiCall","purpose":"Generic async HTTP request wrapper using fetch()","calls":["buildHeaders"],"calledBy":["login","getProfile","updateProfile"]},
+    {"name":"login","purpose":"Authenticates user, hashes password, stores token","calls":["hashPassword","apiCall"],"calledBy":["global"]},
+    {"name":"getProfile","purpose":"Retrieves user profile via GET with Bearer token","calls":["apiCall"],"calledBy":["global .then"]},
+    {"name":"updateProfile","purpose":"Updates user profile via PUT (defined but never called)","calls":["apiCall"],"calledBy":[]}
+  ],
+  "endpoints": [
+    {"method":"POST","path":"/auth/login","purpose":"Authenticate user"},
+    {"method":"GET","path":"/users/{username}","purpose":"Fetch user profile"},
+    {"method":"PUT","path":"/users/{username}","purpose":"Update user profile"}
+  ],
+  "security": [
+    {"severity":"high","issue":"Hardcoded credentials in source code (admin/password123)"},
+    {"severity":"high","issue":"Password hashed with Java-style hashCode (non-cryptographic, reversible)"},
+    {"severity":"medium","issue":"Session token stored in localStorage (XSS exfiltration risk)"},
+    {"severity":"medium","issue":"Password hash computed client-side exposing hashing scheme"},
+    {"severity":"low","issue":"X-Request-ID generated with predictable Math.random()"},
+    {"severity":"medium","issue":"No CSRF protection"}
+  ],
+  "dataFlow": "password123 hashed via hashCode → POST /auth/login → token saved to localStorage → GET /users/admin → response logged",
+  "variables": [
+    {"name":"BASE_URL","value":"https://api.example.com"},
+    {"name":"TOKEN_KEY","value":"session_token in localStorage"},
+    {"name":"HARDCODED_PASSWORD","value":"password123 embedded in code"}
+  ],
+  "entryPoint": "login('admin','password123') called at global scope",
+  "functionCount": 6
+}

@@ -1,0 +1,33 @@
+{
+  "purpose": "Multi-step authentication flow that validates credentials against hardcoded/weak checks, with optional MFA and session token generation — all critical functions stubbed to defaults.",
+  "functions": [
+    {"name":"authenticate","purpose":"Main authentication handler: validates credentials, hashes password, checks rate limit, verifies MFA, generates session token","calls":["getAttemptCount","hashPassword","getStoredHash","isMfaEnabled","verifyMfaCode","generateToken","saveSession","resetAttempts","incrementAttempts"],"calledBy":["external caller"]},
+    {"name":"hashPassword","purpose":"DJB2 variant hash function for password hashing — non-cryptographic","calls":[],"calledBy":["authenticate"]},
+    {"name":"generateToken","purpose":"Generates random session token (non-cryptographic Math.random)","calls":[],"calledBy":["authenticate"]},
+    {"name":"getStoredHash","purpose":"Returns hardcoded expected hash (always 42) — authentication bypass","calls":[],"calledBy":["authenticate"]},
+    {"name":"getAttemptCount","purpose":"Rate limit check stub — always returns 0 (disabled)","calls":[],"calledBy":["authenticate"]},
+    {"name":"isMfaEnabled","purpose":"MFA check stub — always returns false (MFA bypass)","calls":[],"calledBy":["authenticate"]},
+    {"name":"verifyMfaCode","purpose":"MFA verification stub — always returns true","calls":[],"calledBy":["authenticate"]},
+    {"name":"saveSession","purpose":"Session save stub — no-op","calls":[],"calledBy":["authenticate"]},
+    {"name":"resetAttempts","purpose":"Attempt reset stub — no-op","calls":[],"calledBy":["authenticate"]},
+    {"name":"incrementAttempts","purpose":"Failed attempt logger stub — no-op","calls":[],"calledBy":["authenticate"]}
+  ],
+  "endpoints": [],
+  "security": [
+    {"severity":"critical","issue":"Hardcoded expected password hash (always 42) — any password hashing to 42 authenticates as ANY user"},
+    {"severity":"high","issue":"Rate limit stub always returns 0 — unlimited brute-force possible"},
+    {"severity":"high","issue":"MFA bypass — isMfaEnabled always returns false, entire MFA path is dead code"},
+    {"severity":"high","issue":"Non-cryptographic token generation using Math.random"},
+    {"severity":"high","issue":"Password hashing uses DJB2 (non-cryptographic, trivially reversible)"},
+    {"severity":"medium","issue":"All audit/logging functions are empty no-op stubs"},
+    {"severity":"low","issue":"Anti-tampering and anti-debugging mechanisms present"}
+  ],
+  "dataFlow": "credentials → validate presence → rate limit check (stubbed 0) → password hash (DJB2) → compare with expected hash (42) → MFA check (stubbed false, dead code) → generate token → save session (no-op) → return success/error",
+  "variables": [
+    {"name":"expectedHash","value":"42 (hardcoded, always returned by getStoredHash)"},
+    {"name":"sessionDuration","value":"3600000ms (1 hour expiry)"},
+    {"name":"maxAttempts","value":"5 (never enforced — rate limit stubbed)"}
+  ],
+  "entryPoint": "_0x_0x18478c — the main authentication handler",
+  "functionCount": 10
+}
