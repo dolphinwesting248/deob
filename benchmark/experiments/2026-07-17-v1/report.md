@@ -34,16 +34,23 @@ _Blue = deob, red = raw. Gap explodes from scenario D onward._
 
 **Method**: Two identical LLM agents analyze the same obfuscated code and answer 8 questions. One gets deob output (`0-prompt.md` + `2-index.txt` + `main.js`), the other gets raw obfuscated code. Both answers are scored against a ground truth written from the original source.
 
-**Scoring**: Semantic keyword overlap (not exact match).
-- **Functions** (30%): F1 score — purpose text similarity between agent answer and ground truth
-- **Security** (20%): Issue keyword overlap — how many ground truth security issues the agent identified
-- **Endpoints** (15%): Exact method match + path fuzzy match against ground truth
-- **DataFlow** (10%): Keyword overlap between agent's data flow description and ground truth
-- **Variables** (10%): Value/purpose matching for key constants and config values
-- **Purpose** (5%): Keyword overlap between agent's one-sentence summary and ground truth description
-- **Time** (5%): 1 - (agent_time / (deob_time + raw_time)) — faster agent gets higher score, deob and raw differ
-- **EntryPoint** (2.5%): Binary — did the agent identify a non-trivial entry point?
-- **Token** (2.5%): 1 - (agent_tokens / (deob_tokens + raw_tokens)) — fewer tokens = higher score, deob and raw differ
+**Scoring**: Semantic keyword overlap between agent answer and ground truth. Each dimension scored 0-1, then weighted.
+
+| Dimension | Weight | Formula |
+|-----------|--------|---------|
+| Functions | 30% | $F_1 = 2 \cdot \frac{P \cdot R}{P + R}$ where $P = \frac{matched}{answer}$, $R = \frac{matched}{truth}$ |
+| Security | 20% | $\frac{1}{n}\sum_{i=1}^n \max_{j} \; \text{overlap}(\text{answer}_j,\ \text{truth}_i)$ |
+| Endpoints | 15% | $\frac{\text{matched endpoints}}{\text{truth endpoints}}$ |
+| DataFlow | 10% | $\frac{|\text{keywords}_{\text{answer}} \cap \text{keywords}_{\text{truth}}|}{|\text{keywords}_{\text{truth}}|}$ |
+| Variables | 10% | $\frac{\text{matched variables}}{\text{truth variables}}$ |
+| Purpose | 5% | $\frac{|\text{keywords}_{\text{answer}} \cap \text{keywords}_{\text{truth}}|}{|\text{keywords}_{\text{truth}}|}$ |
+| Time | 5% | $1 - \frac{t_{\text{agent}}}{t_{\text{deob}} + t_{\text{raw}}}$ |
+| EntryPoint | 2.5% | $\begin{cases}1 & \text{if identified}\\0 & \text{otherwise}\end{cases}$ |
+| Token | 2.5% | $1 - \frac{k_{\text{agent}}}{k_{\text{deob}} + k_{\text{raw}}}$ |
+
+$$\text{Total} = \sum_{i=1}^{9} w_i \cdot s_i$$
+
+Where $t$ = analysis time (seconds), $k$ = input tokens consumed.
 
 **Scenarios**: 5 custom JavaScript programs obfuscated via `javascript-obfuscator` at increasing intensity:
 
@@ -197,20 +204,6 @@ Deob correctly identified `validateCard` (Luhn algorithm), `detectCardType` (Vis
 5. **Simple obfuscation doesn't need deob** — For scenario A (just renameGlobals + base64), deob's advantage was only 1.2x. The raw agent could reason through it.
 
 6. **Security scoring needs improvement** — In scenario B, both agents correctly identified the weak hash and hardcoded credentials in prose, but the keyword-based scoring missed this. Semantic scoring (implemented post-experiment) partially addresses this.
-
-### Efficiency
-
-![bar-time](imgs/bar-time.svg)
-
-| Scenario | deob Time | raw Time | Speedup |
-|----------|-----------|----------|---------|
-| A | ~30s | ~80s | 2.7x |
-| B | ~35s | ~60s | 1.7x |
-| C | ~35s | ~80s | 2.3x |
-| D | ~115s | ~400s | **3.5x** |
-| E | ~190s | ~255s | 1.3x |
-
-> For scenario D, deob reduced analysis time by 3.5x. The structured output lets LLMs skip manually decoding each string and tracing each branch.
 
 ---
 
