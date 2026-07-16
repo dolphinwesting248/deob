@@ -1,6 +1,6 @@
 // Post-traverse passes: hoisting, constant folding, boolean simplification
 
-const { t, ALERT_PATTERNS } = require("./config");
+const { t, ALERT_PATTERNS, RESERVED } = require("./config");
 const { clone, walkStmtLists, walkAST, walkASTDeep, containsYield, containsForAwait } = require("./ast-utils");
 const { collectDefined, getExternalRefs } = require("./scope");
 const { safeParam } = require("./emit");
@@ -1218,14 +1218,7 @@ function extractInlineFunctions(ast) {
 // and variable names. This works in sloppy-mode parsers but breaks when downstream
 // tools re-parse the generated output. This pass runs FIRST to clean identifiers.
 function sanitizeReservedWords(ast) {
-  const RW = new Set([
-    "break", "case", "catch", "continue", "debugger", "default", "delete",
-    "do", "else", "finally", "for", "function", "if", "in", "instanceof",
-    "new", "return", "switch", "this", "throw", "try", "typeof", "var",
-    "void", "while", "with", "class", "const", "enum", "export", "extends",
-    "import", "super", "implements", "interface", "let", "package",
-    "private", "protected", "public", "static", "yield", "await", "async",
-  ]);
+  const RW = RESERVED;
 
   // Phase 1: collect every identifier already in use (to avoid collisions)
   const allNames = new Set();

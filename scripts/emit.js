@@ -1,4 +1,4 @@
-const { t } = require("./config");
+const { t, RESERVED } = require("./config");
 const { containsAwait, containsYield, containsForAwait } = require("./ast-utils");
 
 // ---- Line-range comment on extracted sub-functions ----
@@ -8,16 +8,6 @@ function addLineComment(fnNode, sourceNode) {
   if (!fnNode.leadingComments) fnNode.leadingComments = [];
   fnNode.leadingComments.push({ type: "CommentLine", value: ` Original lines ${start.line}-${end.line} ` });
 }
-
-// ---- Reserved words that cannot be parameter names ----
-const RESERVED = new Set([
-  "break", "case", "catch", "continue", "debugger", "default", "delete",
-  "do", "else", "finally", "for", "function", "if", "in", "instanceof",
-  "new", "return", "switch", "this", "throw", "try", "typeof", "var",
-  "void", "while", "with", "class", "const", "enum", "export", "extends",
-  "import", "super", "implements", "interface", "let", "package",
-  "private", "protected", "public", "static", "yield", "await", "async",
-]);
 
 function safeParam(name) {
   return RESERVED.has(name) ? name + "_" : name;

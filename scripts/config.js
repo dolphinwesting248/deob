@@ -5,6 +5,16 @@ const t = require("@babel/types");
 const fs = require("fs");
 const path = require("path");
 
+// ---- Reserved words that cannot be parameter/identifier names ----
+const RESERVED = new Set([
+  "break", "case", "catch", "continue", "debugger", "default", "delete",
+  "do", "else", "finally", "for", "function", "if", "in", "instanceof",
+  "new", "return", "switch", "this", "throw", "try", "typeof", "var",
+  "void", "while", "with", "class", "const", "enum", "export", "extends",
+  "import", "super", "implements", "interface", "let", "package",
+  "private", "protected", "public", "static", "yield", "await", "async",
+]);
+
 // ---- Globals not requiring parameter passing ----
 const GLOBALS = new Set([
   "Object", "Array", "String", "Number", "Boolean", "Function", "Symbol",
@@ -44,4 +54,4 @@ const ALERT_PATTERNS = [
   { label: "Anti-Tamper", regex: /\bdebugger\b/gi, severity: "high" },
 ];
 
-module.exports = { parser, generate, t, fs, path, GLOBALS, ALERT_PATTERNS };
+module.exports = { parser, generate, t, fs, path, GLOBALS, ALERT_PATTERNS, RESERVED };
