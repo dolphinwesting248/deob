@@ -188,12 +188,5 @@
   "keyVariables": {
     "sessionDuration": "3600000 ms (1 hour)",
     "maxAttempts": "5"
-  },
-  "purposeKeywords": [
-    "authenticate|login|credential|verify",
-    "password.*(hash|check|valid)",
-    "rate.?limit|attempt|throttle",
-    "mfa|2fa|two.?factor",
-    "token|session|generate|expire"
-  ]
+  }
 }

@@ -168,12 +168,5 @@
   "keyVariables": {
     "API_BASE_URL": "https://api.example.com",
     "AUTH_TOKEN_KEY": "session_token"
-  },
-  "purposeKeywords": [
-    "login|authenticate|auth",
-    "profile|user.*(fetch|get|read|retrieve)",
-    "token|session|bearer",
-    "localStorage|storage|cache",
-    "password|hash|credentials"
-  ]
+  }
 }

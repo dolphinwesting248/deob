@@ -129,12 +129,5 @@
   "keyVariables": {
     "BASE_URL": "https://api.example.com",
     "debounce delay": "300ms"
-  },
-  "purposeKeywords": [
-    "event|calendar|schedule.*(fetch|load|display)",
-    "sanitize|escape|xss",
-    "webpack|module|bundle",
-    "debounce|throttle|delay",
-    "innerhtml|dom|render|inject"
-  ]
+  }
 }

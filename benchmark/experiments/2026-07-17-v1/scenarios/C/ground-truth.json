@@ -97,12 +97,5 @@
   ],
   "securityIssues": [],
   "apiEndpoints": [],
-  "keyVariables": {},
-  "purposeKeywords": [
-    "parse|filter|map|transform|process",
-    "group.*(domain|category)|aggregate",
-    "sort|order|statistics|summary",
-    "json|array|data",
-    "validat|normalize|sanitize"
-  ]
+  "keyVariables": {}
 }

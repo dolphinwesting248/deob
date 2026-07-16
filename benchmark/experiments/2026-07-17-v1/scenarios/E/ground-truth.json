@@ -126,12 +126,5 @@
   "keyVariables": {
     "PAYMENT_API": "https://api.payment.com",
     "CARD_PATTERNS": "visa/mastercard/amex regex patterns"
-  },
-  "purposeKeywords": [
-    "card.*(valid|check)|luhn|payment",
-    "visa|mastercard|amex|detect",
-    "encrypt|btoa|atob|sanitize|tokenize",
-    "fetch.*(api|gateway|endpoint)|post.*charge",
-    "amount|currency|cvv|transaction"
-  ]
+  }
 }
