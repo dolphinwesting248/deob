@@ -88,7 +88,7 @@ output.deob/
 ## Project Structure
 
 ```
-deob.js                          CLI entry, config parsing, directory recursion
+deob-cli.js                          CLI entry, config parsing, directory recursion
 scripts/
   config.js                      User-facing config: parser, t, generate, fs, path, DEFAULT_DENOISE
   constants.js                   Internal constants: RESERVED, GLOBALS, ALERT_PATTERNS, SKIP_KEYS,

@@ -204,7 +204,7 @@ var _0xa1b2 = ["https://api"];
 ## Directory Structure
 
 ```
-deob.js               ← CLI entry point, config parsing
+deob-cli.js               ← CLI entry point, config parsing
 scripts/
   config.js           ← User-facing config (parser, t, DEFAULT_DENOISE)
   constants.js        ← Internal constants (RESERVED, GLOBALS, ALERT_PATTERNS, SKIP_KEYS, etc.)

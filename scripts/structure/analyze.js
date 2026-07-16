@@ -178,8 +178,12 @@ function analyzeStructureFallback(filepath, code) {
     }
   }
 
-  // Phase 6: hotspots (same as AST path)
-  const byIncoming = [...fns].sort((a, b) => b.calledBy.length - a.calledBy.length);
+  // Phase 6: hotspots — rank by callers × complexity (not just caller count)
+  const byIncoming = [...fns].sort((a, b) => {
+    const scoreA = a.calledBy.length * (a.complexity || 1);
+    const scoreB = b.calledBy.length * (b.complexity || 1);
+    return scoreB - scoreA;
+  });
   const mostCalled = byIncoming.slice(0, 10).filter((f) => f.calledBy.length > 0);
   const roots = fns.filter((f) => f.calledBy.length === 0 && f.calls.length > 0);
   const leaves = fns.filter((f) => f.calls.length === 0 && f.calledBy.length > 0);
@@ -454,8 +458,12 @@ function analyzeStructureImpl(filepath, opts) {
     }
   }
 
-  // Phase 5: hotspots — function heat rankings
-  const byIncoming = [...fns].sort((a, b) => b.calledBy.length - a.calledBy.length);
+  // Phase 5: hotspots — rank by callers × complexity
+  const byIncoming = [...fns].sort((a, b) => {
+    const scoreA = a.calledBy.length * (a.complexity || 1);
+    const scoreB = b.calledBy.length * (b.complexity || 1);
+    return scoreB - scoreA;
+  });
   const mostCalled = byIncoming.slice(0, 10).filter((f) => f.calledBy.length > 0);
   const roots = fns.filter((f) => f.calledBy.length === 0 && f.calls.length > 0);
   const leaves = fns.filter((f) => f.calls.length === 0 && f.calledBy.length > 0);
