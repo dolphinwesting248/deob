@@ -222,8 +222,6 @@ function annotateAlerts(ast, callGraph, refGraph) {
       if (isSubFn(node.id.name)) {
         const banner = [];
         const name = node.id.name;
-        const lineStart = node.loc ? node.loc.start.line : "?";
-        const lineEnd = node.loc ? node.loc.end.line : "?";
         const params = node.params.length;
         const bodyLen = node.body && node.body.body ? node.body.body.length : 0;
 
@@ -242,7 +240,7 @@ function annotateAlerts(ast, callGraph, refGraph) {
         }
         countBranches(node.body);
 
-        banner.push(`${name} | L${lineStart}-${lineEnd} | ${bodyLen}S/${params}P | cc=${cc}`);
+        banner.push(`${name} | ${bodyLen}S/${params}P | cc=${cc}`);
 
         // Callers
         if (callersMap && callersMap.has(name)) {
