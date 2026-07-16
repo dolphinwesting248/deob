@@ -68,7 +68,7 @@ output.deob/
 ## Domain               — framework/bundler/crypto classification
 ## Function Types       — core/branch/callback/data/network/... breakdown
 ## Hot Spots            — most-called functions, entry points, leaves
-## Alerts               — security patterns with severity, function, line
+## Alerts               — security patterns with severity, function, trace
 ## Call Graph           — Mermaid diagram of cross-function calls
 ## Naming Convention    — _S_<parent>_<seq>_<hint> format explanation
 ```
@@ -78,7 +78,9 @@ output.deob/
 ```
 # main.js · Function Index · N functions
 
+## Legend               — symbol definitions: Ss/Pp, cc=, →, ⇐, root, [tags], FLAT, DATA
 ## entry                — entry point functions
+## alerts               — security patterns with function and matches
 ## hot                  — most-called functions
 ## lookup               — keyword → function mapping
 ## trace                — longest call path
@@ -215,7 +217,7 @@ input.js
 **Does not**: Create AST nodes, walk AST
 
 ### emit.js — AST Node Creation
-**Does**: createSubFn, addLineComment, safeParam
+**Does**: createSubFn (preserves source loc), safeParam
 **Does not**: Walk AST, make pass decisions
 
 ### extract.js — Syntactic Extraction
@@ -388,7 +390,8 @@ Timing: `const t = Date.now(); ... console.log("  Done in ${Date.now()-t}ms")`
 annotateAlerts (step 18)
   ├─ scanStringLiterals: ALERT_PATTERNS regex → matches[]
   ├─ scanAST: DebuggerStatement, eval(), new Function() → matches[]
-  └─ add leadingComments to function node
+  ├─ add leadingComments to function node
+  └─ add metadata banner to _S_ functions: name, size, cc, callers, callees, closures, alerts
 
 analyzeStructure (post-pipeline)
   ├─ scanStringLiterals: same ALERT_PATTERNS → alerts[]
