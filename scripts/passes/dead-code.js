@@ -1,6 +1,7 @@
 // Dead code elimination passes
 
 const { t } = require("../config");
+const { SKIP_KEYS } = require("../constants");
 
 // ---- eliminateDeadCode: remove unreachable statements ----
 function eliminateDeadCode(ast) {
@@ -61,8 +62,7 @@ function eliminateDeadCode(ast) {
       collectIn(node.body);
     }
     for (const key of Object.keys(node)) {
-      if (key === "start" || key === "end" || key === "loc" ||
-          key === "leadingComments" || key === "trailingComments" || key === "innerComments") continue;
+      if (SKIP_KEYS.has(key)) continue;
       const val = node[key];
       if (Array.isArray(val)) { for (const v of val) walkStmtLists(v); }
       else if (val && typeof val.type === "string") walkStmtLists(val);
@@ -113,8 +113,7 @@ function removeUnusedHelpers(ast) {
     }
 
     for (const key of Object.keys(node)) {
-      if (key === "start" || key === "end" || key === "loc" ||
-          key === "leadingComments" || key === "trailingComments" || key === "innerComments") continue;
+      if (SKIP_KEYS.has(key)) continue;
       const val = node[key];
       if (Array.isArray(val)) {
         for (let i = 0; i < val.length; i++) {
@@ -142,8 +141,7 @@ function removeUnusedHelpers(ast) {
     }
 
     for (const key of Object.keys(node)) {
-      if (key === "start" || key === "end" || key === "loc" ||
-          key === "leadingComments" || key === "trailingComments" || key === "innerComments") continue;
+      if (SKIP_KEYS.has(key)) continue;
       const val = node[key];
       if (Array.isArray(val)) { for (const v of val) collectRefs(v, newContext); }
       else if (val && typeof val.type === "string") collectRefs(val, newContext);

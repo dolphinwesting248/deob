@@ -1,5 +1,6 @@
 // Tier filtering: selective function body stripping
 const { parser, t, fs, path } = require("../config");
+const { DEFAULT_PARSER_OPTS } = require("../constants");
 const { analyzeStructure, detectMechanical } = require("./analyze");
 
 // ── Tier Filtering ──────────────────────────────────────────────────
@@ -51,10 +52,7 @@ function applyTierFilter(outputDir, tier, fold, denoise) {
   const code = fs.readFileSync(mainPath, "utf-8");
   let ast;
   try {
-    ast = parser.parse(code, {
-      sourceType: "script", allowReturnOutsideFunction: true,
-      allowUndeclaredExports: true, errorRecovery: true,
-    });
+    ast = parser.parse(code, DEFAULT_PARSER_OPTS);
   } catch (e) {
     return;
   }

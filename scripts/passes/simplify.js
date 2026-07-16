@@ -1,6 +1,7 @@
 // Simplify passes: constant folding, boolean simplification, normalization
 
 const { t } = require("../config");
+const { SKIP_KEYS, THRESHOLDS } = require("../constants");
 const { clone } = require("../ast-utils");
 
 // ---- simplify: combined fold+boolean+strings+ast-normalize in ONE walk ----
@@ -126,7 +127,7 @@ function simplify(ast) {
     if (t.isNumericLiteral(node) && node.extra && node.extra.rawValue && /^0x[0-9a-f]+$/i.test(node.extra.rawValue)) {
       const val = node.value;
       // Only normalize small hex values that are likely indices/char codes, not memory addresses
-      if (val < 65536) {
+      if (val < THRESHOLDS.HEX_NORM_MAX) {
         normCount++;
         node.extra = { rawValue: val, raw: String(val) };
       }
@@ -145,8 +146,7 @@ function simplify(ast) {
 
     // Recurse
     for (const key of Object.keys(node)) {
-      if (key === "start" || key === "end" || key === "loc" ||
-          key === "leadingComments" || key === "trailingComments" || key === "innerComments") continue;
+      if (SKIP_KEYS.has(key)) continue;
       const val = node[key];
       if (Array.isArray(val)) {
         for (let i = 0; i < val.length; i++) {
@@ -279,8 +279,7 @@ function normalizeShortCircuit(ast) {
       return;
     }
     for (const k of Object.keys(node)) {
-      if (k === "start" || k === "end" || k === "loc" ||
-          k === "leadingComments" || k === "trailingComments" || k === "innerComments") continue;
+      if (SKIP_KEYS.has(k)) continue;
       const v = node[k];
       if (Array.isArray(v)) {
         for (let i = 0; i < v.length; i++) walk(v[i]);
@@ -403,8 +402,7 @@ function expandSequences(ast) {
 
     // Recurse into children
     for (const key of Object.keys(node)) {
-      if (key === "start" || key === "end" || key === "loc" ||
-          key === "leadingComments" || key === "trailingComments" || key === "innerComments") continue;
+      if (SKIP_KEYS.has(key)) continue;
       const val = node[key];
       if (Array.isArray(val)) {
         for (let i = 0; i < val.length; i++) {
@@ -431,8 +429,7 @@ function expandSequences(ast) {
     }
 
     for (const key of Object.keys(node)) {
-      if (key === "start" || key === "end" || key === "loc" ||
-          key === "leadingComments" || key === "trailingComments" || key === "innerComments") continue;
+      if (SKIP_KEYS.has(key)) continue;
       const val = node[key];
       if (Array.isArray(val)) { for (const v of val) walkStmtLists(v); }
       else if (val && typeof val.type === "string") walkStmtLists(val);
@@ -522,8 +519,7 @@ function simplifyRedundantConditions(ast) {
       collectIn(node.body);
     }
     for (const key of Object.keys(node)) {
-      if (key === "start" || key === "end" || key === "loc" ||
-          key === "leadingComments" || key === "trailingComments" || key === "innerComments") continue;
+      if (SKIP_KEYS.has(key)) continue;
       const val = node[key];
       if (Array.isArray(val)) { for (const v of val) walkLists(v); }
       else if (val && typeof val.type === "string") walkLists(val);
@@ -591,8 +587,7 @@ function simplifyRedundantConditions(ast) {
 
     // Recurse
     for (const key of Object.keys(node)) {
-      if (key === "start" || key === "end" || key === "loc" ||
-          key === "leadingComments" || key === "trailingComments" || key === "innerComments") continue;
+      if (SKIP_KEYS.has(key)) continue;
       const val = node[key];
       if (Array.isArray(val)) {
         for (let i = 0; i < val.length; i++) {
@@ -700,8 +695,7 @@ function normalizeSyntax(ast) {
       collectIn(node.body);
     }
     for (const key of Object.keys(node)) {
-      if (key === "start" || key === "end" || key === "loc" ||
-          key === "leadingComments" || key === "trailingComments" || key === "innerComments") continue;
+      if (SKIP_KEYS.has(key)) continue;
       const val = node[key];
       if (Array.isArray(val)) { for (const v of val) walkLists(v); }
       else if (val && typeof val.type === "string") walkLists(val);
@@ -715,8 +709,7 @@ function normalizeSyntax(ast) {
 
     // Recurse
     for (const key of Object.keys(node)) {
-      if (key === "start" || key === "end" || key === "loc" ||
-          key === "leadingComments" || key === "trailingComments" || key === "innerComments") continue;
+      if (SKIP_KEYS.has(key)) continue;
       const val = node[key];
       if (Array.isArray(val)) {
         for (let i = 0; i < val.length; i++) {
@@ -803,8 +796,7 @@ function inlineConstObjects(ast) {
       }
     }
     for (const k of Object.keys(node)) {
-      if (k === "start" || k === "end" || k === "loc" ||
-          k === "leadingComments" || k === "trailingComments" || k === "innerComments") continue;
+      if (SKIP_KEYS.has(k)) continue;
       const val = node[k];
       if (Array.isArray(val)) {
         for (let i = 0; i < val.length; i++) {

@@ -1,11 +1,12 @@
 // Compact function index generation
 const { fs, path } = require("../config");
+const { OUTPUT_FILES } = require("../constants");
 const { analyzeStructure, categorizeFn } = require("./analyze");
 
 // ── Compact Index ──────────────────────────────────────────────────
 
 function generateIndex(outputDir, opts) {
-  const mainPath = path.join(outputDir, "main.js");
+  const mainPath = path.join(outputDir, OUTPUT_FILES.MAIN);
   if (!fs.existsSync(mainPath)) {
     console.log("  Index skipped: no output file found");
     return;
@@ -35,7 +36,7 @@ function generateIndex(outputDir, opts) {
 
   const lines = [];
   lines.push(`# ${report.file} · Function Index · ${summary.totalFunctions} functions`);
-  lines.push("_Previous: 1-structure.md  →  **Now: 2-index.txt**  →  Jump to main.js by line number._");
+  lines.push(`_Previous: 1-structure.md  →  **Now: 2-index.txt**  →  Jump to ${OUTPUT_FILES.MAIN} by line number._`);
   lines.push("");
 
   // Entry points

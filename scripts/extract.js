@@ -1,6 +1,7 @@
 // Extraction module: split syntactic structures into independent sub-functions
 
 const { t } = require("./config");
+const { SKIP_KEYS } = require("./constants");
 const { subName } = require("./naming");
 const { createSubFn, safeParam } = require("./emit");
 const { isIIFE, descIIFE, clone, hasBail, hasSuperCall, hasReturn, describeBody } = require("./ast-utils");
@@ -236,7 +237,7 @@ function findCallbacks(node, infos) {
   }
   if (t.isFunction(node)) return;
   for (const key of Object.keys(node)) {
-    if (key === "start" || key === "end" || key === "loc") continue;
+    if (SKIP_KEYS.has(key)) continue;
     const val = node[key];
     if (Array.isArray(val)) { for (const v of val) findCallbacks(v, infos); }
     else if (val && typeof val.type === "string") findCallbacks(val, infos);
@@ -269,8 +270,7 @@ function processNestedInStmt(node, parentName, subFns, counter, skipBody) {
   }
 
   for (const key of Object.keys(node)) {
-    if (key === "start" || key === "end" || key === "loc" || key === "body" ||
-        key === "leadingComments" || key === "trailingComments" || key === "innerComments") continue;
+    if (SKIP_KEYS.has(key) || key === "body") continue;
     const val = node[key];
     if (Array.isArray(val)) { for (const v of val) processNestedInStmt(v, parentName, subFns, counter, skipBody); }
     else if (val && typeof val.type === "string") processNestedInStmt(val, parentName, subFns, counter, skipBody);

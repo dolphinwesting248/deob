@@ -1,5 +1,6 @@
 // Core analysis functions for structure report
 const { parser, t, fs, path, ALERT_PATTERNS } = require("../config");
+const { DEFAULT_PARSER_OPTS, JSX_PARSER_OPTS, SUB_FN_PREFIX, SUB_FN_NAME_RE, isSubFn, SKIP_KEYS, THRESHOLDS, CATEGORIES, SEVERITY, NAMING_FORMAT, NAMING_COLLISION, NAMING_EXAMPLES, NAMING_HINTS } = require("../constants");
 
 // Simple cache: avoid re-parsing the same file in a single run
 const _analysisCache = new Map();
@@ -138,8 +139,8 @@ function analyzeStructureFallback(filepath, code) {
   }
 
   // Phase 4: summary
-  const subFns = fns.filter((f) => f.name.startsWith("_S_"));
-  const origins = fns.filter((f) => !f.name.startsWith("_S_"));
+  const subFns = fns.filter((f) => f.name.startsWith(SUB_FN_PREFIX));
+  const origins = fns.filter((f) => !f.name.startsWith(SUB_FN_PREFIX));
   const types = {};
   for (const f of subFns) {
     const n = f.name;
@@ -147,7 +148,7 @@ function analyzeStructureFallback(filepath, code) {
     else if (n.match(/_if$/) || n.match(/_else$/)) types.ifElse = (types.ifElse || 0) + 1;
     else if (n.includes("_iife") || n.includes("_init_")) types.iife = (types.iife || 0) + 1;
     else if (n.includes("_case")) types.switch = (types.switch || 0) + 1;
-    else if (n.startsWith("_S_return_")) types.inlineFn = (types.inlineFn || 0) + 1;
+    else if (n.startsWith(SUB_FN_PREFIX + "return_")) types.inlineFn = (types.inlineFn || 0) + 1;
     else if (n.startsWith("_S_program")) types.program = (types.program || 0) + 1;
     else types.other = (types.other || 0) + 1;
   }
@@ -183,7 +184,7 @@ function analyzeStructureFallback(filepath, code) {
   const leaves = fns.filter((f) => f.calls.length === 0 && f.calledBy.length > 0);
   const groupEdges = {};
   for (const f of fns) {
-    const m = f.name.match(/^_S_(.+?)_\d{2}_/);
+    const m = f.name.match(SUB_FN_NAME_RE);
     const grp = m ? m[1] : "top-level";
     groupEdges[grp] = (groupEdges[grp] || 0) + f.calls.length + f.calledBy.length;
   }
@@ -228,20 +229,11 @@ function analyzeStructureImpl(filepath, opts) {
   const code = fs.readFileSync(filepath, "utf-8");
   let ast;
   try {
-    ast = parser.parse(code, {
-      sourceType: "script", allowReturnOutsideFunction: true,
-      allowUndeclaredExports: true, errorRecovery: true,
-    });
+    ast = parser.parse(code, DEFAULT_PARSER_OPTS);
   } catch (e) {
-    // Retry with JSX/TypeScript plugins
     try {
-      ast = parser.parse(code, {
-        sourceType: "script", allowReturnOutsideFunction: true,
-        allowUndeclaredExports: true, errorRecovery: true,
-        plugins: ["jsx", "typescript"],
-      });
+      ast = parser.parse(code, JSX_PARSER_OPTS);
     } catch (e2) {
-      // Fallback: regex-based analysis for files that Babel can't re-parse
       return analyzeStructureFallback(filepath, code);
     }
   }
@@ -268,8 +260,7 @@ function analyzeStructureImpl(filepath, opts) {
         if ((t.isWhileStatement(n) || t.isForStatement(n)) && containsSwitch(n.body)) { hasFlattening = true; }
         if (t.isFunction(n)) return;
         for (const k of Object.keys(n)) {
-          if (k === "start" || k === "end" || k === "loc" ||
-              k === "leadingComments" || k === "trailingComments" || k === "innerComments") continue;
+          if (SKIP_KEYS.has(k)) continue;
           const v = n[k];
           if (Array.isArray(v)) { for (const x of v) detectFlat(x); }
           else if (v && typeof v.type === "string") detectFlat(v);
@@ -280,8 +271,7 @@ function analyzeStructureImpl(filepath, opts) {
         if (t.isSwitchStatement(n)) return true;
         if (t.isFunction(n)) return false;
         for (const k of Object.keys(n)) {
-          if (k === "start" || k === "end" || k === "loc" ||
-              k === "leadingComments" || k === "trailingComments" || k === "innerComments") continue;
+          if (SKIP_KEYS.has(k)) continue;
           const v = n[k];
           if (Array.isArray(v)) { for (const x of v) { if (containsSwitch(x)) return true; } }
           else if (v && typeof v.type === "string") { if (containsSwitch(v)) return true; }
@@ -305,8 +295,7 @@ function analyzeStructureImpl(filepath, opts) {
         if (t.isCatchClause(n)) complexity++;
         if (t.isFunction(n)) return;
         for (const k of Object.keys(n)) {
-          if (k === "start" || k === "end" || k === "loc" ||
-              k === "leadingComments" || k === "trailingComments" || k === "innerComments") continue;
+          if (SKIP_KEYS.has(k)) continue;
           const v = n[k];
           if (Array.isArray(v)) { for (const x of v) calcComplexity(x); }
           else if (v && typeof v.type === "string") calcComplexity(v);
@@ -342,8 +331,7 @@ function analyzeStructureImpl(filepath, opts) {
         }
         if (t.isFunction(n)) return;
         for (const k of Object.keys(n)) {
-          if (k === "start" || k === "end" || k === "loc" ||
-              k === "leadingComments" || k === "trailingComments" || k === "innerComments") continue;
+          if (SKIP_KEYS.has(k)) continue;
           const v = n[k];
           if (Array.isArray(v)) { for (const x of v) detectSuspicious(x); }
           else if (v && typeof v.type === "string") detectSuspicious(v);
@@ -372,8 +360,7 @@ function analyzeStructureImpl(filepath, opts) {
       fns[calleeIdx].calledBy.push(callerName);
     }
     for (const k of Object.keys(node)) {
-      if (k === "start" || k === "end" || k === "loc" ||
-          k === "leadingComments" || k === "trailingComments" || k === "innerComments") continue;
+      if (SKIP_KEYS.has(k)) continue;
       const v = node[k];
       if (Array.isArray(v)) { for (const x of v) walk(x, callerName); }
       else if (v && typeof v.type === "string") walk(v, callerName);
@@ -384,8 +371,8 @@ function analyzeStructureImpl(filepath, opts) {
   }
 
   // Phase 3: summary
-  const subFns = fns.filter((f) => f.name.startsWith("_S_"));
-  const origins = fns.filter((f) => !f.name.startsWith("_S_"));
+  const subFns = fns.filter((f) => f.name.startsWith(SUB_FN_PREFIX));
+  const origins = fns.filter((f) => !f.name.startsWith(SUB_FN_PREFIX));
   const types = {};
   for (const f of subFns) {
     const n = f.name;
@@ -393,7 +380,7 @@ function analyzeStructureImpl(filepath, opts) {
     else if (n.match(/_if$/) || n.match(/_else$/)) types.ifElse = (types.ifElse || 0) + 1;
     else if (n.includes("_iife") || n.includes("_init_")) types.iife = (types.iife || 0) + 1;
     else if (n.includes("_case")) types.switch = (types.switch || 0) + 1;
-    else if (n.startsWith("_S_return_")) types.inlineFn = (types.inlineFn || 0) + 1;
+    else if (n.startsWith(SUB_FN_PREFIX + "return_")) types.inlineFn = (types.inlineFn || 0) + 1;
     else if (n.startsWith("_S_program")) types.program = (types.program || 0) + 1;
     else types.other = (types.other || 0) + 1;
   }
@@ -440,8 +427,7 @@ function analyzeStructureImpl(filepath, opts) {
         }
       }
       for (const k of Object.keys(node)) {
-        if (k === "start" || k === "end" || k === "loc" ||
-            k === "leadingComments" || k === "trailingComments" || k === "innerComments") continue;
+        if (SKIP_KEYS.has(k)) continue;
         const v = node[k];
         if (Array.isArray(v)) { for (const x of v) collectStrings(x); }
         else if (v && typeof v.type === "string") collectStrings(v);
@@ -475,7 +461,7 @@ function analyzeStructureImpl(filepath, opts) {
   // Hot groups: count edges per parent group
   const groupEdges = {};
   for (const f of fns) {
-    const m = f.name.match(/^_S_(.+?)_\d{2}_/);
+    const m = f.name.match(SUB_FN_NAME_RE);
     const grp = m ? m[1] : "top-level";
     groupEdges[grp] = (groupEdges[grp] || 0) + f.calls.length + f.calledBy.length;
   }
@@ -571,8 +557,7 @@ function detectJumpTable(body) {
         n.properties.every((p) => (t.isNumericLiteral(p.key) || (t.isStringLiteral(p.key) && /^\d+$/.test(p.key.value))))) hasTable = true;
     if (t.isCallExpression(n) && t.isMemberExpression(n.callee) && n.callee.computed) hasComputedCall = true;
     for (const k of Object.keys(n)) {
-      if (k === "start" || k === "end" || k === "loc" ||
-          k === "leadingComments" || k === "trailingComments" || k === "innerComments") continue;
+      if (SKIP_KEYS.has(k)) continue;
       const v = n[k];
       if (Array.isArray(v)) { for (const x of v) scan(x); }
       else if (v && typeof v.type === "string") scan(v);
@@ -616,8 +601,7 @@ function detectParamRoles(fnNode) {
       if (p) { if (!roles.has(p.name)) roles.set(p.name, new Set()); roles.get(p.name).add("iter"); }
     }
     for (const k of Object.keys(n)) {
-      if (k === "start" || k === "end" || k === "loc" ||
-          k === "leadingComments" || k === "trailingComments" || k === "innerComments") continue;
+      if (SKIP_KEYS.has(k)) continue;
       const v = n[k];
       if (Array.isArray(v)) { for (const x of v) scan(x); }
       else if (v && typeof v.type === "string") scan(v);
@@ -666,8 +650,7 @@ function detectSemanticTags(name, stmt) {
     if (t.isObjectExpression(n) && n.properties.length > 5) buildCount++;
 
     for (const k of Object.keys(n)) {
-      if (k === "start" || k === "end" || k === "loc" ||
-          k === "leadingComments" || k === "trailingComments" || k === "innerComments") continue;
+      if (SKIP_KEYS.has(k)) continue;
       const v = n[k];
       if (Array.isArray(v)) { for (const x of v) scan(x); }
       else if (v && typeof v.type === "string") scan(v);
@@ -684,7 +667,7 @@ function detectSemanticTags(name, stmt) {
       if (t.isReturnStatement(n) && n.argument && t.isMemberExpression(n.argument)) hasArrayReturn = true;
       if (t.isFunction(n) && n !== stmt) return;
       for (const k of Object.keys(n)) {
-        if (k === "start" || k === "end" || k === "loc") continue;
+        if (SKIP_KEYS.has(k)) continue;
         const v = n[k];
         if (v && typeof v.type === "string") scanReturn(v);
       }
@@ -699,8 +682,7 @@ function detectSemanticTags(name, stmt) {
       if (t.isSwitchStatement(n)) return true;
       if (t.isFunction(n) && n !== stmt) return false;
       for (const k of Object.keys(n)) {
-        if (k === "start" || k === "end" || k === "loc" ||
-            k === "leadingComments" || k === "trailingComments" || k === "innerComments") continue;
+        if (SKIP_KEYS.has(k)) continue;
         const v = n[k];
         if (Array.isArray(v)) { for (const x of v) { if (hasSwitch(x)) return true; } }
         else if (v && typeof v.type === "string") { if (hasSwitch(v)) return true; }
@@ -746,8 +728,7 @@ function describeFn(fnNode) {
     if (t.isAssignmentExpression(n) && t.isMemberExpression(n.left)) hasMemberAssign = true;
     if (t.isFunction(n)) return;
     for (const k of Object.keys(n)) {
-      if (k === "start" || k === "end" || k === "loc" ||
-          k === "leadingComments" || k === "trailingComments" || k === "innerComments") continue;
+      if (SKIP_KEYS.has(k)) continue;
       const v = n[k];
       if (Array.isArray(v)) { for (const x of v) scan(x); }
       else if (v && typeof v.type === "string") scan(v);
@@ -928,7 +909,7 @@ function classifyDomain(filepath) {
 
 function categorizeFn(name, fn, meta) {
   if (meta && meta.heavyHex) return "data";
-  if (!name.startsWith("_S_")) return "core";
+  if (!name.startsWith(SUB_FN_PREFIX)) return "core";
 
   const labels = meta && meta.alertLabels ? meta.alertLabels : null;
   const src = meta && meta.srcText ? meta.srcText : "";
@@ -961,7 +942,7 @@ function categorizeFn(name, fn, meta) {
   if (/\b(__esModule|Object\.defineProperty|d\s*\(\s*exports|exports\s*\[)\b/.test(src)) return "boilerplate";
 
   // Structural patterns — AFTER domain checks so try/catch with domain code wins
-  if (name.includes("_S_return_") || name.includes("_S_return_L")) return "callback";
+  if (name.includes(SUB_FN_PREFIX + "return_") || name.includes(SUB_FN_PREFIX + "return_L")) return "callback";
   if (/_(if|else|try|catch|case)(?:_\d+)?$/.test(name)) return "branch";
 
   return "other";
@@ -993,8 +974,7 @@ function detectMechanical(fnNode) {
     if (t.isCallExpression(n)) { hasCall = true; return; }
     if (t.isFunction(n)) return;
     for (const k of Object.keys(n)) {
-      if (k === "start" || k === "end" || k === "loc" ||
-          k === "leadingComments" || k === "trailingComments" || k === "innerComments") continue;
+      if (SKIP_KEYS.has(k)) continue;
       const v = n[k];
       if (Array.isArray(v)) { for (const x of v) scanCalls(x); }
       else if (v && typeof v.type === "string") scanCalls(v);
@@ -1016,8 +996,7 @@ function detectMechanical(fnNode) {
     }
     if (t.isFunction(n)) return;
     for (const k of Object.keys(n)) {
-      if (k === "start" || k === "end" || k === "loc" ||
-          k === "leadingComments" || k === "trailingComments" || k === "innerComments") continue;
+      if (SKIP_KEYS.has(k)) continue;
       const v = n[k];
       if (Array.isArray(v)) { for (const x of v) collectDecls(x); }
       else if (v && typeof v.type === "string") collectDecls(v);
@@ -1036,8 +1015,7 @@ function detectMechanical(fnNode) {
     }
     if (t.isFunction(n)) return;
     for (const k of Object.keys(n)) {
-      if (k === "start" || k === "end" || k === "loc" ||
-          k === "leadingComments" || k === "trailingComments" || k === "innerComments") continue;
+      if (SKIP_KEYS.has(k)) continue;
       const v = n[k];
       if (Array.isArray(v)) { for (const x of v) scanRefs(x); }
       else if (v && typeof v.type === "string") scanRefs(v);

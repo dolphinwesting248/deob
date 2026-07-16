@@ -10,6 +10,7 @@
 
 const { parser, generate, t, fs } = require("./config");
 const path = require("path");
+const { DEFAULT_PARSER_OPTS, JSX_PARSER_OPTS, DEFAULT_GENERATE_OPTS, OUTPUT_FILES, SUB_FN_PREFIX, SUB_FN_NAME_RE, isSubFn, SKIP_KEYS } = require("./constants");
 const { processAllFunctions } = require("./traverse");
 const { extractTopLevelIIFEs } = require("./wrapper");
 const { sanitizeReservedWords, hoistDeclarations, simplify, normalizeShortCircuit, expandSequences, eliminateDeadCode, inlineReadOnlyProperties, removeUnusedHelpers, simplifyRedundantConditions, inlinePureWrappers, inlineArithmeticWrappers, sortByCallTree, inlineSingleCallerFns, normalizeSyntax, extractInlineFunctions, annotateAlerts, pushDataToBottom, resetInlineNames, inlineConstObjects } = require("./passes");
@@ -28,22 +29,10 @@ function main({ input, output, split } = {}) {
   console.log("Parsing AST...");
   let ast;
   try {
-    ast = parser.parse(code, {
-      sourceType: "script",
-      allowReturnOutsideFunction: true,
-      allowUndeclaredExports: true,
-      errorRecovery: true,
-    });
+    ast = parser.parse(code, DEFAULT_PARSER_OPTS);
   } catch (e) {
-    // Retry with JSX plugin for React/JSX files
     console.log("  Standard parse failed, retrying with JSX plugin...");
-    ast = parser.parse(code, {
-      sourceType: "script",
-      allowReturnOutsideFunction: true,
-      allowUndeclaredExports: true,
-      errorRecovery: true,
-      plugins: ["jsx", "typescript"],
-    });
+    ast = parser.parse(code, JSX_PARSER_OPTS);
   }
 
   // ==================== Sanitization ====================
@@ -194,13 +183,10 @@ function writeSingleOutput(ast, output, code) {
 
   console.log("Generating output...");
   const g0 = Date.now();
-  const generated = generate(ast, {
-    retainLines: false, retainFunctionParens: false,
-    comments: true, compact: false,
-  }).code;
+  const generated = generate(ast, DEFAULT_GENERATE_OPTS).code;
   console.log(`Generated in ${Date.now() - g0}ms`);
 
-  const mainFile = path.join(outDir, "main.js");
+  const mainFile = path.join(outDir, OUTPUT_FILES.MAIN);
   console.log("Writing output...");
   fs.writeFileSync(mainFile, generated, "utf-8");
 
@@ -208,8 +194,8 @@ function writeSingleOutput(ast, output, code) {
   const ratio = ((finalSize / code.length) * 100).toFixed(1);
   console.log(`Done! Output: ${(finalSize / 1024 / 1024).toFixed(2)} MB (${ratio}% of original)`);
 
-  const fnCount = fs.readFileSync(mainFile, "utf-8").split("\n").filter((l) => l.includes("function _S_")).length;
-  console.log(`_S_ function declarations in output: ${fnCount}`);
+  const fnCount = fs.readFileSync(mainFile, "utf-8").split("\n").filter((l) => l.includes(`function ${SUB_FN_PREFIX}`)).length;
+  console.log(`${SUB_FN_PREFIX} function declarations in output: ${fnCount}`);
   return generated;
 }
 
@@ -226,8 +212,8 @@ function writeSplitOutput(ast, output, code) {
   const otherStmts = [];
 
   for (const stmt of ast.program.body) {
-    if (t.isFunctionDeclaration(stmt) && stmt.id && stmt.id.name.startsWith("_S_")) {
-      const match = stmt.id.name.match(/^_S_(.+?)_\d{2}_/);
+    if (t.isFunctionDeclaration(stmt) && stmt.id && isSubFn(stmt.id.name)) {
+      const match = stmt.id.name.match(SUB_FN_NAME_RE);
       const parent = match ? match[1] : "misc";
       if (!groups.has(parent)) groups.set(parent, []);
       groups.get(parent).push(stmt);
@@ -251,8 +237,7 @@ function writeSplitOutput(ast, output, code) {
     if (t.isFunctionDeclaration(stmt) && stmt.id && stmt.id.name.startsWith("_S_")) {
       const fnAst = { ...ast, program: { ...ast.program, body: [stmt] } };
       generatedFns.set(stmt, generate(fnAst, {
-        retainLines: false, retainFunctionParens: false,
-        comments: true, compact: false,
+        ...DEFAULT_GENERATE_OPTS,
       }).code);
     }
   }
@@ -279,8 +264,8 @@ function writeSplitOutput(ast, output, code) {
       walkCalls(fn.body, imports);
       const importLines = [];
       for (const name of imports) {
-        if (name.startsWith("_S_")) {
-          const match = name.match(/^_S_(.+?)_\d{2}_/);
+        if (isSubFn(name)) {
+          const match = name.match(SUB_FN_NAME_RE);
           const parent = match ? match[1] : "misc";
           importLines.push(`const ${name} = require("../${parent}/${name}");`);
         }
@@ -308,12 +293,11 @@ function writeSplitOutput(ast, output, code) {
 
 function walkCalls(node, collected) {
   if (!node || typeof node !== "object") return;
-  if (t.isCallExpression(node) && t.isIdentifier(node.callee) && node.callee.name.startsWith("_S_")) {
+  if (t.isCallExpression(node) && t.isIdentifier(node.callee) && isSubFn(node.callee.name)) {
     collected.add(node.callee.name);
   }
   for (const k of Object.keys(node)) {
-    if (k === "start" || k === "end" || k === "loc" ||
-        k === "leadingComments" || k === "trailingComments" || k === "innerComments") continue;
+    if (SKIP_KEYS.has(k)) continue;
     const val = node[k];
     if (Array.isArray(val)) { for (const v of val) walkCalls(v, collected); }
     else if (val && typeof val.type === "string") walkCalls(val, collected);

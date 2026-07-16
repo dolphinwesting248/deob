@@ -1,6 +1,7 @@
 // Declaration and annotation passes
 
 const { t, ALERT_PATTERNS, RESERVED } = require("../config");
+const { SKIP_KEYS, isSubFn } = require("../constants");
 
 // ---- hoistDeclarations: move var/let/const/function to top of every scope ----
 // var: always safe (engine already hoists)
@@ -40,8 +41,7 @@ function hoistDeclarations(ast) {
     if (!node || typeof node !== "object") return;
     if (t.isBlockStatement(node) || node.type === "Program") processBlock(node);
     for (const key of Object.keys(node)) {
-      if (key === "start" || key === "end" || key === "loc" ||
-          key === "leadingComments" || key === "trailingComments" || key === "innerComments") continue;
+      if (SKIP_KEYS.has(key)) continue;
       const val = node[key];
       if (Array.isArray(val)) { for (const v of val) walk(v); }
       else if (val && typeof val.type === "string") walk(val);
@@ -68,8 +68,7 @@ function sanitizeReservedWords(ast) {
     if (!n || typeof n !== "object") return;
     if (t.isIdentifier(n)) allNames.add(n.name);
     for (const k of Object.keys(n)) {
-      if (k === "start" || k === "end" || k === "loc" ||
-          k === "leadingComments" || k === "trailingComments" || k === "innerComments") continue;
+      if (SKIP_KEYS.has(k)) continue;
       const v = n[k];
       if (Array.isArray(v)) { for (const x of v) scanAll(x); }
       else if (v && typeof v.type === "string") scanAll(v);
@@ -102,8 +101,7 @@ function sanitizeReservedWords(ast) {
     if (t.isCatchClause(n) && n.param && t.isIdentifier(n.param) && RW.has(n.param.name) && !map.has(n.param.name)) map.set(n.param.name, safeName(n.param.name));
     if (t.isClassDeclaration(n) && n.id && t.isIdentifier(n.id) && RW.has(n.id.name) && !map.has(n.id.name)) map.set(n.id.name, safeName(n.id.name));
     for (const k of Object.keys(n)) {
-      if (k === "start" || k === "end" || k === "loc" ||
-          k === "leadingComments" || k === "trailingComments" || k === "innerComments") continue;
+      if (SKIP_KEYS.has(k)) continue;
       const v = n[k];
       if (Array.isArray(v)) { for (const x of v) collect(x); }
       else if (v && typeof v.type === "string") collect(v);
@@ -132,8 +130,7 @@ function sanitizeReservedWords(ast) {
       n.key = t.stringLiteral(n.key.name);
     }
     for (const k of Object.keys(n)) {
-      if (k === "start" || k === "end" || k === "loc" ||
-          k === "leadingComments" || k === "trailingComments" || k === "innerComments") continue;
+      if (SKIP_KEYS.has(k)) continue;
       const v = n[k];
       if (Array.isArray(v)) { for (const x of v) replace(x); }
       else if (v && typeof v.type === "string") replace(v);
@@ -216,8 +213,7 @@ function annotateAlerts(ast) {
       }
     }
     for (const k of Object.keys(node)) {
-      if (k === "start" || k === "end" || k === "loc" ||
-          k === "leadingComments" || k === "trailingComments" || k === "innerComments") continue;
+      if (SKIP_KEYS.has(k)) continue;
       const v = node[k];
       if (Array.isArray(v)) { for (const x of v) walkFn(x); }
       else if (v && typeof v.type === "string") walkFn(v);
@@ -248,8 +244,7 @@ function sortByCallTree(ast) {
       callSets.get(enclosingFn).add(node.callee.name);
     }
     for (const k of Object.keys(node)) {
-      if (k === "start" || k === "end" || k === "loc" ||
-          k === "leadingComments" || k === "trailingComments" || k === "innerComments") continue;
+      if (SKIP_KEYS.has(k)) continue;
       const v = node[k];
       if (Array.isArray(v)) { for (const x of v) collectEdges(x, enclosingFn); }
       else if (v && typeof v.type === "string") collectEdges(v, enclosingFn);
@@ -279,7 +274,7 @@ function sortByCallTree(ast) {
   const subFns = [];
   const otherFns = [];
   for (const stmt of ast.program.body) {
-    if (t.isFunctionDeclaration(stmt) && stmt.id && stmt.id.name.startsWith("_S_")) {
+    if (t.isFunctionDeclaration(stmt) && stmt.id && isSubFn(stmt.id.name)) {
       subFns.push(stmt);
     } else {
       otherFns.push(stmt);

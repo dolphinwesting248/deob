@@ -1,5 +1,6 @@
 // Cross-file operations: summary, readme, file classification
 const { fs, path } = require("../config");
+const { OUTPUT_FILES } = require("../constants");
 const { classifyDomain, computeDensity, categorizeFn } = require("./analyze");
 
 // ── Cross-File Summary ──────────────────────────────────────────────
@@ -56,12 +57,12 @@ function writeCrossReadme(outputDir, allReports) {
   lines.push("");
   lines.push("1. Pick a file from the table above (start with **Read first** entries)");
   lines.push("2. Enter its subdirectory");
-  lines.push("3. Read `0-prompt.md` → `1-structure.md` → `2-index.txt` → jump to `main.js`");
+  lines.push(`3. Read \`${OUTPUT_FILES.PROMPT}\` → \`1-structure.md\` → \`2-index.txt\` → jump to \`main.js\``);
   lines.push("4. Repeat for each file you need");
   lines.push("");
-  lines.push("*Data reference: see `summary.md` for cross-file hotspots and keyword index.*");
+  lines.push(`*Data reference: see \`${OUTPUT_FILES.SUMMARY}\` for cross-file hotspots and keyword index.*`);
 
-  const outPath = path.join(outputDir, "0-prompt.md");
+  const outPath = path.join(outputDir, OUTPUT_FILES.PROMPT);
   fs.writeFileSync(outPath, lines.join("\n"), "utf-8");
   console.log(`  0-prompt: ${outPath}`);
 }

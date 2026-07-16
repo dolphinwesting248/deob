@@ -1,17 +1,13 @@
 // Readability metrics: before/after comparison with HTML report
 const { parser, t, fs } = require("./config");
+const { DEFAULT_PARSER_OPTS } = require("./constants");
 const path = require("path");
 
 function analyze(filepath) {
   const code = fs.readFileSync(filepath, "utf-8");
   let ast;
   try {
-    ast = parser.parse(code, {
-      sourceType: "script",
-      allowReturnOutsideFunction: true,
-      allowUndeclaredExports: true,
-      errorRecovery: true,
-    });
+    ast = parser.parse(code, DEFAULT_PARSER_OPTS);
   } catch (e) {
     return analyzeFallback(filepath, code);
   }

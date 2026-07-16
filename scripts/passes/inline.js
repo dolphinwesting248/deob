@@ -1,6 +1,7 @@
 // Inlining passes
 
 const { t } = require("../config");
+const { SKIP_KEYS, isSubFn } = require("../constants");
 const { clone, containsYield, containsForAwait } = require("../ast-utils");
 const { collectDefined, getExternalRefs } = require("../scope");
 const { safeParam } = require("../emit");
@@ -30,8 +31,7 @@ function inlineReadOnlyProperties(ast) {
       }
     }
     for (const key of Object.keys(node)) {
-      if (key === "start" || key === "end" || key === "loc" ||
-          key === "leadingComments" || key === "trailingComments" || key === "innerComments") continue;
+      if (SKIP_KEYS.has(key)) continue;
       const val = node[key];
       if (Array.isArray(val)) { for (const v of val) findConfigs(v); }
       else if (val && typeof val.type === "string") findConfigs(val);
@@ -52,8 +52,7 @@ function inlineReadOnlyProperties(ast) {
       mutated.add(node.argument.object.name);
     }
     for (const key of Object.keys(node)) {
-      if (key === "start" || key === "end" || key === "loc" ||
-          key === "leadingComments" || key === "trailingComments" || key === "innerComments") continue;
+      if (SKIP_KEYS.has(key)) continue;
       const val = node[key];
       if (Array.isArray(val)) { for (const v of val) collectMutations(v); }
       else if (val && typeof val.type === "string") collectMutations(val);
@@ -78,8 +77,7 @@ function inlineReadOnlyProperties(ast) {
 
     // Recurse into all children (including function bodies)
     for (const key of Object.keys(node)) {
-      if (key === "start" || key === "end" || key === "loc" ||
-          key === "leadingComments" || key === "trailingComments" || key === "innerComments") continue;
+      if (SKIP_KEYS.has(key)) continue;
       const val = node[key];
       if (Array.isArray(val)) {
         for (let i = 0; i < val.length; i++) {
@@ -137,8 +135,7 @@ function inlinePureWrappers(ast) {
       }
     }
     for (const k of Object.keys(node)) {
-      if (k === "start" || k === "end" || k === "loc" ||
-          k === "leadingComments" || k === "trailingComments" || k === "innerComments") continue;
+      if (SKIP_KEYS.has(k)) continue;
       const v = node[k];
       if (Array.isArray(v)) { for (const x of v) walk(x); }
       else if (v && typeof v.type === "string") { const old = {...node}; walk(v); }
@@ -244,8 +241,7 @@ function inlineArithmeticWrappers(ast) {
       }
     }
     for (const k of Object.keys(node)) {
-      if (k === "start" || k === "end" || k === "loc" ||
-          k === "leadingComments" || k === "trailingComments" || k === "innerComments") continue;
+      if (SKIP_KEYS.has(k)) continue;
       const v = node[k];
       if (Array.isArray(v)) { for (let i = v.length - 1; i >= 0; i--) if (v[i] && typeof v[i] === "object") stack.push(v[i]); }
       else if (v && typeof v.type === "string") stack.push(v);
@@ -264,7 +260,7 @@ function inlineSingleCallerFns(ast) {
   const allSubNames = new Set();
 
   for (const stmt of ast.program.body) {
-    if (t.isFunctionDeclaration(stmt) && stmt.id && stmt.id.name.startsWith("_S_")) {
+    if (t.isFunctionDeclaration(stmt) && stmt.id && isSubFn(stmt.id.name)) {
       allSubNames.add(stmt.id.name);
     }
   }
@@ -276,8 +272,7 @@ function inlineSingleCallerFns(ast) {
       callers.get(node.callee.name).add(enclosingFn);
     }
     for (const k of Object.keys(node)) {
-      if (k === "start" || k === "end" || k === "loc" ||
-          k === "leadingComments" || k === "trailingComments" || k === "innerComments") continue;
+      if (SKIP_KEYS.has(k)) continue;
       const v = node[k];
       if (Array.isArray(v)) { for (const x of v) countCallers(x, enclosingFn); }
       else if (v && typeof v.type === "string") countCallers(v, enclosingFn);
@@ -338,8 +333,7 @@ function inlineSingleCallerFns(ast) {
 
     // Recurse
     for (const k of Object.keys(node)) {
-      if (k === "start" || k === "end" || k === "loc" ||
-          k === "leadingComments" || k === "trailingComments" || k === "innerComments") continue;
+      if (SKIP_KEYS.has(k)) continue;
       const v = node[k];
       if (Array.isArray(v)) {
         for (let i = 0; i < v.length; i++) {
@@ -413,7 +407,7 @@ function extractInlineFunctions(ast) {
     if (t.isReturnStatement(node) && node.argument) {
       const fn = findEmbeddedFn(node.argument);
       if (fn && t.isBlockStatement(fn.body)) {
-        const name = uniqueName(`_S_return_${++count}_fn`);
+        const name = uniqueName(`${SUB_FN_PREFIX}return_${++count}_fn`);
         // Collect external refs from the function body
         const fnParamNames = new Set(fn.params.map((p) => (t.isIdentifier(p) ? p.name : null)).filter(Boolean));
         const defined = collectDefined(fn.body.body);
@@ -439,7 +433,7 @@ function extractInlineFunctions(ast) {
         if (decl.init && (t.isFunctionExpression(decl.init) || t.isArrowFunctionExpression(decl.init)) &&
             t.isBlockStatement(decl.init.body) && decl.init.body.body.length > 0) {
           const varName = t.isIdentifier(decl.id) ? decl.id.name : `var${count}`;
-          const name = uniqueName(`_S_${varName}_${count}_fn`);
+          const name = uniqueName(`${SUB_FN_PREFIX}${varName}_${count}_fn`);
           const fn = decl.init;
           const params = fn.params.map((p) => cloneParam(p));
           const vFn = t.functionDeclaration(t.identifier(name), params, fn.body);
@@ -454,8 +448,7 @@ function extractInlineFunctions(ast) {
 
     // Walk into ALL function bodies — we need to find embedded fns everywhere
     for (const key of Object.keys(node)) {
-      if (key === "start" || key === "end" || key === "loc" ||
-          key === "leadingComments" || key === "trailingComments" || key === "innerComments") continue;
+      if (SKIP_KEYS.has(key)) continue;
       const val = node[key];
       if (Array.isArray(val)) {
         for (let i = 0; i < val.length; i++) {
