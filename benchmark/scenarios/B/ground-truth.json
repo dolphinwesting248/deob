@@ -1,0 +1,109 @@
+{
+  "scenario": "B",
+  "difficulty": "medium",
+  "description": "Multi-step authentication flow with rate limiting, password verification, and optional MFA",
+  "obfuscationTechniques": ["control flow flattening (while+switch)", "dead code injection", "variable renaming"],
+  "functions": [
+    {
+      "name": "authenticate",
+      "purpose": "Main authentication function: validate credentials → check rate limit → verify password → optional MFA → generate session",
+      "params": ["credentials (username, password, mfaCode)"],
+      "returns": "object {success, token?, error?}",
+      "calls": ["getAttemptCount", "simpleHash", "getStoredHash", "isMfaEnabled", "verifyMfaCode", "generateToken", "saveSession", "resetAttempts", "incrementAttempts"],
+      "calledBy": [],
+      "security": ["rate limiting (5 attempts)", "MFA support", "session timeout (1 hour)"]
+    },
+    {
+      "name": "simpleHash",
+      "purpose": "Simple numeric hash function using bitwise operations",
+      "params": ["string"],
+      "returns": "number (hash)",
+      "calls": [],
+      "calledBy": ["authenticate"],
+      "security": ["weak hash algorithm"]
+    },
+    {
+      "name": "getAttemptCount",
+      "purpose": "Get failed login attempt count for user",
+      "params": ["username"],
+      "returns": "number",
+      "calls": [],
+      "calledBy": ["authenticate"]
+    },
+    {
+      "name": "getStoredHash",
+      "purpose": "Get stored password hash for user",
+      "params": ["username"],
+      "returns": "number",
+      "calls": [],
+      "calledBy": ["authenticate"]
+    },
+    {
+      "name": "isMfaEnabled",
+      "purpose": "Check if multi-factor authentication is enabled",
+      "params": ["username"],
+      "returns": "boolean",
+      "calls": [],
+      "calledBy": ["authenticate"]
+    },
+    {
+      "name": "verifyMfaCode",
+      "purpose": "Verify MFA code for user",
+      "params": ["username", "code"],
+      "returns": "boolean",
+      "calls": [],
+      "calledBy": ["authenticate"]
+    },
+    {
+      "name": "generateToken",
+      "purpose": "Generate session token",
+      "params": ["username"],
+      "returns": "string (token)",
+      "calls": [],
+      "calledBy": ["authenticate"]
+    },
+    {
+      "name": "saveSession",
+      "purpose": "Save session to storage",
+      "params": ["username", "token", "expiresAt"],
+      "returns": "void",
+      "calls": [],
+      "calledBy": ["authenticate"]
+    },
+    {
+      "name": "resetAttempts",
+      "purpose": "Reset failed attempt counter",
+      "params": ["username"],
+      "returns": "void",
+      "calls": [],
+      "calledBy": ["authenticate"]
+    },
+    {
+      "name": "incrementAttempts",
+      "purpose": "Increment failed attempt counter",
+      "params": ["username"],
+      "returns": "void",
+      "calls": [],
+      "calledBy": ["authenticate"]
+    }
+  ],
+  "callGraph": {
+    "authenticate": ["getAttemptCount", "simpleHash", "getStoredHash", "isMfaEnabled", "verifyMfaCode", "generateToken", "saveSession", "resetAttempts", "incrementAttempts"]
+  },
+  "dataFlow": [
+    "credentials → validate inputs → rate limit check (getAttemptCount) → password hash (simpleHash) → compare with stored hash (getStoredHash)",
+    "password invalid? → increment attempts → return error",
+    "password valid? → MFA check (isMfaEnabled) → MFA code verify (verifyMfaCode)",
+    "all checks passed → generate token → save session → reset attempts → return success"
+  ],
+  "securityIssues": [
+    {"severity": "high", "issue": "Weak hash algorithm - simple bitwise operations without salt", "location": "simpleHash function"},
+    {"severity": "medium", "issue": "Rate limiting bypass potential - client-side check only", "location": "authenticate function"},
+    {"severity": "low", "issue": "Session token in plaintext (no encryption)", "location": "saveSession function"}
+  ],
+  "apiEndpoints": [],
+  "keyVariables": {
+    "sessionDuration": "3600000 ms (1 hour)",
+    "maxAttempts": "5"
+  }
+}

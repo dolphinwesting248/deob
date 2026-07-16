@@ -1,0 +1,140 @@
+# main.js · Function Index · 21 functions
+_Previous: 1-structure.md  →  **Now: 2-index.txt**  →  Jump to main.js by function name._
+
+## Sections
+entry     — entry point functions (no callers, start analysis here)
+alerts    — security patterns detected (URL, eval, fingerprint, etc.)
+hot       — most-called functions (highest caller count)
+lookup    — keyword → function name mapping
+trace     — longest call path through the code
+suspicious — functions with suspicious patterns
+flat      — control-flow flattened functions (while+switch)
+shared    — variables used by 2+ functions (⇒ = used by)
+fn/<cat>  — functions grouped by category (see CATEGORY_LABELS)
+
+## Function Entry Format
+name | Ss/Pp | cc=N | → callees ⇐ callers | closure: v1, v2 ; paramRoles ; [semTags] ; flags
+
+## Fields
+Ss/Pp       = S statements, P parameters
+cc=N        = cyclomatic complexity (branch density, higher = more branches)
+→ fn        = calls function fn
+⇐ fn        = called by function fn
+root        = entry point (no callers)
+closure: v  = captures variable v from outer scope (closure capture)
+
+## Parameter Roles (paramRoles)
+this=x      = parameter used as this context
+cb=x        = parameter called as callback function
+out=x       = parameter properties are assigned to
+arg=x       = ordinary argument
+ret=x       = used in return value construction
+
+## Semantic Tags [semTags]
+[returns value]        = function has a return value
+[returns via N paths]  = N distinct return paths
+[returns conditional]  = conditional return
+[returns str/prop]     = returns string / property
+[void, NS]             = no return value, N statements
+[callback-driven]      = parameters are called as callbacks
+[can throw]            = may throw exceptions
+[side-effects]         = has side effects (I/O, DOM, mutation)
+[config]               = configuration-related
+[calls → fn]           = directly invokes fn
+
+## Flags
+FLAT         = control-flow flattened (while+switch dispatcher)
+DATA         = heavy hex data (large constant arrays)
+[Label]      = security alert (see 1-structure.md)
+
+## Separators
+|  = field separator (name / size / cc / edges / extras)
+,  = list separator within a field (multiple callees, multiple roles)
+;  = extras separator (between closure, paramRoles, semTags, and flags)
+
+## entry
+_0x_0x5d7c | cc=3 | → _0x_0x4025, _S_0x_0x5d7c_04_if
+_0x_0x487266 | cc=2 | → _S_l1_02_if
+_S_program_inline_l1 | cc=1 | → _0x_0x8762fd
+_S_return_1_fn | cc=2 | → _S_l1_L1_02_if, _S_l1_02_else
+_S__0x402fc3_2_fn | cc=6 | → _S_l1_03_assign, _S_l1_04_assign
+_S__0x74a1eb_3_fn | cc=2 | → _S_l1_02_try, _S_l1_02_catch
+
+## hot
+_S_0x_0x8762fd_03_try ⇐ 1 callers
+_0x_0x8762fd ⇐ 1 callers
+_S_l1_L1_02_if ⇐ 1 callers
+_S_l1_02_catch ⇐ 1 callers
+_S_l1_02_if ⇐ 1 callers
+_S_return_1_fn_2 ⇐ 1 callers
+_0x_0x4025 ⇐ 2 callers
+_S_l1_02_else ⇐ 1 callers
+_S_l1_02_try ⇐ 1 callers
+_S_0x_0x5d7c_04_if ⇐ 1 callers
+
+## lookup
+assign → _S_l1_03_assign, _S_l1_04_assign
+catch → _S_l1_02_catch, _S_0x_0x8762fd_03_catch
+try → _S_l1_02_try, _S_0x_0x8762fd_03_try
+inline → _S_program_inline_l1
+program → _S_program_inline_l1
+
+## trace
+_S_program_inline_l1 → _0x_0x8762fd → _S_0x_0x8762fd_03_try
+
+## shared
+_0x_0x5d7c ⇒ _0x_0x5d7c, _0x_0x487266, _0x_0x8762fd, _S_program_inline_l1, _S_0x_0x5d7c_04_if (const, not mutated)
+_0x3a7bdc ⇒ _0x_0x8762fd, _0x318511, _S_0x_0x8762fd_03_try (var, not mutated)
+_0x420344 ⇒ _0x318511, _0x_0x8762fd, _S_0x_0x8762fd_03_try (var, not mutated)
+_0x318511 ⇒ _0x318511, _0x_0x8762fd, _S_0x_0x8762fd_03_try (const, not mutated)
+_0x1ca3d7 ⇒ _S__0x74a1eb_3_fn, _S_l1_02_try, _S_l1_02_catch (var, mutated)
+_0xf2daae ⇒ _S__0x74a1eb_3_fn, _S_l1_02_try, _S_l1_02_catch (var, not mutated)
+_0x_0x4025 ⇒ _0x_0x5d7c, _0x_0x4025 (const, mutated)
+_0x399eaa ⇒ _0x_0x5d7c, _S_l1_02_if (var, not mutated)
+_0x370201 ⇒ _0x_0x5d7c, _S_l1_02_if (var, not mutated)
+_0x3cdb8b ⇒ _0x_0x5d7c, _S_l1_02_if (var, not mutated)
+_0x32c356 ⇒ _0x_0x5d7c, _S_l1_02_if (var, not mutated)
+_0xb3ae05 ⇒ _0x_0x5d7c, _S_l1_02_if (var, mutated)
+_0x8bea7e ⇒ _0x_0x487266, _S_l1_02_if (var, not mutated)
+_0x19a096 ⇒ _0x_0x487266, _S_l1_02_if (var, not mutated)
+_0x4ad33e ⇒ _0x_0x8762fd, _S_0x_0x8762fd_03_try (param, not mutated)
+_0x15a640 ⇒ _S_l1_L1_02_if, _S_return_1_fn_2 (param, mutated)
+_0x2bbeda ⇒ _S_l1_L1_02_if, _S_return_1_fn_2 (param, not mutated)
+_0x2799b4 ⇒ _S_l1_L1_02_if, _S_return_1_fn_2 (param, not mutated)
+_0xbc6343 ⇒ _S_l1_L1_02_if, _S_return_1_fn_2 (param, not mutated)
+_0x57fbde ⇒ _S_l1_L1_02_if, _S_return_1_fn_2 (param, not mutated)
+
+## fn/core  (4) — Core Functions
+_0x_0x5d7c | 9S/2P | cc=3 | → _0x_0x4025, _S_0x_0x5d7c_04_if root | out=_0x504e9b ; [returns arg]
+_0x_0x487266 | 21S/1P | cc=2 | → _S_l1_02_if root | [returns arg; can throw]
+_0x_0x8762fd | 4S/1P | cc=2 | → _S_0x_0x8762fd_03_try, _S_0x_0x8762fd_03_catch ⇐ _S_program_inline_l1 | [void, 4S]
+_0x_0x4025 | 3S/0P | cc=1 | → _0x_0x4025 ⇐ _0x_0x5d7c, _0x_0x4025 | self-modifying table-init ; [calls → _0x_0x4025]
+
+## fn/branch  (2) — Branches
+_S_l1_02_else | 1S/0P | cc=1 | ⇐ _S_return_1_fn | [returns value]
+_S_l1_L1_02_if | 1S/6P | cc=2 | → _S_return_1_fn_2 ⇐ _S_return_1_fn | [calls → _S_return_1_fn_2]
+
+## fn/other  (5) — Other
+_S_program_inline_l1 | 5S/0P | cc=1 | closure: _0x29c45e, _0x218730, _0x_0x8762fd ; module-init ; [void, 3S]
+_S_program_inline_l1 | 5S/0P | cc=1 | → _0x_0x8762fd root | closure: _0x29c45e, _0x218730, _0x_0x8762fd ; module-init ; [void, 5S]
+_S__0x402fc3_2_fn | 6S/1P | cc=6 | → _S_l1_03_assign, _S_l1_04_assign root | cfg:this=_0x3bd840 ; [calls → decodeURIComponent]
+_S_l1_03_assign | 1S/2P | cc=1 | ⇐ _S__0x402fc3_2_fn | out=_0x53c288, cfg:this=_0x147eb8 ; [void, 1S]
+_S_l1_04_assign | 1S/3P | cc=1 | ⇐ _S__0x402fc3_2_fn | out=_0x5e6ceb, cfg:this=_0x3945e8 ; [void, 1S]
+
+## fn/delegate  (6) — Delegates
+_S_return_1_fn | 9S/5P | cc=2 | → _S_l1_L1_02_if, _S_l1_02_else root | closure: _0x25223d, _0x2bbeda, _S_l1_L1_02_if, _0x15a640, _0x57fbde, _S_l1_02_else ; out=_0x11967c, this=_0x37df79 ; [returns arg]
+_S_return_2_fn | 0S/1P | cc=1 | [pass-through]
+_S__0x74a1eb_3_fn | 4S/0P | cc=2 | → _S_l1_02_try, _S_l1_02_catch root | [returns arg]
+_S_l1_02_catch | 1S/5P | cc=2 | ⇐ _S__0x74a1eb_3_fn | this=_0x7a7ae4, cb=_0xf2daae, out=_0x1ca3d7 ; [returns arg; callback-driven]
+_S_0x_0x8762fd_03_try | 1S/6P | cc=3 | ⇐ _0x_0x8762fd | cb=_0x318511, cb=_0x3a7bdc, this=_0x420344, out=_0x1c2d66 ; [returns arg; callback-driven]
+_S_0x_0x8762fd_03_catch | 0S/1P | cc=1 | ⇐ _0x_0x8762fd | [pass-through]
+
+## fn/handler  (2) — Callback Handlers
+_S_l1_02_try | 1S/3P | cc=1 | ⇐ _S__0x74a1eb_3_fn | out=_0x1ca3d7, this=_0x7a7ae4, cb=_0xf2daae ; [void, 1S; callback-driven]
+_S_return_1_fn_2 | 1S/6P | cc=2 | ⇐ _S_l1_L1_02_if | this=_0x2bbeda, cb=_0x2799b4, out:this=_0x15a640 ; [returns via 2 paths; callback-driven]
+
+## fn/sideeffect  (1) — Side Effects
+_S_0x_0x5d7c_04_if | 4S/1P | cc=1 | ⇐ _0x_0x5d7c | cfg:this=_0x_0x5d7c ; [void, 4S; side-effects]
+
+## fn/construct  (1) — Factories
+_S_l1_02_if | 1S/10P | cc=2 | ⇐ _0x_0x487266 | this=_0x19a096, cb=_0x3d41ef, this=_0x8bea7e, this=_0x35e9df, cfg:this=_0x399eaa, this=_0xb3ae05, this=_0x402fc3, this=_0x370201, this=_0x32c356 ; [factory; callback-driven]

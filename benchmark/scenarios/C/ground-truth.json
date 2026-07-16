@@ -1,0 +1,25 @@
+{
+  "scenario": "C",
+  "difficulty": "medium",
+  "description": "User data processing pipeline: parse → validate → transform → group → sort → statistics",
+  "obfuscationTechniques": ["nested function extraction", "sequence expressions (comma operator)", "variable renaming"],
+  "functions": [
+    {"name": "processUserData", "purpose": "Main pipeline: parse JSON, validate, transform, group by domain, sort, generate stats", "params": ["rawData (JSON string)"], "returns": "object {users (grouped), stats}", "calls": ["parse", "filter callback", "map callback", "forEach callback", "sortGroup", "identity helper", "stats sort callback"], "calledBy": [], "security": []},
+    {"name": "filter validator", "purpose": "Check if item has id, name, and email fields", "params": ["item"], "returns": "boolean", "calls": [], "calledBy": ["processUserData (Array.filter)"], "security": []},
+    {"name": "transform mapper", "purpose": "Transform item: normalize name, email, extract domain, format date", "params": ["item"], "returns": "transformed object", "calls": [], "calledBy": ["processUserData (Array.map)"], "security": []},
+    {"name": "sortGroup", "purpose": "Sort each domain group alphabetically by displayName", "params": ["grouped object"], "returns": "void (mutates in place)", "calls": [], "calledBy": ["processUserData"], "security": []},
+    {"name": "stats sorter", "purpose": "Sort domain groups by user count descending (for topDomain)", "params": ["entryA", "entryB"], "returns": "number", "calls": [], "calledBy": ["processUserData"], "security": []}
+  ],
+  "callGraph": {
+    "processUserData": ["filter validator", "transform mapper", "sortGroup", "stats sorter"]
+  },
+  "dataFlow": [
+    "rawData (JSON) → JSON.parse → array of items",
+    "items → filter (valid items with id/name/email) → map (transform each item: normalize fields, extract domain)",
+    "transformed items → group by email domain → sort each group alphabetically",
+    "sorted groups → compute statistics (total, domain count, top domain, invalid count)"
+  ],
+  "securityIssues": [],
+  "apiEndpoints": [],
+  "keyVariables": {}
+}
