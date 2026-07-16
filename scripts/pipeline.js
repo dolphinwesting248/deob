@@ -12,11 +12,14 @@ const { parser, generate, t, fs } = require("./config");
 const path = require("path");
 const { processAllFunctions } = require("./traverse");
 const { extractTopLevelIIFEs } = require("./wrapper");
-const { sanitizeReservedWords, hoistDeclarations, simplify, normalizeShortCircuit, expandSequences, eliminateDeadCode, inlineReadOnlyProperties, removeUnusedHelpers, simplifyRedundantConditions, inlinePureWrappers, sortByCallTree, inlineSingleCallerFns, normalizeSyntax, extractInlineFunctions, annotateAlerts, pushDataToBottom } = require("./passes");
+const { sanitizeReservedWords, hoistDeclarations, simplify, normalizeShortCircuit, expandSequences, eliminateDeadCode, inlineReadOnlyProperties, removeUnusedHelpers, simplifyRedundantConditions, inlinePureWrappers, sortByCallTree, inlineSingleCallerFns, normalizeSyntax, extractInlineFunctions, annotateAlerts, pushDataToBottom, resetInlineNames } = require("./passes");
+const { resetNames } = require("./naming");
 
 function main({ input, output, split } = {}) {
   if (!input) throw new Error("main() requires { input: '<path>' }");
   if (!output) throw new Error("main() requires { output: '<path>' }");
+  resetNames();
+  resetInlineNames();
 
   console.log("Reading file...");
   const code = fs.readFileSync(input, "utf-8");

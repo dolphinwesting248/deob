@@ -79,7 +79,7 @@ function extractTryCatch(stmt, parentName, seq) {
   const subFns = [];
   const tryDefined = collectDefined(stmt.block.body);
   const tryRefs = getExternalRefs(stmt.block, tryDefined);
-  const tryName = subName(parentName, seq,"try");
+  const tryName = subName(parentName, seq,"try", stmt.block);
   const tryProc = processBody(stmt.block.body, tryName);
   const trySub = createSubFn(tryName, tryRefs.map((r) => t.identifier(safeParam(r))), tryProc.newBody, stmt.block);
   subFns.push(trySub, ...tryProc.subFns);
@@ -90,7 +90,7 @@ function extractTryCatch(stmt, parentName, seq) {
     const catchDefined = collectDefined(stmt.handler.body.body);
     if (param && t.isIdentifier(param)) catchDefined.add(param.name);
     const catchRefs = getExternalRefs(stmt.handler.body, catchDefined);
-    const catchName = subName(parentName, seq,"catch");
+    const catchName = subName(parentName, seq,"catch", stmt.handler.body);
     const cProc = processBody(stmt.handler.body.body, catchName);
     const cSub = createSubFn(catchName, [...(param ? [clone(param)] : []), ...catchRefs.map((r) => t.identifier(safeParam(r)))], cProc.newBody, stmt.handler.body);
     subFns.push(cSub, ...cProc.subFns);
@@ -139,7 +139,7 @@ function extractIfElse(stmt, parentName, seq) {
   const cHasReturn = hasReturn(cBlock);
   const cDefined = collectDefined(cStmts);
   const cRefs = getExternalRefs(cBlock, cDefined);
-  const ifName = subName(parentName, seq,"if");
+  const ifName = subName(parentName, seq,"if", cBlock);
   const cProc = processBody(cStmts, ifName);
   const cFn = createSubFn(ifName, cRefs.map((r) => t.identifier(safeParam(r))), cProc.newBody, cBlock);
   subFns.push(cFn, ...cProc.subFns);
@@ -159,7 +159,7 @@ function extractIfElse(stmt, parentName, seq) {
       const aHasReturn = hasReturn(altBlock);
       const aDefined = collectDefined(aStmts);
       const aRefs = getExternalRefs(altBlock, aDefined);
-      const elseName = subName(parentName, seq,"else");
+      const elseName = subName(parentName, seq,"else", altBlock);
       const aProc = processBody(aStmts, elseName);
       const aFn = createSubFn(elseName, aRefs.map((r) => t.identifier(safeParam(r))), aProc.newBody, altBlock);
       subFns.push(aFn, ...aProc.subFns);
@@ -183,7 +183,7 @@ function extractSwitch(stmt, parentName, seq) {
     ci++;
     if (c.consequent.length === 0) { newCases.push(t.switchCase(clone(c.test), [])); continue; }
     if (hasBail(c)) { newCases.push(clone(c)); continue; }
-    const cName = subName(parentName, `${seq}_${String(ci).padStart(2, "0")}`, "case");
+    const cName = subName(parentName, `${seq}_${String(ci).padStart(2, "0")}`, "case", c);
     const defined = collectDefined(c.consequent);
     const refs = getExternalRefs(c, defined);
     const cProc = processBody(c.consequent, cName);
@@ -203,7 +203,7 @@ function extractCallbacks(stmt, parentName, seq) {
   const subFns = [];
   for (let i = infos.length - 1; i >= 0; i--) {
     const info = infos[i];
-    const cbName = subName(parentName, seq,info.hint || "cb");
+    const cbName = subName(parentName, seq,info.hint || "cb", info.fn);
     const fn = info.fn;
     let stmts = t.isBlockStatement(fn.body) ? fn.body.body : [t.returnStatement(fn.body)];
     const proc = processBody(stmts, cbName);
@@ -292,7 +292,7 @@ function tryExtractVarIIFE(stmt, parentName, seq) {
     if (decl.init && isIIFE(decl.init) && t.isFunctionExpression(decl.init.callee)) {
       changed = true;
       const hint = descIIFE(decl.init.callee.body.body);
-      const fnName = subName(parentName, seq,hint);
+      const fnName = subName(parentName, seq,hint, decl.init.callee);
       const initProc = processBody(decl.init.callee.body.body, fnName);
       const subFn = createSubFn(fnName, decl.init.callee.params.map((p) => clone(p)), initProc.newBody, decl.init);
       extraSubs.push(subFn, ...initProc.subFns);

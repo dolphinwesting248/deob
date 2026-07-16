@@ -1,5 +1,7 @@
 const { t } = require("./config");
 
+const usedNames = new Set();
+
 function cleanName(name) {
   let cleaned = name.replace(/^_sub_/, "").replace(/^_+/, "");
   if (cleaned.length > 40) cleaned = cleaned.slice(-40);
@@ -9,12 +11,19 @@ function cleanName(name) {
 function subName(parentName, seq, hint, sourceNode) {
   const s = String(seq).padStart(2, "0");
   let clean = cleanName(parentName);
-  // Disambiguate short parent names (single-char like i, l, r) with line number
-  if (clean.length < 3 && sourceNode && sourceNode.loc) {
-    clean = clean + "_ln" + sourceNode.loc.start.line;
+  if (sourceNode && sourceNode.loc) {
+    clean = clean + "_L" + sourceNode.loc.start.line;
   }
-  return `_sub_${clean}_${s}_${hint || "fn"}`;
+  let base = `_sub_${clean}_${s}_${hint || "fn"}`;
+  if (!usedNames.has(base)) { usedNames.add(base); return base; }
+  let i = 2;
+  while (usedNames.has(base + "_" + i)) i++;
+  const name = base + "_" + i;
+  usedNames.add(name);
+  return name;
 }
+
+function resetNames() { usedNames.clear(); }
 
 function getFnName(node) {
   if (!node) return "anon";
@@ -29,4 +38,4 @@ function getFnName(node) {
   return "anon";
 }
 
-module.exports = { cleanName, subName, getFnName };
+module.exports = { cleanName, subName, getFnName, resetNames };

@@ -30,7 +30,12 @@ function processOneFile(file, outDir, opts) {
   if (opts.split) console.log("        (split mode)");
   console.log("");
 
-  main({ input: file, output: outDir, split: opts.split });
+  try {
+    main({ input: file, output: outDir, split: opts.split });
+  } catch (e) {
+    console.error(`  SKIPPED: ${e.message.split("\n")[0]}`);
+    return [];
+  }
 
   if (opts.tier && opts.tier < 3) applyTierFilter(outDir, opts.tier, opts.fold, opts.denoise);
 
@@ -110,7 +115,12 @@ function processSingleFile(inputPath, outputDir, opts) {
   }
   console.log("");
 
-  main({ input: inputPath, output: outputDir, split: opts.split });
+  try {
+    main({ input: inputPath, output: outputDir, split: opts.split });
+  } catch (e) {
+    console.error(`\nERROR: ${e.message.split("\n")[0]}`);
+    process.exit(1);
+  }
 
   if (opts.tier && opts.tier < 3) applyTierFilter(outputDir, opts.tier, opts.fold);
 

@@ -1031,9 +1031,19 @@ function normalizeSyntax(ast) {
 // ---- extractInlineFunctions: lift embedded function expressions to top level ----
 // Targets: return statement bodies, variable initializers, assignment RHS
 // Result: clean return values, readable function names
+const _inlineUsedNames = new Set();
 function extractInlineFunctions(ast) {
   let count = 0;
   const newFns = []; // collected new function declarations
+
+  function uniqueName(base) {
+    if (!_inlineUsedNames.has(base)) { _inlineUsedNames.add(base); return base; }
+    let i = 2;
+    while (_inlineUsedNames.has(base + "_" + i)) i++;
+    const name = base + "_" + i;
+    _inlineUsedNames.add(name);
+    return name;
+  }
 
   function walk(node, parentArray, stmtIndex, enclosingFn) {
     if (!node || typeof node !== "object") return;
@@ -1042,7 +1052,8 @@ function extractInlineFunctions(ast) {
     if (t.isReturnStatement(node) && node.argument) {
       const fn = findEmbeddedFn(node.argument);
       if (fn && t.isBlockStatement(fn.body)) {
-        const name = `_sub_return_fn${++count}`;
+        const ln = node.loc ? node.loc.start.line : ++count;
+        const name = uniqueName(`_sub_return_L${ln}_fn`);
         // Collect external refs from the function body
         const fnParamNames = new Set(fn.params.map((p) => (t.isIdentifier(p) ? p.name : null)).filter(Boolean));
         const defined = collectDefined(fn.body.body);
@@ -1068,9 +1079,8 @@ function extractInlineFunctions(ast) {
         if (decl.init && (t.isFunctionExpression(decl.init) || t.isArrowFunctionExpression(decl.init)) &&
             t.isBlockStatement(decl.init.body) && decl.init.body.body.length > 0) {
           const varName = t.isIdentifier(decl.id) ? decl.id.name : `var${count}`;
-          // Disambiguate short names with line number
-          const dSuffix = varName.length < 3 && decl.loc ? "_ln" + decl.loc.start.line : "";
-          const name = `_sub_${varName}${dSuffix}_fn`;
+          const ln = decl.loc ? decl.loc.start.line : count;
+          const name = uniqueName(`_sub_${varName}_L${ln}_fn`);
           const fn = decl.init;
           const params = fn.params.map((p) => cloneParam(p));
           const vFn = t.functionDeclaration(t.identifier(name), params, fn.body);
@@ -1384,6 +1394,7 @@ module.exports = {
   extractInlineFunctions,
   annotateAlerts,
   pushDataToBottom,
+  resetInlineNames: () => _inlineUsedNames.clear(),
 };
 
 // ---- inlinePureWrappers: remove functions that are just return call(args) ----
