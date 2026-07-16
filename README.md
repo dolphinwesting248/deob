@@ -9,30 +9,15 @@ Deob is an AST-based JavaScript deobfuscation framework, purpose-built as a **da
 
 ```bash
 npm install
-npm link
-
 deob init                    # create deob.config.js
 # edit deob.config.js — set input path and options
 deob                         # run with config
-deob --config other.js       # or: deob -c other.js
+deob -c other.config.js      # explicit config path
 ```
 
-All output goes into a directory. Files are numbered to guide LLM agents through a natural reading order:
+## Configuration
 
-```
-output.deob/
-├── 1-readme.md       ← analysis entry — "what to read and why" (md: true)
-├── 2-structure.md    ← hotspots, alerts, call graph, naming convention (md: true)
-├── 3-index.txt       ← function catalog with line numbers for jump-reading (index: true)
-├── main.js           ← deobfuscated code — jump-read only, do not read first
-└── metrics.html      ← readability report (metrics: true)
-```
-
-The numbered prefix (`1-`, `2-`, `3-`) guides the `ls` sort order. `main.js` has no prefix, signaling it should not be the first read. Each file contains navigation headers pointing to the next step.
-
-**Directory input** recursively processes nested subdirectories. A top-level `0-readme.md` provides the cross-file entry point. Source paths are preserved in `summary.md`.
-
-Run `deob init` to generate a template:
+`deob.config.js` format:
 
 ```javascript
 module.exports = {
@@ -40,14 +25,44 @@ module.exports = {
   // output: "out/",                // optional — auto-derived from input
   split: false,                     // per-function files
   metrics: false,                   // HTML readability report
-  md: true,                         // Markdown structure report
-  index: false,                     // compact index.txt for LLM navigation
-  tier: 3,                          // output filtering: 1|2|3
+  md: true,                         // 0-prompt.md + 1-structure.md
+  index: true,                      // 2-index.txt
+  tier: 3,                          // 1=alerts+hotspots, 2=+callees, 3=all
   fold: false,                      // collapse mechanical functions
+  denoise: [                        // alert denoising rules (optional)
+    { match: "regex-source", label: "Label", severity: "low" },
+  ],
 };
 ```
 
-See [Tiered Output](docs/llm-output-tuning.md) for detailed guidance on `tier` and `fold`.
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `input` | `string \| string[]` | required | JS file(s) or directory |
+| `output` | `string` | auto | Output directory |
+| `split` | `boolean` | `false` | Write each function to separate file |
+| `metrics` | `boolean` | `false` | Generate HTML before/after report |
+| `md` | `boolean` | `true` | Generate 0-prompt.md + 1-structure.md |
+| `index` | `boolean` | `true` | Generate 2-index.txt |
+| `tier` | `1 \| 2 \| 3` | `3` | Output filtering level |
+| `fold` | `boolean` | `false` | Collapse mechanical functions to comments |
+| `denoise` | `DenoiseRule[]` | defaults | Alert denoising rules |
+
+See [docs/llm-output-tuning.md](docs/llm-output-tuning.md) for detailed guidance on `tier` and `fold`.
+
+## Output Files
+
+All output goes into a directory. Files are numbered to guide LLM agents through a natural reading order:
+
+```
+output.deob/
+├── 0-prompt.md       ← LLM analysis entry (architecture, alerts, top 5, reading path)
+├── 1-structure.md    ← call graph, hotspots, alert traces, naming convention
+├── 2-index.txt       ← function catalog with line numbers for jump-reading
+├── main.js           ← deobfuscated code — jump-read only, do not read first
+└── metrics.html      ← readability report (metrics: true)
+```
+
+**Directory input** recursively processes nested subdirectories. A top-level `0-prompt.md` provides the cross-file entry point. `summary.md` aggregates cross-file analysis.
 
 ## Agent-Oriented Navigation
 
@@ -55,83 +70,87 @@ Output files are designed for LLM agents (Claude Code, Codex, etc.) to discover 
 
 | Step | File | Purpose |
 |------|------|---------|
-| 1 | `1-readme.md` | "What to read and why" — entry points, most interesting functions, what to skip |
-| 2 | `2-structure.md` | "What this file contains" — domain, density, hotspots, alerts, call graph, naming |
-| 3 | `3-index.txt` | "Where things are" — function catalog with line numbers for jump-reading |
+| 1 | `0-prompt.md` | "What to read and why" — architecture, alerts, top 5 functions, reading path |
+| 2 | `1-structure.md` | "What this file contains" — domain, hotspots, alerts, call graph, naming |
+| 3 | `2-index.txt` | "Where things are" — function catalog with line numbers for jump-reading |
 
-**Single file**: Agent `ls` sees `1-`, `2-`, `3-` in sort order → reads in sequence → jump-reads `main.js` by line number.
+**Single file**: Agent `ls` sees `0-`, `1-`, `2-` in sort order → reads in sequence → jump-reads `main.js` by line number.
 
-**Directory**: Agent `ls` sees `0-readme.md` first → picks interesting files → enters subdirectory → follows `1-` → `2-` → `3-` → jump-reads.
+**Directory**: Agent `ls` sees top-level `0-prompt.md` → picks interesting files → enters subdirectory → follows `0-` → `1-` → `2-` → jump-reads.
 
-The `main.js` file has no numeric prefix, signaling it should not be read first.
-
-## Structure Report (`2-structure.md`)
-
-| Section | Content |
-|---------|---------|
-| TL;DR | One-line summary: *"847 functions · 12 high alerts · 5 flattened · 2 entry points"* |
-| Summary | Domain classification, code density, total/sub-fns/original/complexity/flattened/suspicious counts |
-| Hotspots + Trace | Most-called functions, root entry points, leaf terminals, suggested trace path |
-| String Alerts | Security-relevant patterns with severity, function, line number, and entry→alert trace |
-| Hot Groups | Groups with most cross-function call edges |
-| Call Graph | Mermaid diagram of cross-function calls (suppressed when no edges exist) |
-| Naming Convention | Reference for `_S_<parent>_<seq>_<hint>` format and hint suffixes |
-
-## Compact Index (`3-index.txt`)
-
-A token-optimized function catalog in custom text format, designed for LLM consumption. Contains:
-
-| Section | Content |
-|---------|---------|
-| `entry` | Entry point functions with calls and flags |
-| `alerts` | Alert-annotated functions with matched patterns |
-| `hot` | Most-called functions ranked by incoming edges |
-| `lookup` | Word → function mapping (semantic keywords only) |
-| `trace` | Longest call path through the graph |
-| `suspicious` | Functions with suspicious patterns (eval, computed key, \__proto__) |
-| `flat` | Functions with control-flow flattening |
-| `fn/*` | All functions grouped by category (core / branch / callback / data / network / crypto / parser / i18n / websocket / polyfill / filesystem / other) |
-
-Each `fn/*` entry includes: size triplets (`lines/stmts/params`), semantic tags, function descriptions, and flags (`DATA`, `FLAT`).
-
-## Pipeline 
+## Pipeline
 
 | Step | Pass | Description |
 |------|------|-------------|
-| 0 | `sanitize` | Rename reserved-word identifiers (let, default, delete…) to safe alternatives |
-| 1 | `traverse` | Collect all function nodes, process innermost-first |
-| 2 | `wrapper` | Extract top-level IIFEs from comma chains |
-| 3 | `hoist` | Import→top, export→bottom; var/let/const/fn to top of every scope |
-| 4 | `extract-inline` | Lift embedded function expressions (return, assignment, IIFE, MemberExpression) |
-| 5 | `simplify` | Fold constants, simplify booleans, fold string ops, normalize AST |
-| 6 | `short-circuit` | Convert `A\|\|B\|\|(C,D)` → `if(!A&&!B){C;D;}`, ternary → if/else, `var x=cond?a:b` → if/else |
-| 7 | `expand-seq` | Break comma chains into independent statements |
-| 8 | `short-circuit` | Second pass — catch LogicalExpressions exposed by comma splitting |
-| 9 | `dead-code` | Remove if(false), unreachable code after return, empty catch |
-| 10 | `inline-props` | Replace config.PROP with literal values |
-| 11 | `unused` | Remove helper functions never referenced |
-| 12 | `conditions` | Simplify `a?true:false→!!a`, if/return patterns |
-| 13 | `wrappers` | Inline pure wrapper functions |
-| 14 | `call-tree` | Topological sort: callees before callers |
-| 15 | `single-caller` | Inline functions called from exactly one place |
-| 16 | `normalize` | Multi-decl split, chained assignment split, for(;;)→while(true) |
-| 17 | `extract-inline` | Second pass — catch patterns exposed by restructuring |
-| 18 | `annotate` | Inject `[API Endpoint]`, `[Token/Key]`, `[Crypto]` etc. comments before functions |
-| 19 | `sanitize` | Final pass — catch any reserved-word identifiers introduced by pipeline |
+| 0 | `sanitizeReservedWords` | Rename reserved-word identifiers (let, default, delete…) |
+| 1 | `processAllFunctions` | Collect all function nodes, process innermost-first |
+| 2 | `extractTopLevelIIFEs` | Extract top-level IIFEs from comma chains |
+| 3 | `hoistDeclarations` | Import→top, export→bottom; var/let/const/fn to top of scope |
+| 4 | `extractInlineFunctions` | Lift embedded function expressions to top level |
+| 5 | `simplify` | Fold constants, simplify booleans, normalize hex strings |
+| 6 | `normalizeShortCircuit` | Convert `A\|\|B` → `if (!A) { B }` |
+| 7 | `expandSequences` | Break comma chains into independent statements |
+| 8 | `normalizeShortCircuit` | Re-normalize after expansion |
+| 9 | `eliminateDeadCode` | Remove unreachable code, `if(false)` branches |
+| 10 | `inlineReadOnlyProperties` | Replace `cfg.PROP` with literal values |
+| 10b | `inlineConstObjects` | Replace `cfg.timeout` with `5000` when cfg is const |
+| 11 | `removeUnusedHelpers` | Delete unreferenced function declarations |
+| 12 | `simplifyRedundantConditions` | `if(a) return true; return false` → `return !!a` |
+| 13 | `inlinePureWrappers` | Remove functions that are just `return call(args)` |
+| 14 | `sortByCallTree` | Topological sort: callees before callers |
+| 15 | `inlineSingleCallerFns` | Inline functions called from exactly one place |
+| 16 | `normalizeSyntax` | `~arr.indexOf` → `arr.includes`, `~~x` → `Math.trunc` |
+| 17 | `extractInlineFunctions` | Re-extract exposed inline functions |
+| 18 | `annotateAlerts` | Inject `[Label]` comments for security-relevant patterns |
+| 19 | `sanitizeReservedWords` | Re-sanitize (pipeline may introduce new reserved words) |
+| 20 | `pushDataToBottom` | Move DATA-heavy functions to end with separator |
 
-## Tiered Output
+## Alert System
 
-The `tier` and `fold` options control how much code reaches the LLM. See **[docs/llm-output-tuning.md](docs/llm-output-tuning.md)** for detailed guidance, behavior matrix, and best practices.
+Three detection layers:
 
-Quick reference:
+1. **String-based** (`ALERT_PATTERNS`): regex scan of string literals — API endpoints, tokens, crypto, eval, storage, DOM sinks, network, fingerprints, cookies
+2. **AST-based**: detect `debugger`, `eval()`, `new Function()` via AST node types
+3. **Denoise**: configurable rules to downgrade false-positive alerts
 
-| Config | What the LLM sees |
-|--------|-------------------|
-| `tier: 3` | All functions, full code |
-| `tier: 1` | Signal functions (alerts, hotspots, flattening, suspicious) full code. Rest: signatures only. |
-| `tier: 1, fold: true` | Same + mechanical functions (polyfill/pure-compute/forward) collapsed to comments. |
-| `tier: 2` | Signal functions + callees full code. Rest: signatures. |
-| `tier: 2, fold: true` | Same + mechanical functions collapsed. |
+Severity levels: `critical` > `high` > `medium` > `low` > `info`
+
+## Function Categories
+
+Functions are automatically categorized:
+
+| Category | Detection | Example |
+|----------|-----------|---------|
+| `data` | Large hex string arrays | String lookup tables |
+| `core` | Original function names | Entry points |
+| `framework` | Vue/React/Regenerator patterns | Framework internals |
+| `network` | fetch/xhr/axios patterns | HTTP client code |
+| `crypto` | sign/encrypt/hash patterns | Cryptographic operations |
+| `websocket` | WebSocket patterns | WS connection code |
+| `polyfill` | core-js/ToPrimitive patterns | ES polyfills |
+| `callback` | `_S_return_*` names | Extracted callbacks |
+| `branch` | `_S_*_if/_try/_catch` | Extracted branches |
+| `other` | None of the above | Uncategorized |
+
+## Naming Convention
+
+All extracted sub-functions follow: `_S_<parent>_<seq>_<hint>`
+
+| Component | Meaning |
+|-----------|---------|
+| `_S_` | Prefix for extracted sub-functions |
+| `<parent>` | Parent function name, method name, or `lXXXX` for anonymous |
+| `<seq>` | Two-digit extraction order |
+| `<hint>` | `if`, `else`, `try`, `catch`, `fn`, `iife_body`... |
+| `_L<line>` | (Collision only) Source line disambiguator |
+
+When two sub-functions share the same parent + seq + hint, `_L<source line>` is appended:
+
+```
+_S_l251_01_try          ← first try block (unique, no _L needed)
+_S_l251_L1364_01_try    ← collision! disambiguated by source line 1364
+_S_l251_L1548_01_try    ← another collision, source line 1548
+```
 
 ## Output Examples
 
@@ -159,77 +178,58 @@ function _S_return_1_fn(_0x593f2d, _0x4d5e1e, _0x477d9d, _0x147aca) {
 
 ```javascript
 // Input
-"undefined"==typeof Element||Element.prototype.addEventListener||(u=[],Ao=function(n,t){for(var e=0;e<u.length;){var r=u[e];if(r.object===this&&r.type===n){u.splice(e,1);break}++e}},Element.prototype.addEventListener=qo=function(n,t){function e(n){n.target=n.srcElement}t.handleEvent?t.handleEvent(n):t.call(i,n)})
+"undefined"==typeof Element||Element.prototype.addEventListener||(u=[],Ao=function(n,t){...})
 
 // Output
 if ("undefined" != typeof Element && !Element.prototype.addEventListener) {
   u = [];
-  Ao = function (n, t) {
-    for (var e = 0; e < u.length;) {
-      var r = u[e];
-      if (r.object === this && r.type === n) {
-        u.splice(e, 1);
-        break;
-      }
-      ++e;
-    }
-  };
-  qo = function (n, t) {
-    function e(n) {
-      n.target = n.srcElement;
-    }
-    if (t.handleEvent) {
-      t.handleEvent(n);
-    } else {
-      t.call(i, n);
-    }
-  };
-  Element.prototype.addEventListener = qo;
+  Ao = function (n, t) { ... };
 }
 ```
 
-↑ `A||B||(C,D,E)` → `if(!A&&!B){C;D;E;}`; chained assignment split; ternary expanded.
+↑ `A||B||(C,D)` → `if(!A&&!B){C;D;}`
 
-### Ternary variable → if/else
+### Hex string normalization
 
 ```javascript
 // Input
-var handler="complete"===document.readyState?function(n){n(),console.log("done")}:function(n){document.addEventListener("DOMContentLoaded",n)}
+var _0xa1b2 = ["\x68\x74\x74\x70\x73\x3a\x2f\x2f\x61\x70\x69"];
 
 // Output
-var handler;
-if ("complete" === document.readyState) {
-  handler = function (n) {
-    n();
-    console.log("done");
-  };
-} else {
-  handler = function (n) {
-    document.addEventListener("DOMContentLoaded", n);
-  };
-}
+var _0xa1b2 = ["https://api"];
 ```
 
-↑ `var x = cond ? a : b` → `var x; if/else` with full block formatting.
+↑ `\x` escape sequences decoded to readable strings.
 
-## Naming Convention
-
-All extracted sub-functions follow: `_S_<parent>_<seq>_<hint>`
-
-| Component | Meaning |
-|-----------|---------|
-| `_S_` | Prefix for extracted sub-functions |
-| `<parent>` | Parent function name, method name, or `lXXXX` for anonymous |
-| `<seq>` | Two-digit extraction order |
-| `<hint>` | `if`, `else`, `try`, `catch`, `init_vars`, `iife_body`... |
-| `_L<line>` | (Collision only) Source line disambiguator |
-
-When two sub-functions share the same parent + seq + hint, `_L<source line>` is appended to prevent name collision:
+## Directory Structure
 
 ```
-_S_l251_01_try          ← first try block (unique, no _L needed)
-_S_l251_L1364_01_try    ← collision! same parent+seq+hint, disambiguated by source line 1364
-_S_l251_L1548_01_try    ← another collision, source line 1548
+deob.js               ← CLI entry point, config parsing
+scripts/
+  config.js           ← Shared constants (parser, t, GLOBALS, RESERVED, ALERT_PATTERNS)
+  ast-utils.js        ← AST walkers, pattern detectors, clone
+  scope.js            ← Variable scope & external reference analysis
+  naming.js           ← Sub-function naming (_S_ prefix, collision detection)
+  emit.js             ← Sub-function AST node creation, safeParam
+  extract.js          ← Syntactic extraction (IIFE, try/catch, loop, if/else, switch)
+  traverse.js         ← Innermost-first function collection
+  wrapper.js          ← Top-level IIFE extraction from comma chains
+  pipeline.js         ← 20-step pipeline orchestration
+  passes/
+    simplify.js       ← Constant folding, boolean, string, hex, short-circuit, syntax
+    dead-code.js      ← Dead code elimination, unused helpers, DATA separation
+    inline.js         ← Property/wrapper/single-caller inlining
+    declarations.js   ← Hoisting, sanitization, alert annotation, call-tree sorting
+    index.js          ← Re-exports all pass modules
+  structure/
+    analyze.js        ← AST analysis, domain classification, function categorization
+    report.js         ← Markdown/prompt generation, reading guide
+    index-gen.js      ← Compact index.txt generation
+    tier.js           ← Tier filtering (1=alerts, 2=+callees, 3=all)
+    cross-file.js     ← Multi-file summary and cross-readme
+    index.js          ← Re-exports all structure modules
+  metrics.js          ← Before/after readability metrics, HTML report
+  index.js            ← Public API re-export
 ```
 
 ## API
@@ -237,26 +237,6 @@ _S_l251_L1548_01_try    ← another collision, source line 1548
 ```javascript
 const { main } = require("./scripts");
 main({ input: "obfuscated.js", output: "out/", split: true });
-```
-
-## Directory Structure
-
-```
-deob.js               ← CLI entry point
-scripts/
-├── pipeline.js       ← Main orchestration (20 passes)
-├── extract.js        ← Syntactic splitting (IIFE, try-catch, if-else, switch…)
-├── passes.js         ← Post-processing passes (hoist, simplify, short-circuit, dead-code, sanitize…)
-├── traverse.js       ← Innermost-first function collection
-├── metrics.js        ← Readability analysis + HTML Chart.js report
-├── structure.js      ← Reports, index, tier filter, domain, reading guide, cross-file readme
-├── config-types.d.ts ← TypeScript definitions for deob.config.js
-├── ast-utils.js      ← AST walker, detectors, clone, await/yield detection
-├── scope.js          ← Variable scope & external reference analysis
-├── emit.js           ← Sub-function declaration builder
-├── naming.js         ← Naming convention helpers
-├── wrapper.js        ← Top-level IIFE extraction
-├── config.js         ← Parser, generator, alert patterns, globals
 ```
 
 ## License
