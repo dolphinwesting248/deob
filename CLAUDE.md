@@ -482,7 +482,9 @@ For framework-specific detection, add to `FRAMEWORK_PATTERNS`:
 /\b(MyFramework\b.*\binternal|__MY_FRAMEWORK__)\b/,
 ```
 
-## Adding a New Pass — Complete Example
+## Adding a New Pass 
+
+complete Example:
 
 ### 1. Write the pass function
 

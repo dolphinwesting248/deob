@@ -6,9 +6,10 @@
 
 ## 1. Executive Summary
 
-> **Deob improves LLM reverse engineering accuracy by 2x on average, up to 5x for heavily obfuscated code.**
+> **Deob improves LLM reverse engineering accuracy by 2x on average, up to 5x for heavily obfuscated code.** The advantage comes primarily from two capabilities:
 >
-> The advantage comes primarily from two capabilities: (1) extracting and labeling functions that raw agents cannot see, and (2) decrypting string literals to reveal API endpoints and URLs.
+> - extracting and labeling functions that raw agents cannot see.
+> - decrypting string literals to reveal API endpoints and URLs.
 
 ### Key Numbers
 
@@ -31,7 +32,7 @@ xychart-beta
     bar [0.48, 0.33, 0.79, 0.17, 0.29]
 ```
 
-_Blue = deob, orange = raw. Gap explodes from scenario D onward._
+_Creamy = deob, orange = raw. Gap explodes from scenario D onward._
 
 ---
 
