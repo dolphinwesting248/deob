@@ -227,34 +227,40 @@ function annotateAlerts(ast) {
 
 // ---- sortByCallTree: reorder _S_ functions by execution dependency ----
 // General: topological sort so callees appear before callers.
-function sortByCallTree(ast) {
-  // Build adjacency: who calls whom (among _S_ functions)
-  const allNames = new Set();
+function sortByCallTree(ast, callGraph) {
+  const allNames = callGraph ? callGraph.allNames : new Set();
+  let callSets; // callerName -> Set<calleeName>
 
-  for (const stmt of ast.program.body) {
-    if (t.isFunctionDeclaration(stmt) && stmt.id) {
-      allNames.add(stmt.id.name);
+  if (callGraph) {
+    // Reuse shared call graph
+    callSets = callGraph.forward;
+  } else {
+    // Build adjacency: who calls whom (among _S_ functions)
+    for (const stmt of ast.program.body) {
+      if (t.isFunctionDeclaration(stmt) && stmt.id) {
+        allNames.add(stmt.id.name);
+      }
     }
-  }
 
-  const callSets = new Map(); // callerName -> Set<calleeName>
-  function collectEdges(node, enclosingFn) {
-    if (!node || typeof node !== "object") return;
-    if (t.isCallExpression(node) && t.isIdentifier(node.callee) && allNames.has(node.callee.name) && enclosingFn) {
-      if (!callSets.has(enclosingFn)) callSets.set(enclosingFn, new Set());
-      callSets.get(enclosingFn).add(node.callee.name);
+    callSets = new Map();
+    function collectEdges(node, enclosingFn) {
+      if (!node || typeof node !== "object") return;
+      if (t.isCallExpression(node) && t.isIdentifier(node.callee) && allNames.has(node.callee.name) && enclosingFn) {
+        if (!callSets.has(enclosingFn)) callSets.set(enclosingFn, new Set());
+        callSets.get(enclosingFn).add(node.callee.name);
+      }
+      for (const k of Object.keys(node)) {
+        if (SKIP_KEYS.has(k)) continue;
+        const v = node[k];
+        if (Array.isArray(v)) { for (const x of v) collectEdges(x, enclosingFn); }
+        else if (v && typeof v.type === "string") collectEdges(v, enclosingFn);
+      }
     }
-    for (const k of Object.keys(node)) {
-      if (SKIP_KEYS.has(k)) continue;
-      const v = node[k];
-      if (Array.isArray(v)) { for (const x of v) collectEdges(x, enclosingFn); }
-      else if (v && typeof v.type === "string") collectEdges(v, enclosingFn);
-    }
-  }
 
-  for (const stmt of ast.program.body) {
-    if (t.isFunctionDeclaration(stmt) && stmt.id) {
-      collectEdges(stmt.body, stmt.id.name);
+    for (const stmt of ast.program.body) {
+      if (t.isFunctionDeclaration(stmt) && stmt.id) {
+        collectEdges(stmt.body, stmt.id.name);
+      }
     }
   }
 

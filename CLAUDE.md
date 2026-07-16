@@ -95,6 +95,8 @@ scripts/
                                  SUB_FN_*, OUTPUT_FILES, THRESHOLDS, CATEGORIES, SEVERITY, NAMING_*,
                                  DOMAIN_RULES, CATEGORY_RULES, FRAMEWORK_PATTERNS
   ast-utils.js                   Generic AST walkers, pattern detectors, clone
+  callgraph.js                   Shared call graph builder (forward/reverse edges), reused by pipeline
+  refgraph.js                    Shared reference graph (declarations, mutations, per-function refs), reused by pipeline
   scope.js                       Variable scope analysis, external reference collection
   naming.js                      Sub-function naming (_S_ prefix, collision detection)
   emit.js                        Sub-function AST node creation, safeParam
@@ -133,6 +135,8 @@ scripts/
 | 0 | `sanitizeReservedWords` | declarations.js | Rename reserved-word identifiers (let, default, delete…) |
 | 1 | `processAllFunctions` | traverse.js | Collect all function nodes, process innermost-first |
 | 2 | `extractTopLevelIIFEs` | wrapper.js | Extract top-level IIFEs from comma chains |
+| — | `buildCallGraph` | callgraph.js | Build shared forward/reverse call edges (reused by step 14 & 15) |
+| — | `buildRefGraph` | refgraph.js | Build shared declaration/reference/mutation graph (reused by step 10/10b/11) |
 | 3 | `hoistDeclarations` | declarations.js | Import→top, export→bottom; var/let/const/fn to top of scope |
 | 4 | `extractInlineFunctions` | inline.js | Lift embedded function expressions to top level |
 | 5 | `simplify` | simplify.js | Constant folding + boolean + string + hex normalization |
@@ -162,6 +166,8 @@ input.js
   │
   ├─ processAllFunctions(ast)     → extract sub-functions from nested scopes
   ├─ extractTopLevelIIFEs(ast)    → extract top-level IIFE wrappers
+  ├─ buildCallGraph(ast)          → shared forward/reverse call edges
+  ├─ buildRefGraph(ast)           → shared declaration/mutation/reference graph
   │
   ├─ 18 transformation passes     → mutate AST in place
   │
@@ -191,6 +197,14 @@ input.js
 ### ast-utils.js — Generic AST Helpers
 **Does**: walkAST, walkASTDeep, walkStmtLists, isIIFE, describeBody, clone, hasBail, hasReturn, containsAwait, containsYield
 **Does not**: Transform AST, know about _S_ naming, contain pass logic
+
+### callgraph.js — Shared Call Graph
+**Does**: buildCallGraph(ast) → { forward, reverse, allNames } — bidirectional call edges
+**Does not**: Transform AST, inline functions, sort output
+
+### refgraph.js — Shared Reference Graph
+**Does**: buildRefGraph(ast) → { declarations, fnRefs, varUsedBy, isMutated, referenced }
+**Does not**: Transform AST, inline properties, remove functions
 
 ### scope.js — Variable Scope Analysis
 **Does**: collectDefined, collectBindingNames, getExternalRefs

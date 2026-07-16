@@ -7,7 +7,7 @@ const { collectDefined, getExternalRefs } = require("../scope");
 const { safeParam } = require("../emit");
 
 // ---- inlineReadOnlyProperties: replace cfg.PROP with its literal value ----
-function inlineReadOnlyProperties(ast) {
+function inlineReadOnlyProperties(ast, refGraph) {
   let count = 0;
 
   // Phase 1: collect ALL const literal objects (any scope — including inside functions)
@@ -41,25 +41,29 @@ function inlineReadOnlyProperties(ast) {
   console.log(`  Found ${configs.size} config objects`);
 
   // Phase 2: collect mutated variables (assignment to properties)
-  const mutated = new Set();
-  function collectMutations(node) {
-    if (!node || typeof node !== "object") return;
-    if (t.isAssignmentExpression(node) && t.isMemberExpression(node.left) && t.isIdentifier(node.left.object)) {
-      mutated.add(node.left.object.name);
+  if (refGraph) {
+    // Reuse shared refGraph — filter to direct mutations
+    for (const name of refGraph.isMutated) configs.delete(name);
+  } else {
+    const mutated = new Set();
+    function collectMutations(node) {
+      if (!node || typeof node !== "object") return;
+      if (t.isAssignmentExpression(node) && t.isMemberExpression(node.left) && t.isIdentifier(node.left.object)) {
+        mutated.add(node.left.object.name);
+      }
+      if (t.isUpdateExpression(node) && t.isMemberExpression(node.argument) && t.isIdentifier(node.argument.object)) {
+        mutated.add(node.argument.object.name);
+      }
+      for (const key of Object.keys(node)) {
+        if (SKIP_KEYS.has(key)) continue;
+        const val = node[key];
+        if (Array.isArray(val)) { for (const v of val) collectMutations(v); }
+        else if (val && typeof val.type === "string") collectMutations(val);
+      }
     }
-    // Also catch update expressions: obj.prop++, delete obj.prop
-    if (t.isUpdateExpression(node) && t.isMemberExpression(node.argument) && t.isIdentifier(node.argument.object)) {
-      mutated.add(node.argument.object.name);
-    }
-    for (const key of Object.keys(node)) {
-      if (SKIP_KEYS.has(key)) continue;
-      const val = node[key];
-      if (Array.isArray(val)) { for (const v of val) collectMutations(v); }
-      else if (val && typeof val.type === "string") collectMutations(val);
-    }
+    collectMutations(ast);
+    for (const name of mutated) configs.delete(name);
   }
-  collectMutations(ast);
-  for (const name of mutated) configs.delete(name);
   console.log(`  ${configs.size} remain after mutation check`);
 
   // Phase 3: inline VAR.PROP → literal across the entire AST
@@ -252,12 +256,12 @@ function inlineArithmeticWrappers(ast) {
 }
 
 // ---- inlineSingleCallerFns: inline functions called from exactly one place ----
-function inlineSingleCallerFns(ast) {
+function inlineSingleCallerFns(ast, callGraph) {
   let count = 0;
 
   // Phase 1: count callers for each _S_ function
-  const callers = new Map(); // calleeName -> Set(callerName)
   const allSubNames = new Set();
+  let callers; // calleeName -> Set(callerName)
 
   for (const stmt of ast.program.body) {
     if (t.isFunctionDeclaration(stmt) && stmt.id && isSubFn(stmt.id.name)) {
@@ -265,23 +269,35 @@ function inlineSingleCallerFns(ast) {
     }
   }
 
-  function countCallers(node, enclosingFn) {
-    if (!node || typeof node !== "object") return;
-    if (t.isCallExpression(node) && t.isIdentifier(node.callee) && allSubNames.has(node.callee.name) && enclosingFn) {
-      if (!callers.has(node.callee.name)) callers.set(node.callee.name, new Set());
-      callers.get(node.callee.name).add(enclosingFn);
+  if (callGraph) {
+    // Reuse shared call graph — filter to _S_ callees only
+    callers = new Map();
+    for (const [callee, callerSet] of callGraph.reverse) {
+      if (allSubNames.has(callee)) {
+        callers.set(callee, callerSet);
+      }
     }
-    for (const k of Object.keys(node)) {
-      if (SKIP_KEYS.has(k)) continue;
-      const v = node[k];
-      if (Array.isArray(v)) { for (const x of v) countCallers(x, enclosingFn); }
-      else if (v && typeof v.type === "string") countCallers(v, enclosingFn);
-    }
-  }
+  } else {
+    callers = new Map();
 
-  for (const stmt of ast.program.body) {
-    if (t.isFunctionDeclaration(stmt) && stmt.id) {
-      countCallers(stmt.body, stmt.id.name);
+    function countCallers(node, enclosingFn) {
+      if (!node || typeof node !== "object") return;
+      if (t.isCallExpression(node) && t.isIdentifier(node.callee) && allSubNames.has(node.callee.name) && enclosingFn) {
+        if (!callers.has(node.callee.name)) callers.set(node.callee.name, new Set());
+        callers.get(node.callee.name).add(enclosingFn);
+      }
+      for (const k of Object.keys(node)) {
+        if (SKIP_KEYS.has(k)) continue;
+        const v = node[k];
+        if (Array.isArray(v)) { for (const x of v) countCallers(x, enclosingFn); }
+        else if (v && typeof v.type === "string") countCallers(v, enclosingFn);
+      }
+    }
+
+    for (const stmt of ast.program.body) {
+      if (t.isFunctionDeclaration(stmt) && stmt.id) {
+        countCallers(stmt.body, stmt.id.name);
+      }
     }
   }
 

@@ -15,6 +15,8 @@ const { processAllFunctions } = require("./traverse");
 const { extractTopLevelIIFEs } = require("./wrapper");
 const { sanitizeReservedWords, hoistDeclarations, simplify, normalizeShortCircuit, expandSequences, eliminateDeadCode, inlineReadOnlyProperties, removeUnusedHelpers, simplifyRedundantConditions, inlinePureWrappers, inlineArithmeticWrappers, sortByCallTree, inlineSingleCallerFns, normalizeSyntax, extractInlineFunctions, annotateAlerts, pushDataToBottom, resetInlineNames, inlineConstObjects } = require("./passes");
 const { resetNames } = require("./naming");
+const { buildCallGraph } = require("./callgraph");
+const { buildRefGraph } = require("./refgraph");
 const c = require("./colors");
 
 function main({ input, output, split } = {}) {
@@ -67,6 +69,10 @@ function main({ input, output, split } = {}) {
     for (const sf of groups.get(g)) ast.program.body.push(sf);
   }
 
+  // Build shared graphs (reused by multiple passes)
+  const callGraph = buildCallGraph(ast);
+  const refGraph = buildRefGraph(ast);
+
   // ==================== Post-Processing Passes ====================
   console.log(`${c.cyan}Step 3:${c.reset} Hoisting helper function declarations...`);
   const t2 = Date.now();
@@ -105,17 +111,17 @@ function main({ input, output, split } = {}) {
 
   console.log(`${c.cyan}Step 10:${c.reset} Inlining read-only property access...`);
   const t10 = Date.now();
-  inlineReadOnlyProperties(ast);
+  inlineReadOnlyProperties(ast, refGraph);
   console.log(`  ${c.dim}Done in ${Date.now() - t10}ms${c.reset}`);
 
   console.log(`${c.cyan}Step 10b:${c.reset} Inlining const object properties...`);
   const t10b = Date.now();
-  inlineConstObjects(ast);
+  inlineConstObjects(ast, refGraph);
   console.log(`  ${c.dim}Done in ${Date.now() - t10b}ms${c.reset}`);
 
   console.log(`${c.cyan}Step 11:${c.reset} Removing unused helper functions...`);
   const t11 = Date.now();
-  removeUnusedHelpers(ast);
+  removeUnusedHelpers(ast, refGraph);
   console.log(`  ${c.dim}Done in ${Date.now() - t11}ms${c.reset}`);
 
   console.log(`${c.cyan}Step 12:${c.reset} Simplifying redundant conditions...`);
@@ -134,12 +140,12 @@ function main({ input, output, split } = {}) {
 
   console.log(`${c.cyan}Step 14:${c.reset} Sorting functions by call tree...`);
   const t14 = Date.now();
-  sortByCallTree(ast);
+  sortByCallTree(ast, callGraph);
   console.log(`  ${c.dim}Done in ${Date.now() - t14}ms${c.reset}`);
 
   console.log(`${c.cyan}Step 15:${c.reset} Inlining single-caller functions...`);
   const t15 = Date.now();
-  inlineSingleCallerFns(ast);
+  inlineSingleCallerFns(ast, callGraph);
   console.log(`  ${c.dim}Done in ${Date.now() - t15}ms${c.reset}`);
 
   console.log(`${c.cyan}Step 16:${c.reset} Normalizing syntax patterns...`);
