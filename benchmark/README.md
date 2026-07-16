@@ -236,8 +236,9 @@ For example:
 | Functions | 30% | F1 score (name + purpose matching) |
 | Security | 20% | Issue keyword overlap |
 | Endpoints | 15% | Exact method + path matching |
-| Purpose | 10% | Keyword overlap with description |
 | DataFlow | 10% | Keyword overlap |
+| Purpose | 5% | Keyword overlap with description |
+| Time | 5% | Time spent |
 | Variables | 10% | Value/purpose matching |
 | EntryPoint | 2.5% | Existence check |
 | TokenEfficiency | 2.5% | Token consumption |

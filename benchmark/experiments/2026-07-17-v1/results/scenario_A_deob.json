@@ -1,32 +1,126 @@
 {
   "purpose": "An authentication client that logs into a remote API by hashing a password, stores the session token in localStorage, and makes authenticated GET/PUT requests using Bearer token authorization.",
   "functions": [
-    {"name":"hashPassword","purpose":"Custom hash/checksum function","calls":[],"calledBy":["login"]},
-    {"name":"buildAuthHeaders","purpose":"HTTP header factory","calls":[],"calledBy":["sendRequest"]},
-    {"name":"sendRequest","purpose":"Core HTTP request dispatcher with fetch()","calls":["buildAuthHeaders"],"calledBy":["login","getUserProfile","updateProfile"]},
-    {"name":"login","purpose":"Authenticate user, hash password, store token in localStorage","calls":["hashPassword","sendRequest"],"calledBy":["top-level code"]},
-    {"name":"getUserProfile","purpose":"Fetch user profile with Bearer token from localStorage","calls":["sendRequest"],"calledBy":["top-level callback"]},
-    {"name":"updateProfile","purpose":"Update user profile via PUT with Bearer token","calls":["sendRequest"],"calledBy":[]}
+    {
+      "name": "hashPassword",
+      "purpose": "Custom hash/checksum function",
+      "calls": [],
+      "calledBy": [
+        "login"
+      ]
+    },
+    {
+      "name": "buildAuthHeaders",
+      "purpose": "HTTP header factory",
+      "calls": [],
+      "calledBy": [
+        "sendRequest"
+      ]
+    },
+    {
+      "name": "sendRequest",
+      "purpose": "Core HTTP request dispatcher with fetch()",
+      "calls": [
+        "buildAuthHeaders"
+      ],
+      "calledBy": [
+        "login",
+        "getUserProfile",
+        "updateProfile"
+      ]
+    },
+    {
+      "name": "login",
+      "purpose": "Authenticate user, hash password, store token in localStorage",
+      "calls": [
+        "hashPassword",
+        "sendRequest"
+      ],
+      "calledBy": [
+        "top-level code"
+      ]
+    },
+    {
+      "name": "getUserProfile",
+      "purpose": "Fetch user profile with Bearer token from localStorage",
+      "calls": [
+        "sendRequest"
+      ],
+      "calledBy": [
+        "top-level callback"
+      ]
+    },
+    {
+      "name": "updateProfile",
+      "purpose": "Update user profile via PUT with Bearer token",
+      "calls": [
+        "sendRequest"
+      ],
+      "calledBy": []
+    }
   ],
   "endpoints": [
-    {"method":"POST","path":"/auth/login","purpose":"Login endpoint"},
-    {"method":"GET","path":"/users/:id","purpose":"Get user data"},
-    {"method":"PUT","path":"/users/:id","purpose":"Update user data"}
-  ], 
+    {
+      "method": "POST",
+      "path": "/auth/login",
+      "purpose": "Login endpoint"
+    },
+    {
+      "method": "GET",
+      "path": "/users/:id",
+      "purpose": "Get user data"
+    },
+    {
+      "method": "PUT",
+      "path": "/users/:id",
+      "purpose": "Update user data"
+    }
+  ],
   "security": [
-    {"severity":"high","issue":"Hardcoded credentials in source code"},
-    {"severity":"high","issue":"Weak password hashing - not cryptographic (simple hashCode variant)"},
-    {"severity":"medium","issue":"Session token stored in localStorage (vulnerable to XSS)"},
-    {"severity":"medium","issue":"No token expiration or refresh mechanism"},
-    {"severity":"medium","issue":"Error messages leak HTTP status information"},
-    {"severity":"low","issue":"String obfuscation provides false sense of security"},
-    {"severity":"low","issue":"No CSRF protection on API requests"}
+    {
+      "severity": "high",
+      "issue": "Hardcoded credentials in source code"
+    },
+    {
+      "severity": "high",
+      "issue": "Weak password hashing - not cryptographic (simple hashCode variant)"
+    },
+    {
+      "severity": "medium",
+      "issue": "Session token stored in localStorage (vulnerable to XSS)"
+    },
+    {
+      "severity": "medium",
+      "issue": "No token expiration or refresh mechanism"
+    },
+    {
+      "severity": "medium",
+      "issue": "Error messages leak HTTP status information"
+    },
+    {
+      "severity": "low",
+      "issue": "String obfuscation provides false sense of security"
+    },
+    {
+      "severity": "low",
+      "issue": "No CSRF protection on API requests"
+    }
   ],
   "dataFlow": "password → hashCode hash → POST /auth/login → token → localStorage → GET/PUT /users/:id with Bearer token",
   "variables": [
-    {"name":"API_BASE_URL","value":"https://api.example.com"},
-    {"name":"AUTH_TOKEN_KEY","value":"session_token in localStorage"}
+    {
+      "name": "API_BASE_URL",
+      "value": "https://api.example.com"
+    },
+    {
+      "name": "AUTH_TOKEN_KEY",
+      "value": "session_token in localStorage"
+    }
   ],
   "entryPoint": "login function called at global scope with admin credentials",
-  "functionCount": 6
+  "functionCount": 6,
+  "_meta": {
+    "tokens": 15000,
+    "time": 30
+  }
 }

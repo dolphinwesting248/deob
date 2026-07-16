@@ -108,14 +108,21 @@ function scoreEntry(answer, truth) {
   return answer.entryPoint && answer.entryPoint.length > 3 ? 1 : 0;
 }
 
-// Token efficiency: how much raw saves over deob (deob's input tokens vs raw's input tokens)
+// Time efficiency: how much faster deob is vs raw
+function scoreTime(deobTime, rawTime) {
+  if (!deobTime || !rawTime || deobTime <= 0) return 0;
+  const ratio = rawTime / deobTime;
+  return Math.min(1, ratio / 5);  // 5x speedup = perfect score
+}
+
+// Token efficiency: how much deob saves in input tokens vs raw
 function scoreToken(deobTokens, rawTokens) {
   if (!deobTokens || !rawTokens || deobTokens <= 0) return 0;
   const ratio = rawTokens / deobTokens;
   return Math.min(1, ratio / 10);  // 10x = perfect score
 }
 
-function computeScores(answer, truth, deobTokens, rawTokens) {
+function computeScores(answer, truth, meta) {
   const scores = {
     purpose: scorePurpose(answer, truth),
     functions: scoreFunctions(answer, truth),
@@ -124,12 +131,13 @@ function computeScores(answer, truth, deobTokens, rawTokens) {
     dataFlow: scoreDataFlow(answer, truth),
     variables: scoreVariables(answer, truth),
     entry: scoreEntry(answer, truth),
-    token: scoreToken(deobTokens, rawTokens),
+    time: scoreTime(meta.deobTime, meta.rawTime),
+    token: scoreToken(meta.deobTokens, meta.rawTokens),
   };
   scores.total =
-    scores.purpose * 0.10 + scores.functions * 0.30 + scores.endpoints * 0.15 +
+    scores.purpose * 0.05 + scores.functions * 0.30 + scores.endpoints * 0.15 +
     scores.security * 0.20 + scores.dataFlow * 0.10 + scores.variables * 0.10 +
-    scores.entry * 0.025 + scores.token * 0.025;
+    scores.time * 0.05 + scores.entry * 0.025 + scores.token * 0.025;
   return scores;
 }
 
@@ -147,18 +155,22 @@ function scoreScenario(scenario, expDir) {
   const deobAnswer = loadAnswer(deobPath);
   const rawAnswer = loadAnswer(rawPath);
 
-  // Load token data
-  let tokens = { deob: 0, raw: 0 };
-  if (fs.existsSync(tokenPath)) {
-    const allTokens = JSON.parse(fs.readFileSync(tokenPath, "utf-8"));
-    if (allTokens[scenario]) tokens = allTokens[scenario];
-  }
+  // Read token/time from _meta embedded in answer JSONs
+  const deobMeta = deobAnswer._meta || {};
+  const rawMeta = rawAnswer._meta || {};
+
+  const meta = {
+    deobTokens: deobMeta.tokens || 0,
+    rawTokens: rawMeta.tokens || 0,
+    deobTime: deobMeta.time || 0,
+    rawTime: rawMeta.time || 0,
+  };
 
   return {
     scenario,
-    deob: computeScores(deobAnswer, gt, tokens.deob, tokens.raw),
-    raw: computeScores(rawAnswer, gt, tokens.deob, tokens.raw),
-    tokens: { deob: tokens.deob, raw: tokens.raw, ratio: tokens.raw > 0 ? (tokens.raw / tokens.deob).toFixed(1) + "x" : "—" },
+    deob: computeScores(deobAnswer, gt, meta),
+    raw: computeScores(rawAnswer, gt, meta),
+    tokens: meta,
   };
 }
 
@@ -174,19 +186,21 @@ if (scenarios.length === 0) {
 }
 
 console.log("=== Benchmark Score Report ===\n");
-console.log("| Scenario | Agent | Purpose | Functions | Endpoints | Security | DataFlow | Vars | Entry | Token | Total |");
-console.log("|----------|-------|---------|-----------|-----------|----------|----------|------|-------|-------|-------|");
+console.log("| Scenario | Agent | Purpose | Functions | Endpoints | Security | DataFlow | Vars | Time | Entry | Token | Total |");
+console.log("|----------|-------|---------|-----------|-----------|----------|----------|------|------|-------|-------|-------|");
 
 for (const sc of scenarios) {
   const result = scoreScenario(sc, expDir);
-  if (!result) { console.log(`| ${sc} | — | no data | | | | | | | | | |`); continue; }
+  if (!result) { console.log(`| ${sc} | — | no data | | | | | | | | | | | |`); continue; }
 
-  const d = result.deob, r = result.raw, t = result.tokens;
-  console.log(`| ${sc} | deob | ${d.purpose.toFixed(2)} | ${d.functions.toFixed(2)} | ${d.endpoints.toFixed(2)} | ${d.security.toFixed(2)} | ${d.dataFlow.toFixed(2)} | ${d.variables.toFixed(2)} | ${d.entry.toFixed(2)} | ${d.token.toFixed(2)} | ${d.total.toFixed(2)} |`);
-  console.log(`| ${sc} | raw  | ${r.purpose.toFixed(2)} | ${r.functions.toFixed(2)} | ${r.endpoints.toFixed(2)} | ${r.security.toFixed(2)} | ${r.dataFlow.toFixed(2)} | ${r.variables.toFixed(2)} | ${r.entry.toFixed(2)} | ${r.token.toFixed(2)} | ${r.total.toFixed(2)} |`);
-  console.log(`| ${sc} | tkns | ${t.ratio} (${t.raw}/${t.deob}) |`);
+  const d = result.deob, r = result.raw, m = result.tokens;
+  console.log(`| ${sc} | deob | ${d.purpose.toFixed(2)} | ${d.functions.toFixed(2)} | ${d.endpoints.toFixed(2)} | ${d.security.toFixed(2)} | ${d.dataFlow.toFixed(2)} | ${d.variables.toFixed(2)} | ${d.time.toFixed(2)} | ${d.entry.toFixed(2)} | ${d.token.toFixed(2)} | ${d.total.toFixed(2)} |`);
+  console.log(`| ${sc} | raw  | ${r.purpose.toFixed(2)} | ${r.functions.toFixed(2)} | ${r.endpoints.toFixed(2)} | ${r.security.toFixed(2)} | ${r.dataFlow.toFixed(2)} | ${r.variables.toFixed(2)} | ${r.time.toFixed(2)} | ${r.entry.toFixed(2)} | ${r.token.toFixed(2)} | ${r.total.toFixed(2)} |`);
+  const ratioT = m.rawTokens > 0 ? (m.rawTokens / m.deobTokens).toFixed(1) + "x" : "—";
+  const ratioM = m.rawTime > 0 ? (m.rawTime / m.deobTime).toFixed(1) + "x" : "—";
+  console.log(`| ${sc} | meta | time: ${ratioM} (${m.rawTime}s/${m.deobTime}s), tokens: ${ratioT} (${m.rawTokens}/${m.deobTokens}) |`);
   const imp = r.total > 0 ? (d.total / r.total).toFixed(1) + "x" : "inf";
-  console.log(`| ${sc} | imprv | ${(d.purpose/r.purpose||0).toFixed(1)}x | ${(d.functions/r.functions||0).toFixed(1)}x | ${(d.endpoints/r.endpoints||0).toFixed(1)}x | ${(d.security/r.security||0).toFixed(1)}x | ${(d.dataFlow/r.dataFlow||0).toFixed(1)}x | ${(d.variables/r.variables||0).toFixed(1)}x | — | — | **${imp}** |`);
+  console.log(`| ${sc} | imprv | ${(d.purpose/r.purpose||0).toFixed(1)}x | ${(d.functions/r.functions||0).toFixed(1)}x | ${(d.endpoints/r.endpoints||0).toFixed(1)}x | ${(d.security/r.security||0).toFixed(1)}x | ${(d.dataFlow/r.dataFlow||0).toFixed(1)}x | ${(d.variables/r.variables||0).toFixed(1)}x | — | — | — | **${imp}** |`);
 }
 
 console.log("\n---");
