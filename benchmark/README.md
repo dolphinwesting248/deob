@@ -27,7 +27,10 @@ node experiments/<date>/tools/runner.js
 # 6. Score results
 node experiments/<date>/tools/score.js --all
 
-# 7. Write report at experiments/<date>/report.md
+# 7. Generate charts
+node experiments/<date>/tools/gen-charts.js
+
+# 8. Write report at experiments/<date>/report.md
 ```
 
 ## File Structure
@@ -41,6 +44,7 @@ benchmark/
         obfuscate.js                   ← generate obfuscated.js from original.js
         runner.js                      ← run deob on all scenarios
         score.js                       ← compare agent answers to ground truth
+        gen-chart.js                   ← generate charts based on data
       scenarios/                       ← experiment scenarios
         A/                             ← scenario A
           original.js                  ← original source code
@@ -212,6 +216,9 @@ BENCH_EXP_DIR=/path/to/experiment node tools/score.js --all
 ```
 
 ### Scoring Weights
+
+for example:
+
 | Dimension | Weight | Method |
 |-----------|--------|--------|
 | Functions | 30% | F1 score (name + purpose matching) |
@@ -220,8 +227,28 @@ BENCH_EXP_DIR=/path/to/experiment node tools/score.js --all
 | Purpose | 10% | Keyword overlap with description |
 | DataFlow | 10% | Keyword overlap |
 | Variables | 10% | Value/purpose matching |
-| EntryPoint | 5% | Existence check |
-| okenEfficiency |  |  |
+| EntryPoint | 2.5% | Existence check |
+| TokenEfficiency | 2.5% | Token consumption |
+
+## Generate the charts
+
+After scoring, run `gen-charts.js` to produce SVG chart images in `imgs/`:
+
+```bash
+node experiments/<date>/tools/gen-charts.js
+```
+
+This generates:
+
+| File | Type | Used in |
+|------|------|---------|
+| `imgs/bar-total.svg` | Bar chart | Executive Summary |
+| `imgs/bar-time.svg` | Bar chart | Efficiency section |
+| `imgs/bar-token.svg` | Bar chart | Token section |
+| `imgs/pie-value.svg` | Donut chart | Aggregate Analysis |
+| `imgs/radar-A.svg` ~ `radar-E.svg` | Radar chart | Per-scenario sections |
+
+**Chart data** is hardcoded in `gen-charts.js` (lines 10-25). After re-running scoring with updated answers, edit the data arrays in `gen-charts.js` to match the new scores, then re-run the script. All charts use pure SVG — no external dependencies, renders in any Markdown viewer.
 
 ## Writing the Report
 
