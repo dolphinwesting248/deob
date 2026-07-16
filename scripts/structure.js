@@ -1281,6 +1281,12 @@ function categorizeFn(name, fn, meta) {
   const src = meta && meta.srcText ? meta.srcText : "";
   const desc = fn.description || "";
 
+  // Framework detection — tag known framework internals
+  if (/\b(Vue\b.*\bcomponent|\$__vue__|__vue__|Vue\.util|Observer|Dep\.prototype|Watcher\b.*\bvm)\b/.test(src)) return "framework";
+  if (/\b(ReactDOM\b|__REACT_DEVTOOLS|ReactCurrentOwner|enqueueSetState|scheduleWork)\b/.test(src)) return "framework";
+  if (/\b(regeneratorRuntime\b|asyncToGenerator|_asyncToGenerator)\b/.test(src)) return "framework";
+  if (/\b(VueRouter\b|HashHistory|HTML5History|AbstractHistory|createRoute)\b/.test(src)) return "framework";
+
   // Domain-specific checks FIRST — take priority over structural patterns
   if (labels && labels.has("Network")) return "network";
   if (labels && labels.has("Crypto")) return "crypto";

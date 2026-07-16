@@ -120,10 +120,9 @@ function main({ input, output, split } = {}) {
   inlinePureWrappers(ast);
   console.log(`  Done in ${Date.now() - t13}ms`);
 
-  console.log("Step 13b: Inlining arithmetic wrappers...");
-  const t13b = Date.now();
-  inlineArithmeticWrappers(ast);
-  console.log(`  Done in ${Date.now() - t13b}ms`);
+  // Step 13b: disabled — too slow on large files (142KB+), needs optimization
+  // console.log("Step 13b: Inlining arithmetic wrappers...");
+  // inlineArithmeticWrappers(ast);
 
   console.log("Step 14: Sorting functions by call tree...");
   const t14 = Date.now();

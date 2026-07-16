@@ -1,6 +1,6 @@
 # deob
 
-Deob is a general-purpose JavaScript deobfuscation preprocessing framework based on AST, designed as a **data-preparation step for LLM-assisted reverse engineering**.
+Deob is an AST-based JavaScript deobfuscation framework, purpose-built as a **data preprocessing tool for LLM-driven reverse engineering**.
 
 - **Universal.** No obfuscator detection, no signature matching. obfuscator.io, JSVMP, webpack bundles, custom obfuscators — all treated the same.
 - **LLM-oriented.** Structure reports, call graphs, string alerts, compact index, function categorization — output designed for LLM consumption, not just human readability.

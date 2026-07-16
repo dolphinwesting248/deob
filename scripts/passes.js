@@ -1501,27 +1501,32 @@ function inlineArithmeticWrappers(ast) {
   let count = 0;
   const wrappers = new Map(); // name -> { params, body (expression) }
 
-  // Phase 1: find single-return-expression wrappers at all levels
-  function findWrappers(node) {
-    if (!node || typeof node !== "object") return;
+  // Phase 1: find single-return-expression wrappers (iterative)
+  const findStack = [ast];
+  while (findStack.length > 0) {
+    const node = findStack.pop();
+    if (!node || typeof node !== "object") continue;
     if (t.isFunctionDeclaration(node) && node.id) {
       const body = node.body.body;
       if (body.length === 1 && t.isReturnStatement(body[0]) && body[0].argument) {
         const expr = body[0].argument;
         const paramNames = new Set(node.params.filter(p => t.isIdentifier(p)).map(p => p.name));
-        if (paramNames.size > 0) {
-          const usesOnlyParams = (n) => {
-            if (!n || typeof n !== "object") return true;
-            if (t.isIdentifier(n)) return paramNames.has(n.name);
+        if (paramNames.size > 0 && paramNames.size <= 3) {
+          // Check if expr uses only params (iterative)
+          const idents = [];
+          const idStack = [expr];
+          while (idStack.length > 0) {
+            const n = idStack.pop();
+            if (!n || typeof n !== "object") continue;
+            if (t.isIdentifier(n)) { idents.push(n.name); continue; }
             for (const k of Object.keys(n)) {
               if (k === "start" || k === "end" || k === "loc") continue;
               const v = n[k];
-              if (v && typeof v.type === "string" && !usesOnlyParams(v)) return false;
-              if (Array.isArray(v)) { for (const x of v) if (x && typeof x.type === "string" && !usesOnlyParams(x)) return false; }
+              if (v && typeof v.type === "string") idStack.push(v);
             }
-            return true;
-          };
-          if (usesOnlyParams(expr)) {
+          }
+          const usesOnlyParams = idents.every(id => paramNames.has(id));
+          if (usesOnlyParams && idents.length <= 6) {
             wrappers.set(node.id.name, { params: node.params.map(p => clone(p)), expr: clone(expr) });
           }
         }
@@ -1530,38 +1535,40 @@ function inlineArithmeticWrappers(ast) {
     for (const k of Object.keys(node)) {
       if (k === "start" || k === "end" || k === "loc") continue;
       const v = node[k];
-      if (Array.isArray(v)) { for (const x of v) findWrappers(x); }
-      else if (v && typeof v.type === "string") findWrappers(v);
+      if (Array.isArray(v)) { for (let i = v.length - 1; i >= 0; i--) if (v[i] && typeof v[i] === "object") findStack.push(v[i]); }
+      else if (v && typeof v.type === "string") findStack.push(v);
     }
   }
-  findWrappers(ast);
 
   if (wrappers.size === 0) { console.log(`  Inlined 0 arithmetic wrappers`); return; }
 
-  // Phase 2: replace call sites
+  // Phase 2: replace call sites (iterative substitute)
   function substitute(expr, paramMap) {
-    if (t.isIdentifier(expr)) return paramMap.has(expr.name) ? paramMap.get(expr.name) : expr;
+    if (t.isIdentifier(expr)) return paramMap.has(expr.name) ? clone(paramMap.get(expr.name)) : clone(expr);
     const result = clone(expr);
-    function walk(n) {
-      if (!n || typeof n !== "object") return;
+    const subStack = [result];
+    while (subStack.length > 0) {
+      const n = subStack.pop();
+      if (!n || typeof n !== "object") continue;
       if (t.isIdentifier(n) && paramMap.has(n.name)) {
-        const replacement = paramMap.get(n.name);
-        n.name = replacement.name;
-        if (replacement.extra) n.extra = replacement.extra;
-        if (replacement.value !== undefined) n.value = replacement.value;
+        const r = paramMap.get(n.name);
+        for (const k of Object.keys(r)) n[k] = r[k];
       }
       for (const k of Object.keys(n)) {
-        if (k === "start" || k === "end" || k === "loc") continue;
+        if (k === "start" || k === "end" || k === "loc" ||
+            k === "leadingComments" || k === "trailingComments" || k === "innerComments") continue;
         const v = n[k];
-        if (v && typeof v.type === "string") walk(v);
+        if (v && typeof v.type === "string") subStack.push(v);
       }
     }
-    walk(result);
     return result;
   }
 
-  function walkCalls(node) {
-    if (!node || typeof node !== "object") return;
+  // Iterative AST walk to avoid stack overflow on large files
+  const stack = [ast];
+  while (stack.length > 0) {
+    const node = stack.pop();
+    if (!node || typeof node !== "object") continue;
     if (t.isCallExpression(node) && t.isIdentifier(node.callee) && wrappers.has(node.callee.name)) {
       const w = wrappers.get(node.callee.name);
       if (node.arguments.length === w.params.length) {
@@ -1570,20 +1577,19 @@ function inlineArithmeticWrappers(ast) {
           if (t.isIdentifier(w.params[i])) paramMap.set(w.params[i].name, node.arguments[i]);
         }
         const inlined = substitute(w.expr, paramMap);
-        // Replace the call expression in-place
-        Object.keys(node).forEach(k => delete node[k]);
-        Object.assign(node, inlined);
+        for (const k of Object.keys(node)) delete node[k];
+        for (const k of Object.keys(inlined)) node[k] = inlined[k];
         count++;
       }
     }
     for (const k of Object.keys(node)) {
-      if (k === "start" || k === "end" || k === "loc") continue;
+      if (k === "start" || k === "end" || k === "loc" ||
+          k === "leadingComments" || k === "trailingComments" || k === "innerComments") continue;
       const v = node[k];
-      if (Array.isArray(v)) { for (const x of v) walkCalls(x); }
-      else if (v && typeof v.type === "string") walkCalls(v);
+      if (Array.isArray(v)) { for (let i = v.length - 1; i >= 0; i--) if (v[i] && typeof v[i] === "object") stack.push(v[i]); }
+      else if (v && typeof v.type === "string") stack.push(v);
     }
   }
-  walkCalls(ast);
 
   console.log(`  Inlined ${count} arithmetic wrapper calls`);
 }
