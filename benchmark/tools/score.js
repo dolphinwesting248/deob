@@ -108,11 +108,12 @@ function computeScores(answer, truth) {
 }
 
 // Run scoring for a scenario
-function scoreScenario(scenario) {
-  const basePath = path.join(__dirname, "scenarios", scenario);
+function scoreScenario(scenario, expDir) {
+  const basePath = path.join(expDir, "scenarios", scenario);
   const gtPath = path.join(basePath, "ground-truth.json");
-  const deobPath = path.join(__dirname, "results", `scenario_${scenario}_deob.json`);
-  const rawPath = path.join(__dirname, "results", `scenario_${scenario}_raw.json`);
+  const resultsDir = path.join(expDir, "results");
+  const deobPath = path.join(resultsDir, `scenario_${scenario}_deob.json`);
+  const rawPath = path.join(resultsDir, `scenario_${scenario}_raw.json`);
 
   if (!fs.existsSync(deobPath) || !fs.existsSync(rawPath)) return null;
   const gt = JSON.parse(fs.readFileSync(gtPath, "utf-8"));
@@ -127,10 +128,13 @@ function scoreScenario(scenario) {
 }
 
 // Print report
+// Default experiment dir: latest date-based under experiments/
+const expDir = process.env.BENCH_EXP_DIR || path.join(__dirname, "..", "experiments", "2026-07-17-v1");
 const scenarios = process.argv.includes("--all") ? ["A","B","C","D","E"] : process.argv.slice(2).filter(a => a.match(/^[A-E]$/));
 
 if (scenarios.length === 0) {
-  console.log("Usage: node benchmark/score.js [scenario] [--all]");
+  console.log("Usage: node benchmark/tools/score.js [scenario] [--all]");
+  console.log("  Set BENCH_EXP_DIR env var to override experiment dir");
   process.exit(0);
 }
 
@@ -139,7 +143,7 @@ console.log("| Scenario | Agent | Purpose | Functions | Endpoints | Security | D
 console.log("|----------|-------|---------|-----------|-----------|----------|----------|------|-------|-------|");
 
 for (const sc of scenarios) {
-  const result = scoreScenario(sc);
+  const result = scoreScenario(sc, expDir);
   if (!result) { console.log(`| ${sc} | — | no data | | | | | | | |`); continue; }
 
   const d = result.deob, r = result.raw;
