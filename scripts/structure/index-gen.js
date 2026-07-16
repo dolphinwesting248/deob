@@ -38,6 +38,12 @@ function generateIndex(outputDir, opts) {
   lines.push(`# ${report.file} · Function Index · ${summary.totalFunctions} functions`);
   lines.push(`_Previous: 1-structure.md  →  **Now: 2-index.txt**  →  Jump to ${OUTPUT_FILES.MAIN} by function name._`);
   lines.push("");
+  lines.push("Legend:");
+  lines.push("  Ss/Pp = S statements, P parameters | cc = cyclomatic complexity (branch density)");
+  lines.push("  → = calls | ⇐ = called by | root = entry point (no callers)");
+  lines.push("  [tags] = semantic tags: alerts, behavior hints, closure captures");
+  lines.push("  FLAT = control-flow flattened (while+switch) | DATA = heavy hex data");
+  lines.push("");
 
   // Entry points
   const roots = (hotspots.roots || []).filter((f) => f.calls.length > 0);
