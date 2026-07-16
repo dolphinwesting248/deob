@@ -144,6 +144,17 @@ function buildRefGraph(ast) {
   const programScope = createScope("program", null, ast, null);
   for (const stmt of ast.program.body) buildScopes(stmt, programScope.id, ast, "body");
 
+  // Tag all function nodes AND their body blocks with scope id (for collectRefs/resolveRefs)
+  for (const [sid, scope] of scopes) {
+    if (scope.type === "function" && scope.node) {
+      scope.node.$$scopeId = sid;
+      // Also tag the function body (BlockStatement) so resolveRefs uses the correct scope
+      if (scope.node.body && typeof scope.node.body === "object") {
+        scope.node.body.$$scopeId = sid;
+      }
+    }
+  }
+
   // ── Phase 2: Detect mutations ──────────────────────────────────────
 
   const isMutated = new Set();
@@ -204,33 +215,33 @@ function buildRefGraph(ast) {
       const isDeclName = (parent && t.isFunctionDeclaration(parent) && parentKey === "id") ||
                          (parent && t.isVariableDeclarator(parent) && parentKey === "id");
       if (!isDeclName) {
-        // Skip property access (obj.prop)
-        const isProperty = parent && t.isMemberExpression(node) && parentKey === "property" && !parent.computed;
-        if (!isProperty) referenced.add(node.name);
+        // Skip property access (obj.prop) and object keys ({prop: 1})
+        const isMemberProp = parent && t.isMemberExpression(parent) && parentKey === "property" && !parent.computed;
+        const isObjKey = parent && t.isObjectProperty(parent) && parentKey === "key" && !parent.computed;
+        if (!isMemberProp && !isObjKey) referenced.add(node.name);
       }
     }
 
-    // Don't recurse into function bodies here — each function is handled separately
-    if (t.isFunctionDeclaration(node) && parent && parentKey === "body") return;
-    if ((t.isFunctionExpression(node) || t.isArrowFunctionExpression(node)) && parent && !t.isFunctionDeclaration(parent)) return;
-
+    // Recurse into children — function nodes use their OWN scope
     for (const key of Object.keys(node)) {
       if (SKIP_KEYS.has(key)) continue;
       const val = node[key];
-      if (Array.isArray(val)) { for (const v of val) collectRefs(v, scopeId, node, key); }
-      else if (val && typeof val.type === "string") collectRefs(val, scopeId, node, key);
+      if (Array.isArray(val)) {
+        for (const v of val) {
+          if (v && typeof v.type === "string") {
+            const childScope = v.$$scopeId !== undefined ? v.$$scopeId : scopeId;
+            collectRefs(v, childScope, node, key);
+          }
+        }
+      } else if (val && typeof val.type === "string") {
+        const childScope = val.$$scopeId !== undefined ? val.$$scopeId : scopeId;
+        collectRefs(val, childScope, node, key);
+      }
     }
   }
 
   // Collect from program level
   for (const stmt of ast.program.body) collectRefs(stmt, programScope.id, ast, "body");
-
-  // Collect from each function scope
-  for (const [sid, scope] of scopes) {
-    if (scope.type === "function") {
-      collectRefs(scope.node.body, sid, scope.node, "body");
-    }
-  }
 
   // ── Phase 4: Resolve references and build closure captures ─────────
 
@@ -279,7 +290,6 @@ function buildRefGraph(ast) {
           const declScope = resolveScopeForName(node.name, scopeId);
           if (declScope) {
             const fromFn = enclosingFnOrProgram(scopeId);
-            const toFn = enclosingFnOrProgram(declScope.id);
             // Track fnRefs / varUsedBy
             if (fromFn && fromFn.type === "function" && fromFn.fnName) {
               const fnName = fromFn.fnName;
@@ -288,36 +298,41 @@ function buildRefGraph(ast) {
               if (!varUsedBy.has(node.name)) varUsedBy.set(node.name, new Set());
               varUsedBy.get(node.name).add(fnName);
             }
-            // Detect closure capture: reference crosses a function boundary
-            if (fromFn && toFn && fromFn.id !== toFn.id) {
-              closureCaptures.push({ fnName: fromFn.fnName || "<anonymous>", varName: node.name, fromScopeId: declScope.id, toScopeId: scopeId });
+            // Detect closure capture: function accesses a variable from an outer scope
+            // Rule: fromFn must NOT be at program level (top-level fns calling each other is not a closure)
+            // This handles: nested fn → outer fn, IIFE → program, but NOT: top-level fn → program
+            if (fromFn && fromFn.type === "function") {
+              const fromFnParent = fromFn.parent !== null ? scopes.get(fromFn.parent) : null;
+              const isTopLevel = fromFnParent && fromFnParent.type === "program";
+              if (!isTopLevel && declScope.id !== scopeId && declScope.id !== fromFn.id) {
+                closureCaptures.push({ fnName: fromFn.fnName || "<anonymous>", varName: node.name, fromScopeId: declScope.id, toScopeId: scopeId });
+              }
             }
           }
         }
       }
     }
 
-    // Don't recurse into nested function bodies — they are handled by their own scope
-    if (t.isFunctionDeclaration(node) && parent && parentKey === "body") return;
-    if ((t.isFunctionExpression(node) || t.isArrowFunctionExpression(node)) && parent && !t.isFunctionDeclaration(parent)) return;
-
+    // Recurse into children — function declarations/expressions/arrows use their OWN scope
     for (const key of Object.keys(node)) {
       if (SKIP_KEYS.has(key)) continue;
       const val = node[key];
-      if (Array.isArray(val)) { for (const v of val) resolveRefs(v, scopeId, node, key); }
-      else if (val && typeof val.type === "string") resolveRefs(val, scopeId, node, key);
+      if (Array.isArray(val)) {
+        for (const v of val) {
+          if (v && typeof v.type === "string") {
+            const childScope = v.$$scopeId !== undefined ? v.$$scopeId : scopeId;
+            resolveRefs(v, childScope, node, key);
+          }
+        }
+      } else if (val && typeof val.type === "string") {
+        const childScope = val.$$scopeId !== undefined ? val.$$scopeId : scopeId;
+        resolveRefs(val, childScope, node, key);
+      }
     }
   }
 
   // Resolve from program level
   for (const stmt of ast.program.body) resolveRefs(stmt, programScope.id, ast, "body");
-
-  // Resolve from each function scope
-  for (const [sid, scope] of scopes) {
-    if (scope.type === "function") {
-      resolveRefs(scope.node.body, sid, scope.node, "body");
-    }
-  }
 
   // Build declarations map (all scopes, not just top-level)
   const declarations = new Map();
