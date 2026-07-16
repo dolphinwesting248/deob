@@ -42,7 +42,7 @@ _Creamy = deob, orange = raw. Gap explodes from scenario D onward._
 
 **Method**: Two identical LLM agents analyze the same obfuscated code and answer 8 questions. One gets deob output (`0-prompt.md` + `2-index.txt` + `main.js`), the other gets raw obfuscated code. Both answers are scored against a ground truth written from the original source.
 
-**Scoring**: Semantic keyword overlap (not exact match). Weights: Functions 30%, Security 20%, Endpoints 15%, Purpose 10%, DataFlow 10%, Variables 10%, EntryPoint 5%.
+**Scoring**: Semantic keyword overlap (not exact match). Weights: Functions 30%, Security 20%, Endpoints 15%, Purpose 10%, DataFlow 10%, Variables 10%, EntryPoint 2.5%, Token Efficiency 2.5%.
 
 **Scenarios**: 5 custom JavaScript programs obfuscated via `javascript-obfuscator` at increasing intensity:
 
@@ -60,12 +60,12 @@ _Creamy = deob, orange = raw. Gap explodes from scenario D onward._
 
 ### A. API Client (Easy)
 
-deob **1.2x** | 3 API endpoints vs raw's 1
+deob **1.2x** | 3 API endpoints vs raw's 1 | 1.3x fewer tokens
 
 ```
-         Purpose  Functions  Endpoints  Security  DataFlow  Vars  Total
-  deob    0.17     0.38       1.00       0.31      0.60      1.00   0.55
-  raw     0.58     0.46       0.33       0.17      0.50      1.00   0.48
+         Purpose  Functions  Endpoints  Security  DataFlow  Vars  Entry  Token  Total
+  deob    0.17     0.38       1.00       0.31      0.60      1.00   1.00   0.13   0.53
+  raw     0.58     0.46       0.33       0.17      0.50      1.00   1.00   0.13   0.46
 ```
 
 **What happened**: Both agents identified the login and profile functions. Deob correctly found all 3 API endpoints (`POST /auth/login`, `GET /users/:id`, `PUT /users/:id`) while raw only found 1. The gap is small because simple renameGlobals + base64 string obfuscation doesn't block raw analysis much.
@@ -74,12 +74,12 @@ deob **1.2x** | 3 API endpoints vs raw's 1
 
 ### B. Authentication Flow (Medium)
 
-deob **1.3x** | Functions 2.5x better
+deob **1.3x** | Functions 2.5x better | deob output exceeds raw input
 
 ```
-         Purpose  Functions  Endpoints  Security  DataFlow  Vars  Total
-  deob    0.56     0.39       1.00       0.00      0.52      0.00   0.42
-  raw     0.44     0.16       1.00       0.00      0.39      0.00   0.33
+         Purpose  Functions  Endpoints  Security  DataFlow  Vars  Entry  Token  Total
+  deob    0.56     0.39       1.00       0.00      0.52      0.00   1.00   0.08   0.40
+  raw     0.44     0.16       1.00       0.00      0.39      0.00   1.00   0.08   0.31
 ```
 
 **What happened**: The control-flow flattened `authenticate()` function was split into 20 `_S_` sub-functions by deob. Deob correctly identified `hashPassword`, `generateToken`, `getStoredHash`, etc. Raw struggled with the while+switch dispatcher — it could only trace 3-4 functions through the spaghetti.
@@ -90,12 +90,12 @@ deob **1.3x** | Functions 2.5x better
 
 ### C. Data Processing Pipeline (Medium)
 
-deob **1.1x** — smallest gap
+deob **1.1x** — smallest gap | deob output exceeds raw input
 
 ```
-         Purpose  Functions  Endpoints  Security  DataFlow  Vars  Total
-  deob    0.60     0.78       1.00       1.00      0.45      1.00   0.84
-  raw     0.60     0.62       1.00       1.00      0.48      1.00   0.79
+         Purpose  Functions  Endpoints  Security  DataFlow  Vars  Entry  Token  Total
+  deob    0.60     0.78       1.00       1.00      0.45      1.00   1.00   0.06   0.82
+  raw     0.60     0.62       1.00       1.00      0.48      1.00   1.00   0.06   0.77
 ```
 
 **What happened**: This was the anomaly — both agents performed well. The data pipeline has no security-sensitive code (no API calls, no credentials). The task was purely structural: identify the filter→map→group→sort→stats pipeline. Raw could trace this through the obfuscation because the flow is linear.
@@ -104,12 +104,12 @@ deob **1.1x** — smallest gap
 
 ### D. Webpack Module Bundle (Hard)
 
-deob **4.6x** — largest gap
+deob **5.1x** — largest gap | 1.5x fewer input tokens
 
 ```
-         Purpose  Functions  Endpoints  Security  DataFlow  Vars  Total
-  deob    0.88     0.82       1.00       0.38      0.58      1.00   0.77
-  raw     0.00     0.17       0.00       0.16      0.34      0.00   0.17
+         Purpose  Functions  Endpoints  Security  DataFlow  Vars  Entry  Token  Total
+  deob    0.88     0.82       1.00       0.38      0.58      1.00   1.00   0.15   0.74
+  raw     0.00     0.17       0.00       0.16      0.34      0.00   1.00   0.15   0.15
 ```
 
 **What happened**: Raw agent nearly completely failed. The 42KB webpack bundle with all obfuscation techniques (RC4 strings, flattening, selfDefending, unicodeEscape) was impenetrable. Raw took 400 seconds and still couldn't identify any endpoints or meaningful functions.
@@ -120,12 +120,12 @@ Deob extracted 30 sub-functions, decoded 887 string constants, and correctly ide
 
 ### E. Payment Processing (Hard)
 
-deob **2.2x** | Endpoint: raw found 0, deob found 1
+deob **2.3x** | Endpoint raw 0 vs deob 1 | 1.2x fewer input tokens
 
 ```
-         Purpose  Functions  Endpoints  Security  DataFlow  Vars  Total
-  deob    0.85     0.37       1.00       0.40      0.58      1.00   0.63
-  raw     0.62     0.29       0.00       0.18      0.50      0.00   0.29
+         Purpose  Functions  Endpoints  Security  DataFlow  Vars  Entry  Token  Total
+  deob    0.85     0.37       1.00       0.40      0.58      1.00   1.00   0.12   0.61
+  raw     0.62     0.29       0.00       0.18      0.50      0.00   1.00   0.12   0.26
 ```
 
 **What happened**: The 63KB payment module with max-settings obfuscation was the largest file. Deob extracted 44 sub-functions and decoded 1,622 strings. Raw spent 255 seconds and couldn't find the payment API endpoint or identify the Luhn algorithm.
@@ -166,6 +166,7 @@ pie showData
     "raw found (2)" : 2
     "raw missed (3)" : 3
 ```
+> Endpoint detection shows the starkest difference: deob never misses an endpoint; raw misses 3 out of 4.
 
 | Dimension | Avg deob | Avg raw | Avg Gain |
 |-----------|----------|---------|----------|
@@ -174,8 +175,7 @@ pie showData
 | Security | 0.42 | 0.30 | 1.4x |
 | DataFlow | 0.55 | 0.44 | 1.2x |
 | Purpose | 0.61 | 0.45 | 1.4x |
-
-> Endpoint detection shows the starkest difference: deob never misses an endpoint; raw misses 3 out of 4.
+| Token Eff. | 0.11 | 0.11 | 1.0x |
 
 ### By Obfuscation Technique
 

@@ -221,6 +221,7 @@ BENCH_EXP_DIR=/path/to/experiment node tools/score.js --all
 | DataFlow | 10% | Keyword overlap |
 | Variables | 10% | Value/purpose matching |
 | EntryPoint | 5% | Existence check |
+| okenEfficiency |  |  |
 
 ## Writing the Report
 
