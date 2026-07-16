@@ -12,7 +12,7 @@ const { parser, generate, t, fs } = require("./config");
 const path = require("path");
 const { processAllFunctions } = require("./traverse");
 const { extractTopLevelIIFEs } = require("./wrapper");
-const { sanitizeReservedWords, hoistDeclarations, simplify, normalizeShortCircuit, expandSequences, eliminateDeadCode, inlineReadOnlyProperties, removeUnusedHelpers, simplifyRedundantConditions, inlinePureWrappers, sortByCallTree, inlineSingleCallerFns, normalizeSyntax, extractInlineFunctions, annotateAlerts, pushDataToBottom, resetInlineNames } = require("./passes");
+const { sanitizeReservedWords, hoistDeclarations, simplify, normalizeShortCircuit, expandSequences, eliminateDeadCode, inlineReadOnlyProperties, removeUnusedHelpers, simplifyRedundantConditions, inlinePureWrappers, inlineArithmeticWrappers, sortByCallTree, inlineSingleCallerFns, normalizeSyntax, extractInlineFunctions, annotateAlerts, pushDataToBottom, resetInlineNames } = require("./passes");
 const { resetNames } = require("./naming");
 
 function main({ input, output, split } = {}) {
@@ -119,6 +119,11 @@ function main({ input, output, split } = {}) {
   const t13 = Date.now();
   inlinePureWrappers(ast);
   console.log(`  Done in ${Date.now() - t13}ms`);
+
+  console.log("Step 13b: Inlining arithmetic wrappers...");
+  const t13b = Date.now();
+  inlineArithmeticWrappers(ast);
+  console.log(`  Done in ${Date.now() - t13b}ms`);
 
   console.log("Step 14: Sorting functions by call tree...");
   const t14 = Date.now();

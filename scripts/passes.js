@@ -808,6 +808,29 @@ function simplifyRedundantConditions(ast) {
         );
         replacements.push({ array: stmtArray, index: i, count: 2, stmts: [replacement] });
       }
+
+      // ---- Pattern: if (X !== X) { ... } → dead branch, remove entirely ----
+      // Obfuscator injects self-comparison checks that are always false
+      if (t.isIfStatement(s) && s.test &&
+          t.isBinaryExpression(s.test) && (s.test.operator === "!==" || s.test.operator === "!=") &&
+          t.isIdentifier(s.test.left) && t.isIdentifier(s.test.right) &&
+          s.test.left.name === s.test.right.name) {
+        count++;
+        if (s.alternate) {
+          replacements.push({ array: stmtArray, index: i, count: 1, stmts: [t.isBlockStatement(s.alternate) ? s.alternate : t.blockStatement([s.alternate])] });
+        } else {
+          replacements.push({ array: stmtArray, index: i, count: 1, stmts: [] });
+        }
+      }
+      // ---- Pattern: if (X === X) { ... } → always true, keep consequent, drop alternate ----
+      if (t.isIfStatement(s) && s.test &&
+          t.isBinaryExpression(s.test) && (s.test.operator === "===" || s.test.operator === "==") &&
+          t.isIdentifier(s.test.left) && t.isIdentifier(s.test.right) &&
+          s.test.left.name === s.test.right.name) {
+        count++;
+        const consequent = t.isBlockStatement(s.consequent) ? s.consequent.body : [s.consequent];
+        replacements.push({ array: stmtArray, index: i, count: 1, stmts: consequent });
+      }
     }
   }
 
@@ -1386,6 +1409,7 @@ module.exports = {
   removeUnusedHelpers,
   simplifyRedundantConditions,
   inlinePureWrappers,
+  inlineArithmeticWrappers,
   sortByCallTree,
   inlineSingleCallerFns,
   normalizeSyntax,
@@ -1453,6 +1477,99 @@ function inlinePureWrappers(ast) {
   }
 
   console.log(`  Inlined ${count} wrapper calls, removed ${wrappers.size} wrappers`);
+}
+
+// ---- inlineArithmeticWrappers: collapse trivial operator wrappers ----
+// Pattern: function _S_op(a, b) { return a + b; } → inline at call sites
+function inlineArithmeticWrappers(ast) {
+  let count = 0;
+  const wrappers = new Map(); // name -> { params, body (expression) }
+
+  // Phase 1: find single-return-expression wrappers at all levels
+  function findWrappers(node) {
+    if (!node || typeof node !== "object") return;
+    if (t.isFunctionDeclaration(node) && node.id) {
+      const body = node.body.body;
+      if (body.length === 1 && t.isReturnStatement(body[0]) && body[0].argument) {
+        const expr = body[0].argument;
+        const paramNames = new Set(node.params.filter(p => t.isIdentifier(p)).map(p => p.name));
+        if (paramNames.size > 0) {
+          const usesOnlyParams = (n) => {
+            if (!n || typeof n !== "object") return true;
+            if (t.isIdentifier(n)) return paramNames.has(n.name);
+            for (const k of Object.keys(n)) {
+              if (k === "start" || k === "end" || k === "loc") continue;
+              const v = n[k];
+              if (v && typeof v.type === "string" && !usesOnlyParams(v)) return false;
+              if (Array.isArray(v)) { for (const x of v) if (x && typeof x.type === "string" && !usesOnlyParams(x)) return false; }
+            }
+            return true;
+          };
+          if (usesOnlyParams(expr)) {
+            wrappers.set(node.id.name, { params: node.params.map(p => clone(p)), expr: clone(expr) });
+          }
+        }
+      }
+    }
+    for (const k of Object.keys(node)) {
+      if (k === "start" || k === "end" || k === "loc") continue;
+      const v = node[k];
+      if (Array.isArray(v)) { for (const x of v) findWrappers(x); }
+      else if (v && typeof v.type === "string") findWrappers(v);
+    }
+  }
+  findWrappers(ast);
+
+  if (wrappers.size === 0) { console.log(`  Inlined 0 arithmetic wrappers`); return; }
+
+  // Phase 2: replace call sites
+  function substitute(expr, paramMap) {
+    if (t.isIdentifier(expr)) return paramMap.has(expr.name) ? paramMap.get(expr.name) : expr;
+    const result = clone(expr);
+    function walk(n) {
+      if (!n || typeof n !== "object") return;
+      if (t.isIdentifier(n) && paramMap.has(n.name)) {
+        const replacement = paramMap.get(n.name);
+        n.name = replacement.name;
+        if (replacement.extra) n.extra = replacement.extra;
+        if (replacement.value !== undefined) n.value = replacement.value;
+      }
+      for (const k of Object.keys(n)) {
+        if (k === "start" || k === "end" || k === "loc") continue;
+        const v = n[k];
+        if (v && typeof v.type === "string") walk(v);
+      }
+    }
+    walk(result);
+    return result;
+  }
+
+  function walkCalls(node) {
+    if (!node || typeof node !== "object") return;
+    if (t.isCallExpression(node) && t.isIdentifier(node.callee) && wrappers.has(node.callee.name)) {
+      const w = wrappers.get(node.callee.name);
+      if (node.arguments.length === w.params.length) {
+        const paramMap = new Map();
+        for (let i = 0; i < w.params.length; i++) {
+          if (t.isIdentifier(w.params[i])) paramMap.set(w.params[i].name, node.arguments[i]);
+        }
+        const inlined = substitute(w.expr, paramMap);
+        // Replace the call expression in-place
+        Object.keys(node).forEach(k => delete node[k]);
+        Object.assign(node, inlined);
+        count++;
+      }
+    }
+    for (const k of Object.keys(node)) {
+      if (k === "start" || k === "end" || k === "loc") continue;
+      const v = node[k];
+      if (Array.isArray(v)) { for (const x of v) walkCalls(x); }
+      else if (v && typeof v.type === "string") walkCalls(v);
+    }
+  }
+  walkCalls(ast);
+
+  console.log(`  Inlined ${count} arithmetic wrapper calls`);
 }
 
 // ---- sortByCallTree: reorder _S_ functions by execution dependency ----
