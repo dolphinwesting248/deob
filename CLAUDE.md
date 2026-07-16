@@ -96,7 +96,7 @@ scripts/
                                  DOMAIN_RULES, CATEGORY_RULES, FRAMEWORK_PATTERNS
   ast-utils.js                   Generic AST walkers, pattern detectors, clone
   callgraph.js                   Shared call graph builder (forward/reverse edges), reused by pipeline
-  refgraph.js                    Shared reference graph (declarations, mutations, per-function refs), reused by pipeline
+  refgraph.js                    Full-scope reference graph (declarations, mutations, refs, closure captures), reused by pipeline
   scope.js                       Variable scope analysis, external reference collection
   naming.js                      Sub-function naming (_S_ prefix, collision detection)
   emit.js                        Sub-function AST node creation, safeParam
@@ -202,8 +202,8 @@ input.js
 **Does**: buildCallGraph(ast) → { forward, reverse, allNames } — bidirectional call edges
 **Does not**: Transform AST, inline functions, sort output
 
-### refgraph.js — Shared Reference Graph
-**Does**: buildRefGraph(ast) → { declarations, fnRefs, varUsedBy, isMutated, referenced }
+### refgraph.js — Full-Scope Reference Graph
+**Does**: buildRefGraph(ast) → { declarations, fnRefs, varUsedBy, isMutated, referenced, closureCaptures, scopes }
 **Does not**: Transform AST, inline properties, remove functions
 
 ### scope.js — Variable Scope Analysis
