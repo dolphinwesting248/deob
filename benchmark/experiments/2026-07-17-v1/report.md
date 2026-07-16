@@ -22,17 +22,9 @@
 
 ### Score Comparison
 
-```mermaid
-%%{init: {'theme': 'base', 'themeVariables': {'fontSize': '14px'}}}%%
-xychart-beta
-    title "Total Score: deob vs raw"
-    x-axis ["A", "B", "C", "D", "E"]
-    y-axis "Score" 0 --> 1
-    bar [0.55, 0.42, 0.84, 0.77, 0.63]
-    bar [0.48, 0.33, 0.79, 0.17, 0.29]
-```
+![bar-total](imgs/bar-total.svg)
 
-_Creamy = deob, orange = raw. Gap explodes from scenario D onward._
+_Blue = deob, red = raw. Gap explodes from scenario D onward._
 
 ---
 
@@ -140,13 +132,7 @@ Deob correctly identified `validateCard` (Luhn algorithm), `detectCardType` (Vis
 
 ### Improvement by Difficulty
 
-```mermaid
-%%{init: {'theme': 'base', 'themeVariables': {'pieSectionTextSize': '11px'}}}%%
-pie showData
-    title "Where deob adds value (score gap analysis)"
-    "Easy/Medium (A,B,C) - deob helps 10-20%" : 35
-    "Hard (D,E) - deob makes 2-5x difference" : 65
-```
+![pie-value](imgs/pie-value.svg)
 
 > Hard scenarios account for 65% of deob's total value-add. For Easy/Medium code, raw analysis is often sufficient.
 
@@ -158,22 +144,14 @@ pie showData
 
 ### By Dimension
 
-```mermaid
-%%{init: {'theme': 'base', 'themeVariables': {'pieSectionTextSize': '12px'}}}%%
-pie showData
-    title "API Endpoints Found (5 total across all scenarios)"
-    "deob found (5)" : 5
-    "raw found (2)" : 2
-    "raw missed (3)" : 3
-```
 > Endpoint detection shows the starkest difference: deob never misses an endpoint; raw misses 3 out of 4.
 
 | Dimension | Avg deob | Avg raw | Avg Gain |
 |-----------|----------|---------|----------|
-| Endpoints | 1.00 | 0.27 | **∞** |
+| Endpoints | 1.00 | 0.27 | 1.3x |
 | Functions | 0.55 | 0.34 | 1.6x |
 | Security | 0.42 | 0.30 | 1.4x |
-| DataFlow | 0.55 | 0.44 | 1.2x |
+| Data Flow | 0.55 | 0.44 | 1.2x |
 | Purpose | 0.61 | 0.45 | 1.4x |
 | Token Eff. | 0.11 | 0.11 | 1.0x |
 
@@ -208,28 +186,7 @@ pie showData
 
 ### Efficiency
 
-```mermaid
-%%{init: {'theme': 'base'}}%%
-gantt
-    title Analysis Time Comparison (seconds)
-    dateFormat X
-    axisFormat %s
-    section Scenario A
-    deob : 0, 30
-    raw  : 0, 80
-    section Scenario B
-    deob : 0, 35
-    raw  : 0, 60
-    section Scenario C
-    deob : 0, 35
-    raw  : 0, 80
-    section Scenario D
-    deob : 0, 115
-    raw  : 0, 400
-    section Scenario E
-    deob : 0, 190
-    raw  : 0, 255
-```
+![bar-time](imgs/bar-time.svg)
 
 | Scenario | deob Time | raw Time | Speedup |
 |----------|-----------|----------|---------|

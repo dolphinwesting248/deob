@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="500" height="400" viewBox="0 0 500 400">
+    <text x="250" y="30" text-anchor="middle" font-size="15" font-weight="bold" fill="#333">Where deob adds value</text>
+    <path d="M250,150 L250,90 A120,120 0 0 1 347.08203932499373,280.5342302750968 L298.54101966249686,245.2671151375484 A60,60 0 0 0 250,150" fill="#4a9eff" stroke="#fff" stroke-width="2"/><text x="296.3525491562421" y="67.34152255572698" text-anchor="middle" font-size="12" fill="#555">Easy/Medium (35)</text><path d="M298.54101966249686,245.2671151375484 L347.08203932499373,280.5342302750968 A120,120 0 1 1 249.99999999999997,90 L250,150 A60,60 0 1 0 298.54101966249686,245.2671151375484" fill="#ff6b6b" stroke="#fff" stroke-width="2"/><text x="101.84674891072936" y="233.46516975603464" text-anchor="middle" font-size="12" fill="#555">Hard scenarios (65)</text>
+  </svg>
