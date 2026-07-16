@@ -38,11 +38,11 @@ function generateIndex(outputDir, opts) {
   lines.push(`# ${report.file} · Function Index · ${summary.totalFunctions} functions`);
   lines.push(`_Previous: 1-structure.md  →  **Now: 2-index.txt**  →  Jump to ${OUTPUT_FILES.MAIN} by function name._`);
   lines.push("");
-  lines.push("Legend:");
-  lines.push("  Ss/Pp = S statements, P parameters | cc = cyclomatic complexity (branch density)");
-  lines.push("  → = calls | ⇐ = called by | root = entry point (no callers)");
-  lines.push("  [tags] = semantic tags: alerts, behavior hints, closure captures");
-  lines.push("  FLAT = control-flow flattened (while+switch) | DATA = heavy hex data");
+  lines.push("# Legend");
+  lines.push("Ss/Pp = S statements, P parameters | cc = cyclomatic complexity (branch density)");
+  lines.push("→ = calls | ⇐ = called by | root = entry point (no callers)");
+  lines.push("[tags] = semantic tags: alerts, behavior hints, closure captures");
+  lines.push("FLAT = control-flow flattened (while+switch) | DATA = heavy hex data");
   lines.push("");
 
   // Entry points
@@ -154,6 +154,14 @@ function generateIndex(outputDir, opts) {
       const nameDisplay = f.name.length <= 2 && parentOf.has(f.name) ? `${f.name} (←${parentOf.get(f.name)})` : f.name;
       const extras = [roles, semTags, desc, flags].filter(Boolean).join(" ; ");
       lines.push(`${nameDisplay} | ${size} | cc=${f.complexity || 1}${calls}${calledBy}${extras ? " | " + extras : ""}`);
+      // Context snippet (first statement, max 100 chars)
+      if (meta.srcText) {
+        const firstLine = meta.srcText.split("\n").find(l => l.trim().length > 0);
+        if (firstLine) {
+          const snippet = firstLine.trim().length > 100 ? firstLine.trim().slice(0, 100) + " ..." : firstLine.trim();
+          lines.push(`  ${snippet}`);
+        }
+      }
     }
     if (stubs.length >= 3) {
       const ccRange = stubs.map(f => f.complexity || 1).sort((a, b) => a - b);
