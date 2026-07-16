@@ -48,11 +48,12 @@ function processOneFile(file, outDir, opts) {
   const reports = [];
   if (opts.metrics) runMetrics(file, outDir);
   if (opts.md) { reports.push(runStructure(file, outDir, { brief: true, denoise: opts.denoise })); generatePromptFile(outDir); }
-  if (opts.index) generateIndex(outDir, { denoise: opts.denoise });
+  if (opts.index) generateIndex(outDir, { denoise: opts.denoise, dirMode: opts.dirMode });
   return reports;
 }
 
 function processDirectory(inputDir, outputDir, opts) {
+  opts = { ...opts, dirMode: true };
   const fileEntries = collectJsFilesRecursive(inputDir);
   if (fileEntries.length === 0) {
     console.log("No .js files found in directory");
