@@ -2,6 +2,13 @@
 
 Quantify deob's impact on LLM-based JavaScript reverse engineering through controlled experiments.
 
+## Dependencies
+
+```bash
+# Required for obfuscation
+npm install javascript-obfuscator
+```
+
 ## Quick Start
 
 ```bash
@@ -40,6 +47,11 @@ benchmark/
   README.md                           ← this file
   experiments/                         ← all experiment runs
     2026-07-17-v1/                    ← one experiment (date-based naming)
+      imgs/							  ← experiment charts
+      	pie.svg
+      	bar.svg
+      	radar.svg
+      	...
       tools/                           ← experiment scripts
         obfuscate.js                   ← generate obfuscated.js from original.js
         runner.js                      ← run deob on all scenarios
@@ -83,7 +95,7 @@ Clean, readable JavaScript code with meaningful business logic. Should include:
 
 ### 2. ground-truth.json
 
-Structured answers for scoring. Must match this format:
+Structured answers for scoring. Like this format:
 
 ```json
 {
@@ -217,7 +229,7 @@ BENCH_EXP_DIR=/path/to/experiment node tools/score.js --all
 
 ### Scoring Weights
 
-for example:
+For example:
 
 | Dimension | Weight | Method |
 |-----------|--------|--------|
@@ -238,8 +250,6 @@ After scoring, run `gen-charts.js` to produce SVG chart images in `imgs/`:
 node experiments/<date>/tools/gen-charts.js
 ```
 
-This generates:
-
 | File | Type | Used in |
 |------|------|---------|
 | `imgs/bar-total.svg` | Bar chart | Executive Summary |
@@ -247,8 +257,7 @@ This generates:
 | `imgs/bar-token.svg` | Bar chart | Token section |
 | `imgs/pie-value.svg` | Donut chart | Aggregate Analysis |
 | `imgs/radar-A.svg` ~ `radar-E.svg` | Radar chart | Per-scenario sections |
-
-**Chart data** is hardcoded in `gen-charts.js` (lines 10-25). After re-running scoring with updated answers, edit the data arrays in `gen-charts.js` to match the new scores, then re-run the script. All charts use pure SVG — no external dependencies, renders in any Markdown viewer.
+| ... | ... | ... |
 
 ## Writing the Report
 
@@ -291,11 +300,4 @@ For each scenario:
 ## 7. Conclusions
 - Where deob matters most / least
 - Next steps for deob project
-```
-
-## Dependencies
-
-```bash
-# Required for obfuscation
-npm install javascript-obfuscator
 ```

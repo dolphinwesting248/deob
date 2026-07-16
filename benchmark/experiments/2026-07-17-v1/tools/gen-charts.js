@@ -202,7 +202,7 @@ fs.writeFileSync(path.join(imgDir, "bar-token.svg"), svgBarChart(
 // 5. Per-scenario radar charts
 ["A","B","C","D","E"].forEach(sc => {
   fs.writeFileSync(path.join(imgDir, `radar-${sc}.svg`), svgRadarChart(
-    `Scenario ${sc}: 8-Dimension Comparison`,
+    `Scenario ${sc}`,
     radarData[sc].deob, radarData[sc].raw, radarLabels
   ));
 });
