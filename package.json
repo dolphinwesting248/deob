@@ -1,6 +1,6 @@
 {
   "name": "deobscura",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Universal JS deobfuscation — AST-level preprocessing for LLM-assisted reverse engineering",
   "main": "deob.js",
   "types": "scripts/types/index.d.ts",

@@ -164,9 +164,9 @@ function parseConfig(filepath) {
 
 // ── init command ─────────────────────────────────────────────────────
 const CONFIG_TEMPLATE = `
-/// <reference types="deobscura" />
+/// <reference types="deob" />
 
-/** @type {import('deobscura').DeobConfig} */
+/** @type {import('deob').DeobConfig} */
 module.exports = {
   // Input: a single file, a directory, or an array of paths
   input: "src/main.js",
@@ -210,7 +210,7 @@ module.exports = {
 function initConfig(force) {
   const target = path.resolve("deob.config.js");
   if (fs.existsSync(target) && !force) {
-    console.log(`deobscura.config.js already exists. Use --force to overwrite.`);
+    console.log(`deob.config.js already exists. Use --force to overwrite.`);
     return;
   }
   fs.writeFileSync(target, CONFIG_TEMPLATE, "utf-8");
@@ -236,11 +236,11 @@ if (args.includes("--version") || args.includes("-v")) {
 }
 
 if (args.includes("--help") || args.includes("-h")) {
-  console.log("Usage: deob                       # auto-detect deobscura.config.js");
+  console.log("Usage: deob                       # auto-detect deob.config.js");
   console.log("       deob init [--force]        # generate config file");
   console.log("       deob --config <path>       # use specific config");
   console.log("       deob -c <path>             # shorthand for --config\n");
-  console.log("Config format (deobscura.config.js):");
+  console.log("Config format (deob.config.js):");
   console.log("  module.exports = {");
   console.log("    input: 'main.js',             // file, directory, or array");
   console.log("    output: 'out/',               // optional");
@@ -251,8 +251,8 @@ if (args.includes("--help") || args.includes("-h")) {
 
   console.log("  };\n");
   console.log("Examples:");
-  console.log("  deob                        # uses deobscura.config.js in cwd");
-  console.log("  deob init                   # create deobscura.config.js");
+  console.log("  deob                        # uses deob.config.js in cwd");
+  console.log("  deob init                   # create deob.config.js");
   console.log("  deob --config prod.config.js");
   process.exit(0);
 }
@@ -286,7 +286,7 @@ if (hasConfig) {
 } else if (args.length === 0 && fs.existsSync("deob.config.js")) {
   runWithConfig("deob.config.js");
 } else if (args.length === 0) {
-  console.log("No deobscura.config.js found. Run 'deob init' to create one.");
+  console.log("No deob.config.js found. Run 'deob init' to create one.");
   process.exit(1);
 } else {
   console.log("Unknown arguments. Usage: deob [--config <path>]  or  deob init");

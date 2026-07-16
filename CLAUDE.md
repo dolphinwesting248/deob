@@ -10,7 +10,7 @@ deob -c path/to/config.js        # explicit config
 
 ## Configuration
 
-`deobscura.config.js` format:
+`deob.config.js` format:
 
 ```js
 module.exports = {
