@@ -24,31 +24,19 @@
 ```mermaid
 %%{init: {'theme': 'base'}}%%
 graph LR
-    subgraph A["A (Easy) 1.2x"]
-        Ad["deob 0.55<br/>████████████"]:::deob
-        Ar["raw 0.48<br/>█████████▌"]:::raw
+    subgraph L[" "]
+        direction LR
+        A_d["A deob<br/>0.55"]:::deob --- A_r["A raw<br/>0.48"]:::raw
+        B_d["B deob<br/>0.42"]:::deob --- B_r["B raw<br/>0.33"]:::raw
+        C_d["C deob<br/>0.84"]:::deob --- C_r["C raw<br/>0.79"]:::raw
+        D_d["D deob<br/>0.77"]:::deob === D_r["D raw<br/>0.17"]:::raw
+        E_d["E deob<br/>0.63"]:::deob === E_r["E raw<br/>0.29"]:::raw
     end
-    subgraph B["B (Medium) 1.3x"]
-        Bd["deob 0.42<br/>████████▌"]:::deob
-        Br["raw 0.33<br/>██████▋"]:::raw
-    end
-    subgraph C["C (Medium) 1.1x"]
-        Cd["deob 0.84<br/>████████████████▊"]:::deob
-        Cr["raw 0.79<br/>███████████████▊"]:::raw
-    end
-    subgraph D["D (Hard) 4.6x"]
-        Dd["deob 0.77<br/>███████████████▍"]:::deob
-        Dr["raw 0.17<br/>███▍"]:::raw
-    end
-    subgraph E["E (Hard) 2.2x"]
-        Ed["deob 0.63<br/>████████████▋"]:::deob
-        Er["raw 0.29<br/>█████▊"]:::raw
-    end
-    classDef deob fill:#4a9eff,color:white
-    classDef raw fill:#ff6b6b,color:white
+    classDef deob fill:#4a9eff,color:#fff,stroke:#2563eb
+    classDef raw fill:#ff6b6b,color:#fff,stroke:#dc2626
 ```
 
-_Blue = deob, Red = raw. Bar lengths scale with score. Gap widens dramatically for Hard scenarios._
+_Gap widens dramatically for Hard scenarios. Thick lines = 3x+ gap._
 
 ---
 
@@ -159,13 +147,12 @@ Deob correctly identified `validateCard` (Luhn algorithm), `detectCardType` (Vis
 ```mermaid
 %%{init: {'theme': 'base'}}%%
 graph LR
-    easy["Easy<br/>━━━<br/>A: 1.2x"]:::easy -->|"obfuscation intensity increases"| med["Medium<br/>━━━━<br/>B: 1.3x | C: 1.1x"]:::med --> hard["Hard<br/>━━━━━━━━<br/>D: 4.6x | E: 2.2x"]:::hard
-    classDef easy fill:#90EE90,color:black
-    classDef med fill:#FFD700,color:black
-    classDef hard fill:#ff6b6b,color:white
+    A("A<br/>Easy<br/>1.2x"):::easy --> B("B<br/>Medium<br/>1.3x"):::easy --> C("C<br/>Medium<br/>1.1x"):::easy --> D("D<br/>Hard<br/>4.6x"):::hard --> E("E<br/>Hard<br/>2.2x"):::hard
+    classDef easy fill:#90EE90,color:#000,stroke:#22c55e
+    classDef hard fill:#ff6b6b,color:#fff,stroke:#dc2626
 ```
 
-> The gap widens dramatically with obfuscation intensity. Hard scenarios show 3-5x improvement; Easy/Medium show 1.1-1.3x.
+> The gap widens dramatically with obfuscation intensity. Hard scenarios: 3-5x. Easy/Medium: 1.1-1.3x.
 
 | Difficulty | deob Total | raw Total | Gain |
 |-----------|-----------|-----------|------|
