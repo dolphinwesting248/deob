@@ -212,7 +212,6 @@ function generatePromptFile(outputDir) {
   const chunkWarning = isWebpackChunk ? `\n> **NOTE**: This is a webpack/rspack chunk — it likely contains only a subset of the application logic. Other chunks may contain the actual business logic, API calls, and security-relevant code. Check for additional chunk files.\n` : "";
 
   // Brief summary: what this file does
-  const significantAlerts = alerts.filter(a => a.severity !== "info" && a.severity !== "low");
   const alertSummary = significantAlerts.length > 0 ? [...new Set(significantAlerts.map(a => a.label))].join(", ") : "";
   const contextLine = domain !== "General JS" ? `${domain}` : "";
   const purposeLine = [contextLine, alertSummary].filter(Boolean).join(" — ");
