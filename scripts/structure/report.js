@@ -233,7 +233,11 @@ ${decoder ? `- **String decoder**: \`${decoder.name}\` (L${decoder.lines[0]}) �
 ${roots.length > 0 ? `- **Entry point**: \`${roots[0].name}\` (L${roots[0].lines[0]}) → ${roots[0].calls.slice(0,5).join(", ")}${roots[0].calls.length > 5 ? " +" + (roots[0].calls.length - 5) : ""}` : ""}
 
 ## Alerts (${alerts.filter(a => a.severity !== "info" && a.severity !== "low").length} significant)
-${alerts.filter(a => a.severity !== "info" && a.severity !== "low").slice(0, 10).map((a) => `- [${a.severity}] **${a.label}** in \`${a.fn}\` L${a.line}: ${(a.matches || []).slice(0, 3).join(", ")}`).join("\n") || "_No significant security alerts detected._"}
+${alerts.filter(a => a.severity !== "info" && a.severity !== "low").slice(0, 10).map((a) => {
+    const countStr = a.count > 1 ? ` (×${a.count})` : "";
+    const fnStr = a.count > 1 && a.fns ? a.fns.slice(0, 3).join(", ") : `\`${a.fn}\``;
+    return `- [${a.severity}] **${a.label}**${countStr} in ${fnStr} L${a.line}: ${(a.matches || []).slice(0, 3).join(", ")}`;
+  }).join("\n") || "_No significant security alerts detected._"}
 ${alerts.filter(a => a.severity === "info" || a.severity === "low").length > 0 ? `\n_${alerts.filter(a => a.severity === "info" || a.severity === "low").length} low/info alerts omitted (denoised)._` : ""}
 
 ## Start Here (top 5 by interest score)

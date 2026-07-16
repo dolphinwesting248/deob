@@ -458,6 +458,24 @@ function analyzeStructureImpl(filepath, opts) {
     }
   }
 
+  // Phase 4c: deduplicate alerts — merge same label+match into one with count
+  const dedupedAlerts = [];
+  const alertSeen = new Map(); // key → index in dedupedAlerts
+  for (const a of alerts) {
+    const key = a.label + "|" + (a.matches || []).sort().join(",");
+    if (alertSeen.has(key)) {
+      const existing = dedupedAlerts[alertSeen.get(key)];
+      existing.count = (existing.count || 1) + 1;
+      if (!existing.fns) existing.fns = [existing.fn];
+      if (!existing.fns.includes(a.fn)) existing.fns.push(a.fn);
+    } else {
+      alertSeen.set(key, dedupedAlerts.length);
+      dedupedAlerts.push({ ...a, count: 1 });
+    }
+  }
+  alerts.length = 0;
+  alerts.push(...dedupedAlerts);
+
   // Phase 5: hotspots — rank by callers × complexity
   const byIncoming = [...fns].sort((a, b) => {
     const scoreA = a.calledBy.length * (a.complexity || 1);
