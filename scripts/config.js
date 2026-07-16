@@ -17,19 +17,43 @@ const RESERVED = new Set([
 
 // ---- Globals not requiring parameter passing ----
 const GLOBALS = new Set([
+  // Built-in objects
   "Object", "Array", "String", "Number", "Boolean", "Function", "Symbol",
   "Map", "Set", "WeakMap", "WeakSet", "Promise", "Proxy", "Reflect",
   "Math", "Date", "RegExp", "Error", "TypeError", "RangeError",
-  "SyntaxError", "ReferenceError", "parseInt", "parseFloat", "isNaN", "isFinite",
+  "SyntaxError", "ReferenceError", "URIError", "EvalError", "AggregateError",
+  "parseInt", "parseFloat", "isNaN", "isFinite",
   "NaN", "Infinity", "undefined", "null", "true", "false",
-  "console", "window", "global", "globalThis", "process", "Buffer",
+  // Runtime
+  "console", "window", "global", "globalThis", "self", "process", "Buffer",
   "setTimeout", "setInterval", "clearTimeout", "clearInterval",
+  "requestAnimationFrame", "cancelAnimationFrame", "queueMicrotask",
+  // Encoding
   "decodeURI", "encodeURI", "decodeURIComponent", "encodeURIComponent",
-  "JSON", "Intl", "ArrayBuffer", "DataView",
+  "atob", "btoa", "TextEncoder", "TextDecoder",
+  // Collections & buffers
+  "JSON", "Intl", "ArrayBuffer", "DataView", "SharedArrayBuffer",
   "Uint8Array", "Int8Array", "Uint16Array", "Int16Array",
   "Uint32Array", "Int32Array", "Float32Array", "Float64Array",
-  "eval", "require", "module", "__dirname", "__filename", "exports", "fetch",
+  "BigInt64Array", "BigUint64Array", "BigInt",
+  // Module system
+  "eval", "require", "module", "__dirname", "__filename", "exports",
+  // Web APIs
+  "fetch", "XMLHttpRequest", "WebSocket", "AbortController", "AbortSignal",
+  "Headers", "Request", "Response", "URL", "URLSearchParams",
   "document", "location", "navigator", "history", "localStorage", "sessionStorage",
+  "indexedDB", "crypto", "SubtleCrypto",
+  "Image", "Canvas", "HTMLCanvasElement", "OffscreenCanvas",
+  "MutationObserver", "IntersectionObserver", "PerformanceObserver",
+  "Worker", "SharedWorker", "ServiceWorker",
+  "MessageChannel", "MessagePort", "BroadcastChannel",
+  "EventSource", "FormData", "Blob", "File", "FileReader",
+  "ReadableStream", "WritableStream", "TransformStream",
+  // Node.js specific
+  "Buffer", "URL", "URLSearchParams", "TextEncoder", "TextDecoder",
+  "AbortController", "EventTarget", "Event",
+  // Crypto
+  "crypto", "SubtleCrypto", "CryptoKey",
 ]);
 
 // String alert patterns for reverse-engineering (shared with structure.js + passes.js)
