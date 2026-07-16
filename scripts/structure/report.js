@@ -3,27 +3,6 @@ const { fs, path } = require("../config");
 const { OUTPUT_FILES } = require("../constants");
 const { analyzeStructure, computeDensity, classifyDomain, generateTLDR } = require("./analyze");
 
-// ── Context Window ─────────────────────────────────────────────────
-
-const CONTEXT_MAX_CHARS = 200;
-
-function computeContextWindow(code, startLine, endLine) {
-  if (!code || !startLine || !endLine) return null;
-  const lines = code.split("\n");
-  const fnLines = lines.slice(startLine - 1, endLine);
-  if (fnLines.length === 0) return null;
-  const text = fnLines.join("\n");
-  if (text.length <= CONTEXT_MAX_CHARS) return text;
-  // Truncate at line boundary
-  let result = "";
-  for (const line of fnLines) {
-    const next = result ? result + "\n" + line : line;
-    if (next.length > CONTEXT_MAX_CHARS) break;
-    result = next;
-  }
-  return result ? result + " ..." : fnLines[0].slice(0, CONTEXT_MAX_CHARS) + " ...";
-}
-
 // ── Reading Guide ──────────────────────────────────────────────────
 
 function generateReadingGuide(report) {
@@ -207,6 +186,19 @@ function generatePromptFile(outputDir) {
   const { file, summary, functions, hotspots, alerts, tracePath } = report;
   const domain = classifyDomain(mainPath);
 
+  // Build refGraph for closure/shared variable info
+  let refGraph = null;
+  try {
+    const { parser } = require("../config");
+    const { DEFAULT_PARSER_OPTS } = require("../constants");
+    const { buildRefGraph } = require("../refgraph");
+    const code = require("fs").readFileSync(mainPath, "utf-8");
+    const ast = parser.parse(code, DEFAULT_PARSER_OPTS);
+    refGraph = buildRefGraph(ast);
+  } catch (e) {
+    // refGraph is optional
+  }
+
   // String decoder detection (prefer string-decoder tag, fall back to self-modifying)
   const decoders = functions.filter((f) => (f.semanticTags || []).includes("string-decoder"))
     .sort((a, b) => b.calledBy.length - a.calledBy.length);
@@ -231,9 +223,6 @@ function generatePromptFile(outputDir) {
   // Pass-through count
   const passThrough = functions.filter((f) => (f.description || "").includes("pass-through")).length;
 
-  // Read main.js for context window snippets
-  const mainCode = fs.existsSync(mainPath) ? fs.readFileSync(mainPath, "utf-8") : "";
-
   const zeroFnWarning = summary.totalFunctions === 0 ? `\n> **WARNING**: 0 functions extracted. This file may be data-only, heavily obfuscated (control-flow flattening / VM-based), or non-JS content. The analysis below is empty — consider manual inspection.\n` : "";
 
   // Webpack chunk detection
@@ -255,6 +244,8 @@ ${zeroFnWarning}${chunkWarning}${purposeLine ? `\n> **Context**: ${purposeLine}\
 - Code density: ${computeDensity(functions, file)}
 ${decoder ? `- **String decoder**: \`${decoder.name}\` — self-modifying lookup, called by ${decoder.calledBy.length} functions. Strings are NOT yet decoded — you will see opaque calls like \`_0x13f90f(0x1818)\`.` : ""}
 ${roots.length > 0 ? `- **Entry point**: \`${roots[0].name}\` → ${roots[0].calls.slice(0,5).join(", ")}${roots[0].calls.length > 5 ? " +" + (roots[0].calls.length - 5) : ""}` : ""}
+${refGraph && refGraph.closureCaptures.length > 0 ? `- **Closure captures**: ${new Set(refGraph.closureCaptures.map(c => c.varName)).size} variables captured by ${new Set(refGraph.closureCaptures.map(c => c.fnName)).size} functions` : ""}
+${refGraph ? (() => { const shared = [...refGraph.varUsedBy.entries()].filter(([n, fns]) => fns.size >= 2).sort((a, b) => b[1].size - a[1].size).slice(0, 5); return shared.length > 0 ? `- **Shared variables**: ${shared.map(([n, fns]) => `${n} (${fns.size} functions)`).join(", ")}` : ""; })() : ""}
 
 ## Alerts (${alerts.filter(a => a.severity !== "info" && a.severity !== "low").length} significant)
 ${alerts.filter(a => a.severity !== "info" && a.severity !== "low").slice(0, 10).map((a) => {
@@ -272,9 +263,7 @@ ${scored.map((f, i) => {
     if ((f.suspicious || []).length > 0) why.push("suspicious");
     if (f.complexity > 5) why.push("cc=" + f.complexity);
     const tags = f.semanticTags || [];
-    const snippet = computeContextWindow(mainCode, f.lines[0], f.lines[1]);
-    const snippetBlock = snippet ? `\n\`\`\`\n${snippet}\n\`\`\`` : "";
-    return `${i + 1}. \`${f.name}\` [${why.join(", ") || "core"}] — ${(f.description || "").replace(/[[\]]/g, "")}${tags.length > 0 ? " [" + tags.join(", ") + "]" : ""}${snippetBlock}`;
+    return `${i + 1}. \`${f.name}\` [${why.join(", ") || "core"}] — ${(f.description || "").replace(/[[\]]/g, "")}${tags.length > 0 ? " [" + tags.join(", ") + "]" : ""}`;
   }).join("\n")}
 
 ## Skip
@@ -287,7 +276,7 @@ ${passThrough} pass-through functions (zero logic). See \`2-index.txt\` for full
 `;
   const outPath = path.join(outputDir, OUTPUT_FILES.PROMPT);
   fs.writeFileSync(outPath, content, "utf-8");
-  console.log(`  prompt: ${outPath}`);
+  console.log(`  0-prompt: ${outPath}`);
 }
 
 function runStructure(input, outputDir, opts) {

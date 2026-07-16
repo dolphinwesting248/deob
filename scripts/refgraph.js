@@ -267,6 +267,16 @@ function buildRefGraph(ast) {
     return null;
   }
 
+  // Find nearest enclosing _S_ function scope (for closure ownership)
+  function enclosingSubFn(scopeId) {
+    let s = scopes.get(scopeId);
+    while (s !== null) {
+      if (s.type === "function" && s.fnName && s.fnName.startsWith("_S_")) return s;
+      s = s.parent !== null ? scopes.get(s.parent) : null;
+    }
+    return null;
+  }
+
   function enclosingFnOrProgram(scopeId) {
     let s = scopes.get(scopeId);
     while (s !== null) {
@@ -305,7 +315,10 @@ function buildRefGraph(ast) {
               const fromFnParent = fromFn.parent !== null ? scopes.get(fromFn.parent) : null;
               const isTopLevel = fromFnParent && fromFnParent.type === "program";
               if (!isTopLevel && declScope.id !== scopeId && declScope.id !== fromFn.id) {
-                closureCaptures.push({ fnName: fromFn.fnName || "<anonymous>", varName: node.name, fromScopeId: declScope.id, toScopeId: scopeId });
+                // Use nearest _S_ function as owner (not the inner anonymous function)
+                const owner = enclosingSubFn(scopeId);
+                const ownerName = owner ? owner.fnName : (fromFn.fnName || "<anonymous>");
+                closureCaptures.push({ fnName: ownerName, varName: node.name, fromScopeId: declScope.id, toScopeId: scopeId });
               }
             }
           }

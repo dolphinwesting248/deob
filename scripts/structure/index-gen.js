@@ -1,7 +1,8 @@
 // Compact function index generation
-const { fs, path } = require("../config");
-const { OUTPUT_FILES, CATEGORY_LABELS } = require("../constants");
+const { fs, path, parser } = require("../config");
+const { OUTPUT_FILES, CATEGORY_LABELS, DEFAULT_PARSER_OPTS } = require("../constants");
 const { analyzeStructure, categorizeFn } = require("./analyze");
+const { buildRefGraph } = require("../refgraph");
 
 // ── Compact Index ──────────────────────────────────────────────────
 
@@ -13,6 +14,16 @@ function generateIndex(outputDir, opts) {
   }
   const report = analyzeStructure(mainPath, opts);
   const { summary, functions, alerts, hotspots, lookup, tracePath } = report;
+
+  // Build refGraph for closure and shared variable analysis
+  let refGraph = null;
+  try {
+    const code = fs.readFileSync(mainPath, "utf-8");
+    const ast = parser.parse(code, DEFAULT_PARSER_OPTS);
+    refGraph = buildRefGraph(ast);
+  } catch (e) {
+    // refGraph is optional — continue without it
+  }
 
   // ── Analyze function source for size / data / hex annotations
   const code = fs.readFileSync(mainPath, "utf-8");
@@ -39,9 +50,7 @@ function generateIndex(outputDir, opts) {
   lines.push(`_Previous: 1-structure.md  →  **Now: 2-index.txt**  →  Jump to ${OUTPUT_FILES.MAIN} by function name._`);
   lines.push("");
   lines.push("# Legend");
-  lines.push("");
   lines.push("## Format: name | Ss/Pp | cc=N | → callees ⇐ callers | paramRoles ; [semTags] ; flags");
-  lines.push("");
   lines.push("## Fields");
   lines.push("Ss/Pp       = S statements, P parameters");
   lines.push("cc=N        = cyclomatic complexity (branch density, higher = more branches)");
@@ -49,14 +58,12 @@ function generateIndex(outputDir, opts) {
   lines.push("⇐ fn        = called by function fn");
   lines.push("root        = entry point (no callers)");
   lines.push("closure: v  = captures variable v from outer scope");
-  lines.push("");
   lines.push("## Parameter Roles (paramRoles)");
   lines.push("this=x      = parameter used as this context");
   lines.push("cb=x        = parameter called as callback function");
   lines.push("out=x       = parameter properties are assigned to");
   lines.push("arg=x       = ordinary argument");
   lines.push("ret=x       = used in return value construction");
-  lines.push("");
   lines.push("## Semantic Tags [semTags]");
   lines.push("[returns value]        = function has a return value");
   lines.push("[returns via N paths]  = N distinct return paths");
@@ -68,12 +75,10 @@ function generateIndex(outputDir, opts) {
   lines.push("[side-effects]         = has side effects (I/O, DOM, mutation)");
   lines.push("[config]               = configuration-related");
   lines.push("[calls → fn]           = directly invokes fn");
-  lines.push("");
   lines.push("## Flags");
   lines.push("FLAT         = control-flow flattened (while+switch dispatcher)");
   lines.push("DATA         = heavy hex data (large constant arrays)");
   lines.push("[Label]      = security alert (see 1-structure.md)");
-  lines.push("");
   lines.push("## Separators");
   lines.push("|  = field separator (name / size / cc / edges / extras)");
   lines.push(",  = list separator within a field (multiple callees, multiple roles)");
@@ -146,6 +151,24 @@ function generateIndex(outputDir, opts) {
     lines.push("");
   }
 
+  // Shared variables (from refGraph)
+  if (refGraph && refGraph.varUsedBy.size > 0) {
+    const shared = [...refGraph.varUsedBy.entries()]
+      .filter(([name, fns]) => fns.size >= 2 && !refGraph.referenced.has(name) === false)
+      .sort((a, b) => b[1].size - a[1].size)
+      .slice(0, 20);
+    if (shared.length > 0) {
+      lines.push("## shared");
+      for (const [name, fns] of shared) {
+        const kind = refGraph.declarations.get(name) || {};
+        const mutated = refGraph.isMutated.has(name) ? "mutated" : "not mutated";
+        const typeStr = kind.isConst ? "const" : kind.kind || "var";
+        lines.push(`${name} ⇒ ${[...fns].slice(0, 6).join(", ")}${fns.size > 6 ? " +" + (fns.size - 6) : ""} (${typeStr}, ${mutated})`);
+      }
+      lines.push("");
+    }
+  }
+
   // ── Group functions by category
   const groups = {};
   for (const f of functions) {
@@ -186,10 +209,14 @@ function generateIndex(outputDir, opts) {
         f.flat ? "FLAT" : "",
         ...(f.suspicious || []),
       ].filter(Boolean).join(" ");
+      // Closure captures from refGraph (deduplicated)
+      const captures = refGraph ? refGraph.closureCaptures.filter(c => c.fnName === f.name) : [];
+      const uniqueCaptures = [...new Set(captures.map(c => c.varName))];
+      const closureStr = uniqueCaptures.length > 0 ? "closure: " + uniqueCaptures.join(", ") : "";
       const roles = f.paramRoles || "";
       // Disambiguate single-letter names with parent context
       const nameDisplay = f.name.length <= 2 && parentOf.has(f.name) ? `${f.name} (←${parentOf.get(f.name)})` : f.name;
-      const extras = [roles, semTags, desc, flags].filter(Boolean).join(" ; ");
+      const extras = [closureStr, roles, semTags, desc, flags].filter(Boolean).join(" ; ");
       lines.push(`${nameDisplay} | ${size} | cc=${f.complexity || 1}${edges ? " |" + edges : ""}${extras ? " | " + extras : ""}`);
     }
     if (stubs.length >= 3) {
