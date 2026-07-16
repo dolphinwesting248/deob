@@ -4,6 +4,7 @@ const fs = require("fs");
 const { main } = require("./scripts/pipeline");
 const { runMetrics } = require("./scripts/metrics");
 const { runStructure, generateCrossSummary, applyTierFilter, generateIndex, generatePromptFile, writeCrossReadme } = require("./scripts/structure");
+const { DEFAULT_DENOISE } = require("./scripts/config");
 
 // ── helpers ──────────────────────────────────────────────────────────
 
@@ -127,22 +128,6 @@ function defaultOutDir(inputPath) {
     ? inputPath.replace(/[\\/]$/, "") + ".deob"
     : inputPath.replace(/\.js$/i, ".deob");
 }
-
-// ── Default denoise rules ───────────────────────────────────────────
-const DEFAULT_DENOISE = [
-  { match: "https?://[a-zA-Z](/|$)",     label: "Test URL",       severity: "low" },
-  { match: "github\\.io|mozilla\\.org",   label: "Doc URL",        severity: "low" },
-  { match: "localhost|127\\.0\\.0\\.1",   label: "Local URL",      severity: "low" },
-  { match: "example\\.com|test\\.com",    label: "Placeholder URL", severity: "low" },
-  // XML/schema namespace URIs (w3.org, schema.org, xmlns) — not API endpoints
-  { match: "w3\\.org/|schema\\.org/|xmlns\\.com/", label: "Namespace URI", severity: "info" },
-  // URLs ending in static file extensions → CDN resources, not API endpoints
-  { match: "\\.(js|css|svg|png|jpg|woff2?|ttf|exe|dmg|zip|map|wasm)([?#]|$)", label: "Static File", severity: "low" },
-  // Math.sign in polyfill context → not crypto signing
-  { match: "Math\\.sign|CreateMethodProperty.*sign", label: "Polyfill", severity: "info" },
-  // Self-referencing domain URLs (no path) — first-party page URL, not exfiltration
-  { match: "https?://[^/]+/$",           label: "Self-domain URL", severity: "info" },
-];
 
 function parseConfig(filepath) {
   const absPath = path.resolve(filepath);
