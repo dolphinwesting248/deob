@@ -22,16 +22,33 @@
 ### Score Comparison
 
 ```mermaid
-%%{init: {'theme': 'base', 'themeVariables': {'fontSize': '14px'}}}%%
-xychart-beta
-    title "Total Score: deob vs raw"
-    x-axis ["A (Easy)", "B (Medium)", "C (Medium)", "D (Hard)", "E (Hard)"]
-    y-axis "Score" 0 --> 1
-    bar [0.55, 0.42, 0.84, 0.77, 0.63]
-    bar [0.48, 0.33, 0.79, 0.17, 0.29]
+%%{init: {'theme': 'base'}}%%
+graph LR
+    subgraph A["A (Easy) 1.2x"]
+        Ad["deob 0.55<br/>████████████"]:::deob
+        Ar["raw 0.48<br/>█████████▌"]:::raw
+    end
+    subgraph B["B (Medium) 1.3x"]
+        Bd["deob 0.42<br/>████████▌"]:::deob
+        Br["raw 0.33<br/>██████▋"]:::raw
+    end
+    subgraph C["C (Medium) 1.1x"]
+        Cd["deob 0.84<br/>████████████████▊"]:::deob
+        Cr["raw 0.79<br/>███████████████▊"]:::raw
+    end
+    subgraph D["D (Hard) 4.6x"]
+        Dd["deob 0.77<br/>███████████████▍"]:::deob
+        Dr["raw 0.17<br/>███▍"]:::raw
+    end
+    subgraph E["E (Hard) 2.2x"]
+        Ed["deob 0.63<br/>████████████▋"]:::deob
+        Er["raw 0.29<br/>█████▊"]:::raw
+    end
+    classDef deob fill:#4a9eff,color:white
+    classDef raw fill:#ff6b6b,color:white
 ```
 
-_Blue = deob, Orange = raw. Gap widens dramatically for Hard scenarios (D: 0.77 vs 0.17)_
+_Blue = deob, Red = raw. Bar lengths scale with score. Gap widens dramatically for Hard scenarios._
 
 ---
 
@@ -141,11 +158,11 @@ Deob correctly identified `validateCard` (Luhn algorithm), `detectCardType` (Vis
 
 ```mermaid
 %%{init: {'theme': 'base'}}%%
-xychart-beta
-    title "Improvement Multiplier by Difficulty"
-    x-axis ["Easy (A)", "Medium (B)", "Medium (C)", "Hard (D)", "Hard (E)"]
-    y-axis "deob/raw ratio" 0 --> 5
-    line [1.2, 1.3, 1.1, 4.6, 2.2]
+graph LR
+    easy["Easy<br/>━━━<br/>A: 1.2x"]:::easy -->|"obfuscation intensity increases"| med["Medium<br/>━━━━<br/>B: 1.3x | C: 1.1x"]:::med --> hard["Hard<br/>━━━━━━━━<br/>D: 4.6x | E: 2.2x"]:::hard
+    classDef easy fill:#90EE90,color:black
+    classDef med fill:#FFD700,color:black
+    classDef hard fill:#ff6b6b,color:white
 ```
 
 > The gap widens dramatically with obfuscation intensity. Hard scenarios show 3-5x improvement; Easy/Medium show 1.1-1.3x.
