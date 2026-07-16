@@ -255,6 +255,109 @@ input.js
 **Does**: generateCrossSummary, writeCrossReadme, classifyFileType
 **Does not**: Analyze individual files
 
+## Code Conventions
+
+### Naming
+
+| Kind | Convention | Example |
+|------|-----------|---------|
+| Functions | `camelCase`, verb-first | `walkAST`, `inlinePureWrappers` |
+| Constants | `UPPER_SNAKE_CASE` | `RESERVED`, `ALERT_PATTERNS` |
+| Variables | `camelCase`, concise | `fns`, `stmts`, `count`, `i` |
+| Private state | `_` prefix | `_analysisCache`, `_inlineUsedNames` |
+| AST sentinels | `$$` prefix | `$$refW` |
+| Booleans | `is/has/can` prefix | `isData`, `hasReturn`, `canInline` |
+
+Function naming patterns:
+```
+detectX(body)         ← detect pattern, return boolean
+collectX(node)        ← walk AST, collect into array
+inlineX(ast)          ← transform AST in place
+generateX(report)     ← produce output string
+classifyX(filepath)   ← categorize, return label
+computeX(data)        ← calculate numeric value
+```
+
+### Module Structure
+
+Every file follows this order:
+1. Imports (`const { x } = require("../module")` at top)
+2. Section headers (`// ---- Title ----`)
+3. Function definitions
+4. Single `module.exports = { ... }` at bottom
+
+Index files use spread re-export:
+```js
+const sub = require("./sub");
+module.exports = { ...sub };
+```
+
+### AST Walking
+
+Standard walk (read-only):
+```js
+function walk(node) {
+  if (!node || typeof node !== "object") return;
+  // ... process node ...
+  for (const key of Object.keys(node)) {
+    if (SKIP_KEYS.has(key)) continue;
+    const val = node[key];
+    if (Array.isArray(val)) { for (const v of val) walk(v); }
+    else if (val && typeof val.type === "string") walk(v);
+  }
+}
+```
+
+Transform walk (replaces nodes):
+```js
+function walk(node) {
+  if (!node || typeof node !== "object") return node;
+  // ... pattern checks returning replacement nodes ...
+  for (const key of Object.keys(node)) {
+    if (SKIP_KEYS.has(key)) continue;
+    const val = node[key];
+    if (Array.isArray(val)) {
+      for (let i = 0; i < val.length; i++) val[i] = walk(val[i]);
+    } else if (val && typeof val.type === "string") {
+      node[key] = walk(val);
+    }
+  }
+  return node;
+}
+```
+
+### Error Handling
+
+| Context | Strategy |
+|---------|----------|
+| Parse errors | try/catch → fallback to JSX, then regex analysis |
+| File errors (batch) | try/catch → log SKIPPED, continue |
+| File errors (single) | try/catch → log ERROR, exit(1) |
+| Invalid config | `console.error` + `process.exit(1)` |
+| Invalid regex in denoise | silently skip |
+
+### Comments
+
+```js
+// ---- Section Title ----              ← top-level section divider
+// --- Pattern Description ---           ← inline pattern label within a walk
+// ==================== Phase Name ===   ← pipeline phase divider
+// Reason for disabling                  ← commented-out code with reason
+```
+
+### Logging
+
+Pass results: `console.log("  Verb count noun")` — 2-space indent
+Pipeline steps: `console.log("Step N: Description...")` — numbered
+Timing: `const t = Date.now(); ... console.log("  Done in ${Date.now()-t}ms")`
+
+### Performance
+
+- Use `Map` and `Set` for lookups, not `Array.includes()` or `Array.find()`
+- Cache expensive computations (e.g., `analyzeStructure` result)
+- Use iterative walks for large files (>100KB) to avoid stack overflow
+- Profile with `Date.now()` timing in pipeline steps
+
 ## Alert System
 
 ### Three Detection Layers
