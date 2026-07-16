@@ -215,6 +215,7 @@ input.js
 **Does not**: Simplify expressions, inline anything
 
 ### passes/inline.js — Function Inlining
+
 **Does**: inlineReadOnlyProperties, inlinePureWrappers, inlineArithmeticWrappers, inlineSingleCallerFns, extractInlineFunctions
 **Does not**: Sort output, annotate alerts
 

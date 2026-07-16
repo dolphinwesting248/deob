@@ -9,6 +9,7 @@ Deob is an AST-based JavaScript deobfuscation framework, purpose-built as a **da
 
 ```bash
 npm install
+npm link
 deob init                    # create deob.config.js
 # edit deob.config.js — set input path and options
 deob                         # run with config
