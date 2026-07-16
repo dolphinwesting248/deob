@@ -182,10 +182,12 @@ function generatePromptFile(outputDir) {
   const { file, summary, functions, hotspots, alerts, tracePath } = report;
   const domain = classifyDomain(mainPath);
 
-  // String decoder detection
-  const selfMod = functions.filter((f) => (f.semanticTags || []).includes("self-modifying"))
+  // String decoder detection (prefer string-decoder tag, fall back to self-modifying)
+  const decoders = functions.filter((f) => (f.semanticTags || []).includes("string-decoder"))
     .sort((a, b) => b.calledBy.length - a.calledBy.length);
-  const decoder = selfMod.length > 0 ? selfMod[0] : null;
+  const selfMod = functions.filter((f) => (f.semanticTags || []).includes("self-modifying") && !(f.semanticTags || []).includes("string-decoder"))
+    .sort((a, b) => b.calledBy.length - a.calledBy.length);
+  const decoder = decoders.length > 0 ? decoders[0] : (selfMod.length > 0 ? selfMod[0] : null);
 
   // Entry point
   const roots = (hotspots.roots || []).filter((f) => f.calls.length > 0)

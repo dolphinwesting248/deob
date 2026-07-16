@@ -668,6 +668,22 @@ function detectSemanticTags(name, stmt) {
   scan(body);
 
   if (selfMod) tags.push("self-modifying");
+  // String decoder: self-modifying + returns from array lookup
+  if (selfMod && body.body.length <= 5) {
+    let hasArrayReturn = false;
+    function scanReturn(n) {
+      if (!n || typeof n !== "object") return;
+      if (t.isReturnStatement(n) && n.argument && t.isMemberExpression(n.argument)) hasArrayReturn = true;
+      if (t.isFunction(n) && n !== stmt) return;
+      for (const k of Object.keys(n)) {
+        if (k === "start" || k === "end" || k === "loc") continue;
+        const v = n[k];
+        if (v && typeof v.type === "string") scanReturn(v);
+      }
+    }
+    scanReturn(body);
+    if (hasArrayReturn) tags.push("string-decoder");
+  }
   if (t.isWhileStatement(body.body[0]) || t.isForStatement(body.body[0])) {
     // Check for while+switch deeper
     function hasSwitch(n) {
