@@ -202,6 +202,7 @@ function analyzeStructureFallback(filepath, code) {
         { name: "_S_constructor_07_if", meaning: "Extracted from method 'constructor', seq 07, if branch" },
         { name: "_S_l100877_03_try", meaning: "Anonymous parent at line 100877, seq 03, try body" },
         { name: "_S_return_1_fn", meaning: "Inline function lifted from a return statement" },
+        { name: "_S_l251_L1364_01_try vs _S_l251_L1548_01_try", meaning: "Two try blocks with same parent+seq+hint — _L<line> disambiguates by source line" },
       ],
       hints: { try: "try block body", catch: "catch handler", if: "if branch", else: "else branch", fn: "inline function" },
     },
@@ -506,6 +507,7 @@ function analyzeStructure(filepath, opts) {
         { name: "_S_l100877_03_try", meaning: "Anonymous parent at line 100877, seq 03, try body" },
         { name: "_S_program_init_vars_l1149", meaning: "Top-level program IIFE at line 1149, variable initialization" },
         { name: "_S_return_1_fn", meaning: "Inline function lifted from a return statement" },
+        { name: "_S_l251_L1364_01_try vs _S_l251_L1548_01_try", meaning: "Two try blocks with same parent+seq+hint — _L<line> disambiguates by source line" },
       ],
       hints: {
         try: "try block body",

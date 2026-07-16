@@ -224,6 +224,14 @@ All extracted sub-functions follow: `_S_<parent>_<seq>_<hint>`
 | `<hint>` | `if`, `else`, `try`, `catch`, `init_vars`, `iife_body`... |
 | `_L<line>` | (Collision only) Source line disambiguator |
 
+When two sub-functions share the same parent + seq + hint, `_L<source line>` is appended to prevent name collision:
+
+```
+_S_l251_01_try          ← first try block (unique, no _L needed)
+_S_l251_L1364_01_try    ← collision! same parent+seq+hint, disambiguated by source line 1364
+_S_l251_L1548_01_try    ← another collision, source line 1548
+```
+
 ## API
 
 ```javascript
