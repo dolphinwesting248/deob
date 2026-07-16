@@ -233,9 +233,17 @@ function analyzeStructureImpl(filepath, opts) {
       allowUndeclaredExports: true, errorRecovery: true,
     });
   } catch (e) {
-    // Fallback: regex-based analysis for files that Babel can't re-parse
-    // (sloppy-mode reserved words as identifiers, for-await outside async, etc.)
-    return analyzeStructureFallback(filepath, code);
+    // Retry with JSX/TypeScript plugins
+    try {
+      ast = parser.parse(code, {
+        sourceType: "script", allowReturnOutsideFunction: true,
+        allowUndeclaredExports: true, errorRecovery: true,
+        plugins: ["jsx", "typescript"],
+      });
+    } catch (e2) {
+      // Fallback: regex-based analysis for files that Babel can't re-parse
+      return analyzeStructureFallback(filepath, code);
+    }
   }
 
   const fns = []; // {name, lines, params, calls:[], calledBy:[], comment, complexity, flat, suspicious}

@@ -26,12 +26,25 @@ function main({ input, output, split } = {}) {
   console.log(`Size: ${(code.length / 1024 / 1024).toFixed(2)} MB`);
 
   console.log("Parsing AST...");
-  const ast = parser.parse(code, {
-    sourceType: "script",
-    allowReturnOutsideFunction: true,
-    allowUndeclaredExports: true,
-    errorRecovery: true,
-  });
+  let ast;
+  try {
+    ast = parser.parse(code, {
+      sourceType: "script",
+      allowReturnOutsideFunction: true,
+      allowUndeclaredExports: true,
+      errorRecovery: true,
+    });
+  } catch (e) {
+    // Retry with JSX plugin for React/JSX files
+    console.log("  Standard parse failed, retrying with JSX plugin...");
+    ast = parser.parse(code, {
+      sourceType: "script",
+      allowReturnOutsideFunction: true,
+      allowUndeclaredExports: true,
+      errorRecovery: true,
+      plugins: ["jsx", "typescript"],
+    });
+  }
 
   // ==================== Sanitization ====================
   console.log("Step 0: Sanitizing reserved-word identifiers...");
