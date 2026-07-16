@@ -160,7 +160,7 @@ function main({ input, output, split } = {}) {
 
   console.log(`${c.cyan}Step 18:${c.reset} Annotating functions with security alerts...`);
   const t18 = Date.now();
-  annotateAlerts(ast);
+  annotateAlerts(ast, callGraph, refGraph);
   console.log(`  ${c.dim}Done in ${Date.now() - t18}ms${c.reset}`);
 
   // ==================== Final Sanitization ====================

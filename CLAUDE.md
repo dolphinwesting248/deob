@@ -153,7 +153,7 @@ scripts/
 | 15 | `inlineSingleCallerFns` | inline.js | Inline functions called from exactly one place |
 | 16 | `normalizeSyntax` | simplify.js | `~arr.indexOf` → `arr.includes`, `~~x` → `Math.trunc` |
 | 17 | `extractInlineFunctions` | inline.js | Re-extract exposed inline functions after transforms |
-| 18 | `annotateAlerts` | declarations.js | Inject `[Label]` comments for security-relevant patterns |
+| 18 | `annotateAlerts` | declarations.js | Inject `[Label]` comments + function metadata banners for `_S_` functions |
 | 19 | `sanitizeReservedWords` | declarations.js | Re-sanitize (pipeline may have introduced new reserved words) |
 | 20 | `pushDataToBottom` | dead-code.js | Move DATA-heavy functions to end of file with separator |
 

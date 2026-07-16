@@ -143,8 +143,13 @@ function sanitizeReservedWords(ast) {
 }
 
 // ---- annotateAlerts: inject [Label] comments before functions with security-relevant strings ----
-function annotateAlerts(ast) {
+function annotateAlerts(ast, callGraph, refGraph) {
   let count = 0;
+  let bannerCount = 0;
+
+  // Build quick lookup for callers/callees from callGraph
+  const callersMap = callGraph ? callGraph.reverse : null; // callee → Set(caller)
+  const calleesMap = callGraph ? callGraph.forward : null;  // caller → Set(callee)
 
   function walkFn(node) {
     if (!node || typeof node !== "object") return;
@@ -212,6 +217,62 @@ function annotateAlerts(ast) {
         node.leadingComments.push({ type: "CommentLine", value: " " + parts.join("  ") });
         count++;
       }
+
+      // ── Function banner for _S_ functions ──
+      if (isSubFn(node.id.name)) {
+        const banner = [];
+        const name = node.id.name;
+        const lineStart = node.loc ? node.loc.start.line : "?";
+        const lineEnd = node.loc ? node.loc.end.line : "?";
+        const params = node.params.length;
+        const bodyLen = node.body && node.body.body ? node.body.body.length : 0;
+
+        // Compute cyclomatic complexity (simple: count branching statements)
+        let cc = 1;
+        function countBranches(n) {
+          if (!n || typeof n !== "object") return;
+          if (t.isIfStatement(n) || t.isConditionalExpression(n) || t.isSwitchCase(n) || t.isCatchClause(n)) cc++;
+          if (t.isLogicalExpression(n) && (n.operator === "&&" || n.operator === "||")) cc++;
+          for (const k of Object.keys(n)) {
+            if (k === "start" || k === "end" || k === "loc") continue;
+            const v = n[k];
+            if (Array.isArray(v)) { for (const x of v) countBranches(x); }
+            else if (v && typeof v.type === "string") countBranches(v);
+          }
+        }
+        countBranches(node.body);
+
+        banner.push(`${name} | L${lineStart}-${lineEnd} | ${bodyLen}S/${params}P | cc=${cc}`);
+
+        // Callers
+        if (callersMap && callersMap.has(name)) {
+          const callers = [...callersMap.get(name)].slice(0, 5);
+          banner.push("⇐ " + callers.join(", "));
+        }
+
+        // Callees
+        if (calleesMap && calleesMap.has(name)) {
+          const callees = [...calleesMap.get(name)].slice(0, 5);
+          banner.push("→ " + callees.join(", "));
+        }
+
+        // Closure captures
+        if (refGraph && refGraph.closureCaptures) {
+          const captures = refGraph.closureCaptures.filter(c => c.fnName === name);
+          if (captures.length > 0) {
+            banner.push("closure: " + captures.map(c => c.varName).join(", "));
+          }
+        }
+
+        // Alerts (already in matches)
+        if (matches.length > 0) {
+          banner.push(matches.map(a => `[${a.label}]`).join(" "));
+        }
+
+        if (!node.leadingComments) node.leadingComments = [];
+        node.leadingComments.push({ type: "CommentLine", value: " " + banner.join(" | ") });
+        bannerCount++;
+      }
     }
     for (const k of Object.keys(node)) {
       if (SKIP_KEYS.has(k)) continue;
@@ -222,7 +283,7 @@ function annotateAlerts(ast) {
   }
   walkFn(ast);
 
-  console.log(`  Annotated ${count} functions with security alerts`);
+  console.log(`  Annotated ${count} functions with security alerts, ${bannerCount} with metadata banners`);
 }
 
 // ---- sortByCallTree: reorder _S_ functions by execution dependency ----
