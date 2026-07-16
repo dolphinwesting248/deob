@@ -229,7 +229,7 @@ BENCH_EXP_DIR=/path/to/experiment node tools/score.js --all
 
 ### Scoring Weights
 
-For example:
+For example, 9 indexes and calculation
 
 | Dimension | Weight | Method |
 |-----------|--------|--------|

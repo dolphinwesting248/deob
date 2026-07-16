@@ -41,9 +41,9 @@ _Blue = deob, red = raw. Gap explodes from scenario D onward._
 - **DataFlow** (10%): Keyword overlap between agent's data flow description and ground truth
 - **Variables** (10%): Value/purpose matching for key constants and config values
 - **Purpose** (5%): Keyword overlap between agent's one-sentence summary and ground truth description
-- **Time** (5%): raw_time / deob_time, capped at 5x speedup = max score (deob is faster → higher score)
+- **Time** (5%): 1 - (agent_time / (deob_time + raw_time)) — faster agent gets higher score, deob and raw differ
 - **EntryPoint** (2.5%): Binary — did the agent identify a non-trivial entry point?
-- **Token** (2.5%): raw_tokens / deob_tokens, capped at 10x ratio = max score (deob uses fewer tokens → higher score)
+- **Token** (2.5%): 1 - (agent_tokens / (deob_tokens + raw_tokens)) — fewer tokens = higher score, deob and raw differ
 
 **Scenarios**: 5 custom JavaScript programs obfuscated via `javascript-obfuscator` at increasing intensity:
 
@@ -67,8 +67,8 @@ deob **1.2x** | 3 API endpoints vs raw's 1 | 1.3x fewer tokens
 
 | Agent | Purpose | Functions | Endpoints | Security | DataFlow | Vars | Time | Entry | Token | **Total** |
 |-------|---------|-----------|-----------|----------|----------|------|------|-------|-------|-----------|
-| deob | 0.17 | 0.38 | 1.00 | 0.31 | 0.60 | 1.00 | 0.53 | 1.00 | 0.13 | **0.55** |
-| raw  | 0.58 | 0.46 | 0.33 | 0.17 | 0.50 | 1.00 | 0.53 | 1.00 | 0.13 | **0.46** |
+| deob | 0.17 | 0.38 | 1.00 | 0.31 | 0.60 | 1.00 | 0.73 | 1.00 | 0.56 | **0.57** |
+| raw  | 0.58 | 0.46 | 0.33 | 0.17 | 0.50 | 1.00 | 0.27 | 1.00 | 0.44 | **0.45** |
 
 **What happened**: Both agents identified the login and profile functions. Deob correctly found all 3 API endpoints (`POST /auth/login`, `GET /users/:id`, `PUT /users/:id`) while raw only found 1. The gap is small because simple renameGlobals + base64 string obfuscation doesn't block raw analysis much.
 
@@ -82,8 +82,8 @@ deob **1.3x** | Functions 2.5x better | deob output exceeds raw input
 
 | Agent | Purpose | Functions | Endpoints | Security | DataFlow | Vars | Time | Entry | Token | **Total** |
 |-------|---------|-----------|-----------|----------|----------|------|------|-------|-------|-----------|
-| deob | 0.56 | 0.39 | 1.00 | 0.00 | 0.52 | 0.00 | 0.34 | 1.00 | 0.08 | **0.39** |
-| raw  | 0.44 | 0.16 | 1.00 | 0.00 | 0.39 | 0.00 | 0.34 | 1.00 | 0.08 | **0.30** |
+| deob | 0.56 | 0.39 | 1.00 | 0.00 | 0.52 | 0.00 | 0.63 | 1.00 | 0.43 | **0.41** |
+| raw  | 0.44 | 0.16 | 1.00 | 0.00 | 0.39 | 0.00 | 0.37 | 1.00 | 0.57 | **0.32** |
 
 **What happened**: The control-flow flattened `authenticate()` function was split into 20 `_S_` sub-functions by deob. Deob correctly identified `hashPassword`, `generateToken`, `getStoredHash`, etc. Raw struggled with the while+switch dispatcher — it could only trace 3-4 functions through the spaghetti.
 
@@ -99,8 +99,8 @@ deob **1.1x** — smallest gap | deob output exceeds raw input
 
 | Agent | Purpose | Functions | Endpoints | Security | DataFlow | Vars | Time | Entry | Token | **Total** |
 |-------|---------|-----------|-----------|----------|----------|------|------|-------|-------|-----------|
-| deob | 0.60 | 0.78 | 1.00 | 1.00 | 0.45 | 1.00 | 0.46 | 1.00 | 0.06 | **0.81** |
-| raw  | 0.60 | 0.62 | 1.00 | 1.00 | 0.48 | 1.00 | 0.46 | 1.00 | 0.06 | **0.76** |
+| deob | 0.60 | 0.78 | 1.00 | 1.00 | 0.45 | 1.00 | 0.70 | 1.00 | 0.39 | **0.83** |
+| raw  | 0.60 | 0.62 | 1.00 | 1.00 | 0.48 | 1.00 | 0.30 | 1.00 | 0.61 | **0.77** |
 
 **What happened**: This was the anomaly — both agents performed well. The data pipeline has no security-sensitive code (no API calls, no credentials). The task was purely structural: identify the filter→map→group→sort→stats pipeline. Raw could trace this through the obfuscation because the flow is linear.
 
@@ -114,8 +114,8 @@ deob **4.1x** — largest gap | 1.5x fewer input tokens
 
 | Agent | Purpose | Functions | Endpoints | Security | DataFlow | Vars | Time | Entry | Token | **Total** |
 |-------|---------|-----------|-----------|----------|----------|------|------|-------|-------|-----------|
-| deob | 0.88 | 0.82 | 1.00 | 0.38 | 0.58 | 1.00 | 0.70 | 1.00 | 0.15 | **0.74** |
-| raw  | 0.00 | 0.17 | 0.00 | 0.16 | 0.34 | 0.00 | 0.70 | 1.00 | 0.15 | **0.18** |
+| deob | 0.88 | 0.82 | 1.00 | 0.38 | 0.58 | 1.00 | 0.78 | 1.00 | 0.59 | **0.75** |
+| raw  | 0.00 | 0.17 | 0.00 | 0.16 | 0.34 | 0.00 | 0.22 | 1.00 | 0.41 | **0.16** |
 
 **What happened**: Raw agent nearly completely failed. The 42KB webpack bundle with all obfuscation techniques (RC4 strings, flattening, selfDefending, unicodeEscape) was impenetrable. Raw took 400 seconds and still couldn't identify any endpoints or meaningful functions.
 
@@ -131,8 +131,8 @@ deob **2.4x** | Endpoint raw 0 vs deob 1 | 1.2x fewer input tokens
 
 | Agent | Purpose | Functions | Endpoints | Security | DataFlow | Vars | Time | Entry | Token | **Total** |
 |-------|---------|-----------|-----------|----------|----------|------|------|-------|-------|-----------|
-| deob | 0.85 | 0.37 | 1.00 | 0.40 | 0.58 | 1.00 | 0.27 | 1.00 | 0.12 | **0.58** |
-| raw  | 0.62 | 0.29 | 0.00 | 0.18 | 0.50 | 0.00 | 0.27 | 1.00 | 0.12 | **0.25** |
+| deob | 0.85 | 0.37 | 1.00 | 0.40 | 0.58 | 1.00 | 0.57 | 1.00 | 0.54 | **0.61** |
+| raw  | 0.62 | 0.29 | 0.00 | 0.18 | 0.50 | 0.00 | 0.43 | 1.00 | 0.46 | **0.26** |
 
 **What happened**: The 63KB payment module with max-settings obfuscation was the largest file. Deob extracted 44 sub-functions and decoded 1,622 strings. Raw spent 255 seconds and couldn't find the payment API endpoint or identify the Luhn algorithm.
 

@@ -108,21 +108,25 @@ function scoreEntry(answer, truth) {
   return answer.entryPoint && answer.entryPoint.length > 3 ? 1 : 0;
 }
 
-// Time efficiency: how much faster deob is vs raw
-function scoreTime(deobTime, rawTime) {
-  if (!deobTime || !rawTime || deobTime <= 0) return 0;
-  const ratio = rawTime / deobTime;
-  return Math.min(1, ratio / 5);  // 5x speedup = perfect score
+// Bidirectional normalization: faster/cheaper = higher score
+// Uses agent_value / (deob_value + raw_value), so deob and raw get different scores
+function scoreTime(agentTime, deobTime, rawTime) {
+  const total = (deobTime || 0) + (rawTime || 0);
+  if (total <= 0 || !agentTime) return 0.5;
+  return 1 - (agentTime / total);
 }
 
-// Token efficiency: how much deob saves in input tokens vs raw
-function scoreToken(deobTokens, rawTokens) {
-  if (!deobTokens || !rawTokens || deobTokens <= 0) return 0;
-  const ratio = rawTokens / deobTokens;
-  return Math.min(1, ratio / 10);  // 10x = perfect score
+function scoreToken(agentTokens, deobTokens, rawTokens) {
+  const total = (deobTokens || 0) + (rawTokens || 0);
+  if (total <= 0 || !agentTokens) return 0.5;
+  return 1 - (agentTokens / total);
 }
 
-function computeScores(answer, truth, meta) {
+function computeScores(answer, truth, meta, agentType) {
+  const isDeob = agentType === "deob";
+  const deobT = meta.deobTime || 0, rawT = meta.rawTime || 0;
+  const deobK = meta.deobTokens || 0, rawK = meta.rawTokens || 0;
+
   const scores = {
     purpose: scorePurpose(answer, truth),
     functions: scoreFunctions(answer, truth),
@@ -131,8 +135,8 @@ function computeScores(answer, truth, meta) {
     dataFlow: scoreDataFlow(answer, truth),
     variables: scoreVariables(answer, truth),
     entry: scoreEntry(answer, truth),
-    time: scoreTime(meta.deobTime, meta.rawTime),
-    token: scoreToken(meta.deobTokens, meta.rawTokens),
+    time: scoreTime(isDeob ? deobT : rawT, deobT, rawT),
+    token: scoreToken(isDeob ? deobK : rawK, deobK, rawK),
   };
   scores.total =
     scores.purpose * 0.05 + scores.functions * 0.30 + scores.endpoints * 0.15 +
@@ -168,8 +172,8 @@ function scoreScenario(scenario, expDir) {
 
   return {
     scenario,
-    deob: computeScores(deobAnswer, gt, meta),
-    raw: computeScores(rawAnswer, gt, meta),
+    deob: computeScores(deobAnswer, gt, meta, "deob"),
+    raw: computeScores(rawAnswer, gt, meta, "raw"),
     tokens: meta,
   };
 }
