@@ -35,7 +35,6 @@ function createSubFn(name, params, body, sourceNode) {
   if (sourceNode && sourceNode.loc) {
     fn.loc = sourceNode.loc;
   }
-  addLineComment(fn, sourceNode);
   return fn;
 }
 
