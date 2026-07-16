@@ -46,6 +46,10 @@ module.exports = {
 | `fold` | `boolean` | `false` | Collapse mechanical functions to comments |
 | `denoise` | `DenoiseRule[]` | defaults | Alert denoising rules |
 
+See [tier-and-fold.md](./docs/tier-and-fold.md) for more details for `tier` and `fold`.
+
+See [denoise.md](./docs/denoise.md) for more details for `denoise`.
+
 ## Output Files
 
 ```
@@ -80,8 +84,6 @@ output.deob/
 ### 2-index.txt
 
 ```
-# main.js · Function Index · N functions
-
 ## Legend               — Ss/Pp, cc=, →/⇐, root, closure:, paramRoles, [semTags], FLAT, DATA
 ## entry                — entry point functions
 ## alerts               — security patterns with function and matches
