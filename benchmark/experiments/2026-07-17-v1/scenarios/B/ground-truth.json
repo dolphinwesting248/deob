@@ -2,93 +2,164 @@
   "scenario": "B",
   "difficulty": "medium",
   "description": "Multi-step authentication flow with rate limiting, password verification, and optional MFA",
-  "obfuscationTechniques": ["control flow flattening (while+switch)", "dead code injection", "variable renaming"],
+  "obfuscationTechniques": [
+    "control flow flattening (while+switch)",
+    "dead code injection",
+    "variable renaming"
+  ],
   "functions": [
     {
       "name": "authenticate",
       "purpose": "Main authentication function: validate credentials → check rate limit → verify password → optional MFA → generate session",
-      "params": ["credentials (username, password, mfaCode)"],
+      "params": [
+        "credentials (username, password, mfaCode)"
+      ],
       "returns": "object {success, token?, error?}",
-      "calls": ["getAttemptCount", "simpleHash", "getStoredHash", "isMfaEnabled", "verifyMfaCode", "generateToken", "saveSession", "resetAttempts", "incrementAttempts"],
+      "calls": [
+        "getAttemptCount",
+        "simpleHash",
+        "getStoredHash",
+        "isMfaEnabled",
+        "verifyMfaCode",
+        "generateToken",
+        "saveSession",
+        "resetAttempts",
+        "incrementAttempts"
+      ],
       "calledBy": [],
-      "security": ["rate limiting (5 attempts)", "MFA support", "session timeout (1 hour)"]
+      "security": [
+        "rate limiting (5 attempts)",
+        "MFA support",
+        "session timeout (1 hour)"
+      ]
     },
     {
       "name": "simpleHash",
       "purpose": "Simple numeric hash function using bitwise operations",
-      "params": ["string"],
+      "params": [
+        "string"
+      ],
       "returns": "number (hash)",
       "calls": [],
-      "calledBy": ["authenticate"],
-      "security": ["weak hash algorithm"]
+      "calledBy": [
+        "authenticate"
+      ],
+      "security": [
+        "weak hash algorithm"
+      ]
     },
     {
       "name": "getAttemptCount",
       "purpose": "Get failed login attempt count for user",
-      "params": ["username"],
+      "params": [
+        "username"
+      ],
       "returns": "number",
       "calls": [],
-      "calledBy": ["authenticate"]
+      "calledBy": [
+        "authenticate"
+      ]
     },
     {
       "name": "getStoredHash",
       "purpose": "Get stored password hash for user",
-      "params": ["username"],
+      "params": [
+        "username"
+      ],
       "returns": "number",
       "calls": [],
-      "calledBy": ["authenticate"]
+      "calledBy": [
+        "authenticate"
+      ]
     },
     {
       "name": "isMfaEnabled",
       "purpose": "Check if multi-factor authentication is enabled",
-      "params": ["username"],
+      "params": [
+        "username"
+      ],
       "returns": "boolean",
       "calls": [],
-      "calledBy": ["authenticate"]
+      "calledBy": [
+        "authenticate"
+      ]
     },
     {
       "name": "verifyMfaCode",
       "purpose": "Verify MFA code for user",
-      "params": ["username", "code"],
+      "params": [
+        "username",
+        "code"
+      ],
       "returns": "boolean",
       "calls": [],
-      "calledBy": ["authenticate"]
+      "calledBy": [
+        "authenticate"
+      ]
     },
     {
       "name": "generateToken",
       "purpose": "Generate session token",
-      "params": ["username"],
+      "params": [
+        "username"
+      ],
       "returns": "string (token)",
       "calls": [],
-      "calledBy": ["authenticate"]
+      "calledBy": [
+        "authenticate"
+      ]
     },
     {
       "name": "saveSession",
       "purpose": "Save session to storage",
-      "params": ["username", "token", "expiresAt"],
+      "params": [
+        "username",
+        "token",
+        "expiresAt"
+      ],
       "returns": "void",
       "calls": [],
-      "calledBy": ["authenticate"]
+      "calledBy": [
+        "authenticate"
+      ]
     },
     {
       "name": "resetAttempts",
       "purpose": "Reset failed attempt counter",
-      "params": ["username"],
+      "params": [
+        "username"
+      ],
       "returns": "void",
       "calls": [],
-      "calledBy": ["authenticate"]
+      "calledBy": [
+        "authenticate"
+      ]
     },
     {
       "name": "incrementAttempts",
       "purpose": "Increment failed attempt counter",
-      "params": ["username"],
+      "params": [
+        "username"
+      ],
       "returns": "void",
       "calls": [],
-      "calledBy": ["authenticate"]
+      "calledBy": [
+        "authenticate"
+      ]
     }
   ],
   "callGraph": {
-    "authenticate": ["getAttemptCount", "simpleHash", "getStoredHash", "isMfaEnabled", "verifyMfaCode", "generateToken", "saveSession", "resetAttempts", "incrementAttempts"]
+    "authenticate": [
+      "getAttemptCount",
+      "simpleHash",
+      "getStoredHash",
+      "isMfaEnabled",
+      "verifyMfaCode",
+      "generateToken",
+      "saveSession",
+      "resetAttempts",
+      "incrementAttempts"
+    ]
   },
   "dataFlow": [
     "credentials → validate inputs → rate limit check (getAttemptCount) → password hash (simpleHash) → compare with stored hash (getStoredHash)",
@@ -97,13 +168,32 @@
     "all checks passed → generate token → save session → reset attempts → return success"
   ],
   "securityIssues": [
-    {"severity": "high", "issue": "Weak hash algorithm - simple bitwise operations without salt", "location": "simpleHash function"},
-    {"severity": "medium", "issue": "Rate limiting bypass potential - client-side check only", "location": "authenticate function"},
-    {"severity": "low", "issue": "Session token in plaintext (no encryption)", "location": "saveSession function"}
+    {
+      "severity": "high",
+      "issue": "Weak hash algorithm - simple bitwise operations without salt",
+      "location": "simpleHash function"
+    },
+    {
+      "severity": "medium",
+      "issue": "Rate limiting bypass potential - client-side check only",
+      "location": "authenticate function"
+    },
+    {
+      "severity": "low",
+      "issue": "Session token in plaintext (no encryption)",
+      "location": "saveSession function"
+    }
   ],
   "apiEndpoints": [],
   "keyVariables": {
     "sessionDuration": "3600000 ms (1 hour)",
     "maxAttempts": "5"
-  }
+  },
+  "purposeKeywords": [
+    "authenticate|login|credential|verify",
+    "password.*(hash|check|valid)",
+    "rate.?limit|attempt|throttle",
+    "mfa|2fa|two.?factor",
+    "token|session|generate|expire"
+  ]
 }

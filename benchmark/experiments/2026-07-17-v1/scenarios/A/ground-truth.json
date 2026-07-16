@@ -2,86 +2,178 @@
   "scenario": "A",
   "difficulty": "easy",
   "description": "API client with login, profile fetch, and profile update functionality",
-  "obfuscationTechniques": ["variable renaming", "string encoding in array"],
+  "obfuscationTechniques": [
+    "variable renaming",
+    "string encoding in array"
+  ],
   "functions": [
     {
       "name": "hashPassword",
       "purpose": "Hash password using simple numeric hash algorithm",
-      "params": ["password"],
+      "params": [
+        "password"
+      ],
       "returns": "string (hex hash)",
       "calls": [],
-      "calledBy": ["login"],
-      "security": ["weak hash algorithm - simple bitwise operations"],
+      "calledBy": [
+        "login"
+      ],
+      "security": [
+        "weak hash algorithm - simple bitwise operations"
+      ],
       "complexity": 3
     },
     {
       "name": "buildAuthHeaders",
       "purpose": "Build HTTP authentication headers with Bearer token and Content-Type",
-      "params": ["token"],
+      "params": [
+        "token"
+      ],
       "returns": "object (headers)",
       "calls": [],
-      "calledBy": ["sendRequest"],
+      "calledBy": [
+        "sendRequest"
+      ],
       "security": []
     },
     {
       "name": "sendRequest",
       "purpose": "Send authenticated HTTP request to API",
-      "params": ["endpoint", "method", "data", "token"],
+      "params": [
+        "endpoint",
+        "method",
+        "data",
+        "token"
+      ],
       "returns": "JSON response",
-      "calls": ["buildAuthHeaders"],
-      "calledBy": ["login", "getUserProfile", "updateProfile"],
-      "security": ["sends auth token in HTTP header"]
+      "calls": [
+        "buildAuthHeaders"
+      ],
+      "calledBy": [
+        "login",
+        "getUserProfile",
+        "updateProfile"
+      ],
+      "security": [
+        "sends auth token in HTTP header"
+      ]
     },
     {
       "name": "login",
       "purpose": "Authenticate user with username and password, store session token",
-      "params": ["username", "password"],
+      "params": [
+        "username",
+        "password"
+      ],
       "returns": "token string",
-      "calls": ["hashPassword", "sendRequest"],
-      "calledBy": ["(entry point)"],
-      "security": ["stores auth token in localStorage", "sends hashed password to server"]
+      "calls": [
+        "hashPassword",
+        "sendRequest"
+      ],
+      "calledBy": [
+        "(entry point)"
+      ],
+      "security": [
+        "stores auth token in localStorage",
+        "sends hashed password to server"
+      ]
     },
     {
       "name": "getUserProfile",
       "purpose": "Fetch user profile by ID using stored auth token",
-      "params": ["userId"],
+      "params": [
+        "userId"
+      ],
       "returns": "user profile JSON",
-      "calls": ["sendRequest"],
-      "calledBy": ["(entry point)"],
-      "security": ["reads token from localStorage"]
+      "calls": [
+        "sendRequest"
+      ],
+      "calledBy": [
+        "(entry point)"
+      ],
+      "security": [
+        "reads token from localStorage"
+      ]
     },
     {
       "name": "updateProfile",
       "purpose": "Update user profile data with PUT request",
-      "params": ["userId", "data"],
+      "params": [
+        "userId",
+        "data"
+      ],
       "returns": "updated profile JSON",
-      "calls": ["sendRequest"],
+      "calls": [
+        "sendRequest"
+      ],
       "calledBy": [],
-      "security": ["reads token from localStorage"]
+      "security": [
+        "reads token from localStorage"
+      ]
     }
   ],
   "callGraph": {
-    "login": ["hashPassword", "sendRequest"],
-    "sendRequest": ["buildAuthHeaders"],
-    "getUserProfile": ["sendRequest"],
-    "updateProfile": ["sendRequest"]
+    "login": [
+      "hashPassword",
+      "sendRequest"
+    ],
+    "sendRequest": [
+      "buildAuthHeaders"
+    ],
+    "getUserProfile": [
+      "sendRequest"
+    ],
+    "updateProfile": [
+      "sendRequest"
+    ]
   },
   "dataFlow": [
     "username + password → hashPassword → sendRequest(POST /auth/login) → token → localStorage",
     "stored token → getUserProfile/updateProfile → sendRequest(GET/PUT /users/:id)"
   ],
   "securityIssues": [
-    {"severity": "high", "issue": "Weak hash algorithm - simple bitwise operations", "location": "hashPassword function"},
-    {"severity": "medium", "issue": "Auth token stored in localStorage (vulnerable to XSS)", "location": "login function"},
-    {"severity": "medium", "issue": "Credentials sent as plaintext (hashed but no salt)", "location": "sendRequest function"}
+    {
+      "severity": "high",
+      "issue": "Weak hash algorithm - simple bitwise operations",
+      "location": "hashPassword function"
+    },
+    {
+      "severity": "medium",
+      "issue": "Auth token stored in localStorage (vulnerable to XSS)",
+      "location": "login function"
+    },
+    {
+      "severity": "medium",
+      "issue": "Credentials sent as plaintext (hashed but no salt)",
+      "location": "sendRequest function"
+    }
   ],
   "apiEndpoints": [
-    {"method": "POST", "path": "/auth/login", "purpose": "authenticate user and get token"},
-    {"method": "GET", "path": "/users/:id", "purpose": "fetch user profile"},
-    {"method": "PUT", "path": "/users/:id", "purpose": "update user profile"}
+    {
+      "method": "POST",
+      "path": "/auth/login",
+      "purpose": "authenticate user and get token"
+    },
+    {
+      "method": "GET",
+      "path": "/users/:id",
+      "purpose": "fetch user profile"
+    },
+    {
+      "method": "PUT",
+      "path": "/users/:id",
+      "purpose": "update user profile"
+    }
   ],
   "keyVariables": {
     "API_BASE_URL": "https://api.example.com",
     "AUTH_TOKEN_KEY": "session_token"
-  }
+  },
+  "purposeKeywords": [
+    "login|authenticate|auth",
+    "profile|user.*(fetch|get|read|retrieve)",
+    "token|session|bearer",
+    "localStorage|storage|cache",
+    "password|hash|credentials"
+  ]
 }

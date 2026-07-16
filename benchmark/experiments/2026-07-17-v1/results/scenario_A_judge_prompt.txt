@@ -1,0 +1,455 @@
+You are a benchmark judge. Score two agents' answers against the ground truth.
+Return ONLY a JSON object (no markdown, no explanation outside JSON):
+
+{
+  "deob": {
+    "purpose": {"score": 0.0, "why": "1 sentence"},
+    "functions": {"score": 0.0, "why": "1 sentence"},
+    "security": {"score": 0.0, "why": "1 sentence"},
+    "dataFlow": {"score": 0.0, "why": "1 sentence"},
+    "variables": {"score": 0.0, "why": "1 sentence"}
+  },
+  "raw": {
+    "purpose": {"score": 0.0, "why": "1 sentence"},
+    "functions": {"score": 0.0, "why": "1 sentence"},
+    "security": {"score": 0.0, "why": "1 sentence"},
+    "dataFlow": {"score": 0.0, "why": "1 sentence"},
+    "variables": {"score": 0.0, "why": "1 sentence"}
+  }
+}
+
+Scoring guidelines:
+- purpose: Does the one-sentence summary capture the FULL functionality? Penalize missing major features (e.g. "login" only vs "login + profile fetch + update"). Reward accuracy over brevity.
+- functions: How many functions were correctly identified (name + purpose + call relationships)? Count both precision and recall. Ignore naming differences if purpose matches.
+- security: How many security issues were correctly identified (severity + description)? Full match = 1.0, partial (right issue wrong severity) = 0.5.
+- dataFlow: Does the data flow description match the actual flow? Check key steps (input→processing→output). Missing major steps = lower score.
+- variables: How many key variables were correctly identified (name/value/purpose)? Match meaning, not exact name.
+
+Ground Truth:
+{
+  "scenario": "A",
+  "difficulty": "easy",
+  "description": "API client with login, profile fetch, and profile update functionality",
+  "obfuscationTechniques": [
+    "variable renaming",
+    "string encoding in array"
+  ],
+  "functions": [
+    {
+      "name": "hashPassword",
+      "purpose": "Hash password using simple numeric hash algorithm",
+      "params": [
+        "password"
+      ],
+      "returns": "string (hex hash)",
+      "calls": [],
+      "calledBy": [
+        "login"
+      ],
+      "security": [
+        "weak hash algorithm - simple bitwise operations"
+      ],
+      "complexity": 3
+    },
+    {
+      "name": "buildAuthHeaders",
+      "purpose": "Build HTTP authentication headers with Bearer token and Content-Type",
+      "params": [
+        "token"
+      ],
+      "returns": "object (headers)",
+      "calls": [],
+      "calledBy": [
+        "sendRequest"
+      ],
+      "security": []
+    },
+    {
+      "name": "sendRequest",
+      "purpose": "Send authenticated HTTP request to API",
+      "params": [
+        "endpoint",
+        "method",
+        "data",
+        "token"
+      ],
+      "returns": "JSON response",
+      "calls": [
+        "buildAuthHeaders"
+      ],
+      "calledBy": [
+        "login",
+        "getUserProfile",
+        "updateProfile"
+      ],
+      "security": [
+        "sends auth token in HTTP header"
+      ]
+    },
+    {
+      "name": "login",
+      "purpose": "Authenticate user with username and password, store session token",
+      "params": [
+        "username",
+        "password"
+      ],
+      "returns": "token string",
+      "calls": [
+        "hashPassword",
+        "sendRequest"
+      ],
+      "calledBy": [
+        "(entry point)"
+      ],
+      "security": [
+        "stores auth token in localStorage",
+        "sends hashed password to server"
+      ]
+    },
+    {
+      "name": "getUserProfile",
+      "purpose": "Fetch user profile by ID using stored auth token",
+      "params": [
+        "userId"
+      ],
+      "returns": "user profile JSON",
+      "calls": [
+        "sendRequest"
+      ],
+      "calledBy": [
+        "(entry point)"
+      ],
+      "security": [
+        "reads token from localStorage"
+      ]
+    },
+    {
+      "name": "updateProfile",
+      "purpose": "Update user profile data with PUT request",
+      "params": [
+        "userId",
+        "data"
+      ],
+      "returns": "updated profile JSON",
+      "calls": [
+        "sendRequest"
+      ],
+      "calledBy": [],
+      "security": [
+        "reads token from localStorage"
+      ]
+    }
+  ],
+  "callGraph": {
+    "login": [
+      "hashPassword",
+      "sendRequest"
+    ],
+    "sendRequest": [
+      "buildAuthHeaders"
+    ],
+    "getUserProfile": [
+      "sendRequest"
+    ],
+    "updateProfile": [
+      "sendRequest"
+    ]
+  },
+  "dataFlow": [
+    "username + password → hashPassword → sendRequest(POST /auth/login) → token → localStorage",
+    "stored token → getUserProfile/updateProfile → sendRequest(GET/PUT /users/:id)"
+  ],
+  "securityIssues": [
+    {
+      "severity": "high",
+      "issue": "Weak hash algorithm - simple bitwise operations",
+      "location": "hashPassword function"
+    },
+    {
+      "severity": "medium",
+      "issue": "Auth token stored in localStorage (vulnerable to XSS)",
+      "location": "login function"
+    },
+    {
+      "severity": "medium",
+      "issue": "Credentials sent as plaintext (hashed but no salt)",
+      "location": "sendRequest function"
+    }
+  ],
+  "apiEndpoints": [
+    {
+      "method": "POST",
+      "path": "/auth/login",
+      "purpose": "authenticate user and get token"
+    },
+    {
+      "method": "GET",
+      "path": "/users/:id",
+      "purpose": "fetch user profile"
+    },
+    {
+      "method": "PUT",
+      "path": "/users/:id",
+      "purpose": "update user profile"
+    }
+  ],
+  "keyVariables": {
+    "API_BASE_URL": "https://api.example.com",
+    "AUTH_TOKEN_KEY": "session_token"
+  },
+  "purposeKeywords": [
+    "login|authenticate|auth",
+    "profile|user.*(fetch|get|read|retrieve)",
+    "token|session|bearer",
+    "localStorage|storage|cache",
+    "password|hash|credentials"
+  ]
+}
+
+Agent A (deob) Answer:
+{
+  "purpose": "An authentication client that logs into a remote API by hashing a password, stores the session token in localStorage, and makes authenticated GET/PUT requests using Bearer token authorization.",
+  "functions": [
+    {
+      "name": "hashPassword",
+      "purpose": "Custom hash/checksum function",
+      "calls": [],
+      "calledBy": [
+        "login"
+      ]
+    },
+    {
+      "name": "buildAuthHeaders",
+      "purpose": "HTTP header factory",
+      "calls": [],
+      "calledBy": [
+        "sendRequest"
+      ]
+    },
+    {
+      "name": "sendRequest",
+      "purpose": "Core HTTP request dispatcher with fetch()",
+      "calls": [
+        "buildAuthHeaders"
+      ],
+      "calledBy": [
+        "login",
+        "getUserProfile",
+        "updateProfile"
+      ]
+    },
+    {
+      "name": "login",
+      "purpose": "Authenticate user, hash password, store token in localStorage",
+      "calls": [
+        "hashPassword",
+        "sendRequest"
+      ],
+      "calledBy": [
+        "top-level code"
+      ]
+    },
+    {
+      "name": "getUserProfile",
+      "purpose": "Fetch user profile with Bearer token from localStorage",
+      "calls": [
+        "sendRequest"
+      ],
+      "calledBy": [
+        "top-level callback"
+      ]
+    },
+    {
+      "name": "updateProfile",
+      "purpose": "Update user profile via PUT with Bearer token",
+      "calls": [
+        "sendRequest"
+      ],
+      "calledBy": []
+    }
+  ],
+  "endpoints": [
+    {
+      "method": "POST",
+      "path": "/auth/login",
+      "purpose": "Login endpoint"
+    },
+    {
+      "method": "GET",
+      "path": "/users/:id",
+      "purpose": "Get user data"
+    },
+    {
+      "method": "PUT",
+      "path": "/users/:id",
+      "purpose": "Update user data"
+    }
+  ],
+  "security": [
+    {
+      "severity": "high",
+      "issue": "Hardcoded credentials in source code"
+    },
+    {
+      "severity": "high",
+      "issue": "Weak password hashing - not cryptographic (simple hashCode variant)"
+    },
+    {
+      "severity": "medium",
+      "issue": "Session token stored in localStorage (vulnerable to XSS)"
+    },
+    {
+      "severity": "medium",
+      "issue": "No token expiration or refresh mechanism"
+    },
+    {
+      "severity": "medium",
+      "issue": "Error messages leak HTTP status information"
+    },
+    {
+      "severity": "low",
+      "issue": "String obfuscation provides false sense of security"
+    },
+    {
+      "severity": "low",
+      "issue": "No CSRF protection on API requests"
+    }
+  ],
+  "dataFlow": "password → hashCode hash → POST /auth/login → token → localStorage → GET/PUT /users/:id with Bearer token",
+  "variables": [
+    {
+      "name": "API_BASE_URL",
+      "value": "https://api.example.com"
+    },
+    {
+      "name": "AUTH_TOKEN_KEY",
+      "value": "session_token in localStorage"
+    }
+  ],
+  "entryPoint": "login function called at global scope with admin credentials",
+  "functionCount": 6
+}
+
+Agent B (raw) Answer:
+{
+  "purpose": "A JavaScript API client that authenticates a hardcoded user via POST to /auth/login using a weak hash, stores the session token in localStorage, then fetches and logs the user profile.",
+  "functions": [
+    {
+      "name": "hashPassword",
+      "purpose": "Hashes a password using Java-style hashCode",
+      "calls": [],
+      "calledBy": [
+        "login"
+      ]
+    },
+    {
+      "name": "buildHeaders",
+      "purpose": "Builds HTTP request headers with Bearer token",
+      "calls": [],
+      "calledBy": [
+        "apiCall"
+      ]
+    },
+    {
+      "name": "apiCall",
+      "purpose": "Generic async HTTP request wrapper using fetch()",
+      "calls": [
+        "buildHeaders"
+      ],
+      "calledBy": [
+        "login",
+        "getProfile",
+        "updateProfile"
+      ]
+    },
+    {
+      "name": "login",
+      "purpose": "Authenticates user, hashes password, stores token",
+      "calls": [
+        "hashPassword",
+        "apiCall"
+      ],
+      "calledBy": [
+        "global"
+      ]
+    },
+    {
+      "name": "getProfile",
+      "purpose": "Retrieves user profile via GET with Bearer token",
+      "calls": [
+        "apiCall"
+      ],
+      "calledBy": [
+        "global .then"
+      ]
+    },
+    {
+      "name": "updateProfile",
+      "purpose": "Updates user profile via PUT (defined but never called)",
+      "calls": [
+        "apiCall"
+      ],
+      "calledBy": []
+    }
+  ],
+  "endpoints": [
+    {
+      "method": "POST",
+      "path": "/auth/login",
+      "purpose": "Authenticate user"
+    },
+    {
+      "method": "GET",
+      "path": "/users/{username}",
+      "purpose": "Fetch user profile"
+    },
+    {
+      "method": "PUT",
+      "path": "/users/{username}",
+      "purpose": "Update user profile"
+    }
+  ],
+  "security": [
+    {
+      "severity": "high",
+      "issue": "Hardcoded credentials in source code (admin/password123)"
+    },
+    {
+      "severity": "high",
+      "issue": "Password hashed with Java-style hashCode (non-cryptographic, reversible)"
+    },
+    {
+      "severity": "medium",
+      "issue": "Session token stored in localStorage (XSS exfiltration risk)"
+    },
+    {
+      "severity": "medium",
+      "issue": "Password hash computed client-side exposing hashing scheme"
+    },
+    {
+      "severity": "low",
+      "issue": "X-Request-ID generated with predictable Math.random()"
+    },
+    {
+      "severity": "medium",
+      "issue": "No CSRF protection"
+    }
+  ],
+  "dataFlow": "password123 hashed via hashCode → POST /auth/login → token saved to localStorage → GET /users/admin → response logged",
+  "variables": [
+    {
+      "name": "BASE_URL",
+      "value": "https://api.example.com"
+    },
+    {
+      "name": "TOKEN_KEY",
+      "value": "session_token in localStorage"
+    },
+    {
+      "name": "HARDCODED_PASSWORD",
+      "value": "password123 embedded in code"
+    }
+  ],
+  "entryPoint": "login('admin','password123') called at global scope",
+  "functionCount": 6
+}

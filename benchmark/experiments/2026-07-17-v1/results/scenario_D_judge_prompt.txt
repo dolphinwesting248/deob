@@ -1,0 +1,386 @@
+You are a benchmark judge. Score two agents' answers against the ground truth.
+Return ONLY a JSON object (no markdown, no explanation outside JSON):
+
+{
+  "deob": {
+    "purpose": {"score": 0.0, "why": "1 sentence"},
+    "functions": {"score": 0.0, "why": "1 sentence"},
+    "security": {"score": 0.0, "why": "1 sentence"},
+    "dataFlow": {"score": 0.0, "why": "1 sentence"},
+    "variables": {"score": 0.0, "why": "1 sentence"}
+  },
+  "raw": {
+    "purpose": {"score": 0.0, "why": "1 sentence"},
+    "functions": {"score": 0.0, "why": "1 sentence"},
+    "security": {"score": 0.0, "why": "1 sentence"},
+    "dataFlow": {"score": 0.0, "why": "1 sentence"},
+    "variables": {"score": 0.0, "why": "1 sentence"}
+  }
+}
+
+Scoring guidelines:
+- purpose: Does the one-sentence summary capture the FULL functionality? Penalize missing major features (e.g. "login" only vs "login + profile fetch + update"). Reward accuracy over brevity.
+- functions: How many functions were correctly identified (name + purpose + call relationships)? Count both precision and recall. Ignore naming differences if purpose matches.
+- security: How many security issues were correctly identified (severity + description)? Full match = 1.0, partial (right issue wrong severity) = 0.5.
+- dataFlow: Does the data flow description match the actual flow? Check key steps (input→processing→output). Missing major steps = lower score.
+- variables: How many key variables were correctly identified (name/value/purpose)? Match meaning, not exact name.
+
+Ground Truth:
+{
+  "scenario": "D",
+  "difficulty": "hard",
+  "description": "Webpack module bundle: utils (date/HTML/function helpers) → api (event fetching + rendering) → app (debounced event loader UI)",
+  "obfuscationTechniques": [
+    "webpack module wrapping",
+    "module ID numbering",
+    "__webpack_require__ pattern",
+    "variable renaming"
+  ],
+  "functions": [
+    {
+      "name": "formatDate",
+      "purpose": "Format JS Date to YYYY-MM-DD string",
+      "params": [
+        "date"
+      ],
+      "returns": "string",
+      "calls": [],
+      "calledBy": [
+        "fetchEvents"
+      ],
+      "security": []
+    },
+    {
+      "name": "sanitize",
+      "purpose": "HTML-escape special characters (<, >, &, \", ')",
+      "params": [
+        "input string"
+      ],
+      "returns": "escaped string",
+      "calls": [],
+      "calledBy": [
+        "renderEvent"
+      ],
+      "security": [
+        "XSS prevention - HTML entity escaping"
+      ]
+    },
+    {
+      "name": "debounce",
+      "purpose": "Create debounced version of fn (delays execution until pause in calls)",
+      "params": [
+        "fn",
+        "delay (ms)"
+      ],
+      "returns": "debounced function",
+      "calls": [],
+      "calledBy": [
+        "(app module)"
+      ],
+      "security": []
+    },
+    {
+      "name": "fetchEvents",
+      "purpose": "Fetch event list from API for date range",
+      "params": [
+        "startDate",
+        "endDate"
+      ],
+      "returns": "Promise<events array>",
+      "calls": [
+        "formatDate"
+      ],
+      "calledBy": [
+        "(app module)"
+      ],
+      "security": [
+        "fetches from external API"
+      ]
+    },
+    {
+      "name": "renderEvent",
+      "purpose": "Render event as HTML div with sanitized title",
+      "params": [
+        "event object"
+      ],
+      "returns": "HTML string",
+      "calls": [
+        "sanitize"
+      ],
+      "calledBy": [
+        "(app module)"
+      ],
+      "security": [
+        "uses innerHTML (potential XSS if sanitize is bypassed)"
+      ]
+    }
+  ],
+  "callGraph": {
+    "fetchEvents": [
+      "formatDate"
+    ],
+    "renderEvent": [
+      "sanitize"
+    ],
+    "debounced loadEvents": [
+      "fetchEvents",
+      "renderEvent"
+    ]
+  },
+  "dataFlow": [
+    "user click → debounced handler (300ms) → fetchEvents(now, +1day) → API response",
+    "events array → forEach → renderEvent → sanitize title → innerHTML insert into DOM"
+  ],
+  "securityIssues": [
+    {
+      "severity": "high",
+      "issue": "innerHTML usage - XSS vector if sanitize fails",
+      "location": "app module"
+    },
+    {
+      "severity": "medium",
+      "issue": "API endpoint fetches without authentication",
+      "location": "fetchEvents function"
+    }
+  ],
+  "apiEndpoints": [
+    {
+      "method": "GET",
+      "path": "/events",
+      "purpose": "fetch events for date range",
+      "queryParams": [
+        "start",
+        "end"
+      ]
+    }
+  ],
+  "keyVariables": {
+    "BASE_URL": "https://api.example.com",
+    "debounce delay": "300ms"
+  },
+  "purposeKeywords": [
+    "event|calendar|schedule.*(fetch|load|display)",
+    "sanitize|escape|xss",
+    "webpack|module|bundle",
+    "debounce|throttle|delay",
+    "innerhtml|dom|render|inject"
+  ]
+}
+
+Agent A (deob) Answer:
+{
+  "purpose": "Webpack module bundle with three modules: utils (date formatting, HTML sanitization, debounce), api (polling endpoint, template rendering), and app (debounced UI event loader that fetches events and renders them into DOM).",
+  "functions": [
+    {
+      "name": "formatDate",
+      "purpose": "Format JS Date to YYYY-MM-DD string",
+      "calls": [],
+      "calledBy": [
+        "fetchEvents"
+      ]
+    },
+    {
+      "name": "sanitize",
+      "purpose": "HTML-escape special characters (<, >, &, \", ') to prevent XSS",
+      "calls": [],
+      "calledBy": [
+        "renderEvent"
+      ]
+    },
+    {
+      "name": "debounce",
+      "purpose": "Debounce function with setTimeout — delays execution until pause",
+      "calls": [
+        "clearTimeout",
+        "setTimeout"
+      ],
+      "calledBy": [
+        "app module"
+      ]
+    },
+    {
+      "name": "fetchEvents",
+      "purpose": "Fetch events from API for date range via GET",
+      "calls": [
+        "formatDate",
+        "fetch"
+      ],
+      "calledBy": [
+        "app module"
+      ]
+    },
+    {
+      "name": "renderEvent",
+      "purpose": "Render event as HTML div with sanitized title",
+      "calls": [
+        "sanitize"
+      ],
+      "calledBy": [
+        "app module"
+      ]
+    }
+  ],
+  "endpoints": [
+    {
+      "method": "GET",
+      "path": "/events",
+      "purpose": "Fetch events for date range",
+      "queryParams": [
+        "start",
+        "end"
+      ]
+    }
+  ],
+  "security": [
+    {
+      "severity": "high",
+      "issue": "innerHTML usage - XSS vector if sanitize fails or is bypassed"
+    },
+    {
+      "severity": "high",
+      "issue": "Dynamic code execution via new Function() in string decoder"
+    },
+    {
+      "severity": "medium",
+      "issue": "Anti-debugging evasion - detects DevTools via function.toString() regex"
+    },
+    {
+      "severity": "medium",
+      "issue": "4-second setInterval polling - potential data exfiltration risk"
+    }
+  ],
+  "dataFlow": "DOM click → debounce(300ms) → fetchEvents(start, end) → GET /events → JSON response → forEach renderEvent → sanitize title → innerHTML → DOM",
+  "variables": [
+    {
+      "name": "BASE_URL",
+      "value": "https://api.example.com (decoded at runtime)"
+    },
+    {
+      "name": "debounceDelay",
+      "value": "300ms"
+    }
+  ],
+  "entryPoint": "document.getElementById('load-btn').addEventListener('click', ...)",
+  "functionCount": 5
+}
+
+Agent B (raw) Answer:
+{
+  "purpose": "Obfuscated content injection script that fetches payload from remote C2 server and renders into DOM via innerHTML.",
+  "functions": [
+    {
+      "name": "stringDecoder",
+      "purpose": "RC4-based string decryption and caching dispatcher",
+      "calls": [
+        "stringTable"
+      ],
+      "calledBy": [
+        "all functions"
+      ]
+    },
+    {
+      "name": "formatDate",
+      "purpose": "URL-safe slug generator from Date objects for API query parameters",
+      "calls": [
+        "stringDecoder"
+      ],
+      "calledBy": [
+        "apiClient"
+      ]
+    },
+    {
+      "name": "sanitize",
+      "purpose": "HTML entity encoder escaping < > & \" ' characters to prevent XSS",
+      "calls": [
+        "stringDecoder"
+      ],
+      "calledBy": [
+        "renderer"
+      ]
+    },
+    {
+      "name": "debounce",
+      "purpose": "Debounce utility delaying wrapped function by 300ms",
+      "calls": [
+        "stringDecoder"
+      ],
+      "calledBy": [
+        "entry"
+      ]
+    },
+    {
+      "name": "apiClient",
+      "purpose": "HTTP API client fetching from remote URL with date-range params",
+      "calls": [
+        "formatDate",
+        "fetch"
+      ],
+      "calledBy": [
+        "debouncedHandler"
+      ]
+    },
+    {
+      "name": "renderer",
+      "purpose": "HTML template renderer building markup from API response",
+      "calls": [
+        "sanitize"
+      ],
+      "calledBy": [
+        "responseHandler"
+      ]
+    },
+    {
+      "name": "antiDebug",
+      "purpose": "Self-defense anti-debugging engine: clears console, detects code beautification",
+      "calls": [
+        "stringDecoder"
+      ],
+      "calledBy": [
+        "debounce",
+        "setInterval"
+      ]
+    }
+  ],
+  "endpoints": [
+    {
+      "method": "GET",
+      "path": "(RC4-encrypted base URL)",
+      "purpose": "Fetch content from remote C2 server for DOM injection"
+    }
+  ],
+  "security": [
+    {
+      "severity": "high",
+      "issue": "Multi-layer obfuscation (RC4, control flow flattening, opaque predicates) conceals malicious intent"
+    },
+    {
+      "severity": "high",
+      "issue": "Unsanitized DOM injection via innerHTML enabling XSS"
+    },
+    {
+      "severity": "high",
+      "issue": "Anti-debugging self-defending: clears console every 4s, detects code beautification"
+    },
+    {
+      "severity": "high",
+      "issue": "Dynamic code execution via Function('return this')() bypassing CSP"
+    },
+    {
+      "severity": "medium",
+      "issue": "Dead code insertion inflating function bodies"
+    }
+  ],
+  "dataFlow": "DOM click → debounce(300ms) → construct URL with slugs → fetch remote C2 → JSON parse → forEach encode name + render HTML → innerHTML inject into DOM",
+  "variables": [
+    {
+      "name": "BASE_URL",
+      "value": "RC4-encrypted, decoded at runtime"
+    },
+    {
+      "name": "debouncedHandler",
+      "value": "2000ms debounced click handler"
+    }
+  ],
+  "entryPoint": "IIFE at bottom: addEventListener on DOM element identified by encrypted selector",
+  "functionCount": 7
+}

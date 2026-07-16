@@ -1,0 +1,265 @@
+You are a benchmark judge. Score two agents' answers against the ground truth.
+Return ONLY a JSON object (no markdown, no explanation outside JSON):
+
+{
+  "deob": {
+    "purpose": {"score": 0.0, "why": "1 sentence"},
+    "functions": {"score": 0.0, "why": "1 sentence"},
+    "security": {"score": 0.0, "why": "1 sentence"},
+    "dataFlow": {"score": 0.0, "why": "1 sentence"},
+    "variables": {"score": 0.0, "why": "1 sentence"}
+  },
+  "raw": {
+    "purpose": {"score": 0.0, "why": "1 sentence"},
+    "functions": {"score": 0.0, "why": "1 sentence"},
+    "security": {"score": 0.0, "why": "1 sentence"},
+    "dataFlow": {"score": 0.0, "why": "1 sentence"},
+    "variables": {"score": 0.0, "why": "1 sentence"}
+  }
+}
+
+Scoring guidelines:
+- purpose: Does the one-sentence summary capture the FULL functionality? Penalize missing major features (e.g. "login" only vs "login + profile fetch + update"). Reward accuracy over brevity.
+- functions: How many functions were correctly identified (name + purpose + call relationships)? Count both precision and recall. Ignore naming differences if purpose matches.
+- security: How many security issues were correctly identified (severity + description)? Full match = 1.0, partial (right issue wrong severity) = 0.5.
+- dataFlow: Does the data flow description match the actual flow? Check key steps (input→processing→output). Missing major steps = lower score.
+- variables: How many key variables were correctly identified (name/value/purpose)? Match meaning, not exact name.
+
+Ground Truth:
+{
+  "scenario": "C",
+  "difficulty": "medium",
+  "description": "User data processing pipeline: parse → validate → transform → group → sort → statistics",
+  "obfuscationTechniques": [
+    "nested function extraction",
+    "sequence expressions (comma operator)",
+    "variable renaming"
+  ],
+  "functions": [
+    {
+      "name": "processUserData",
+      "purpose": "Main pipeline: parse JSON, validate, transform, group by domain, sort, generate stats",
+      "params": [
+        "rawData (JSON string)"
+      ],
+      "returns": "object {users (grouped), stats}",
+      "calls": [
+        "parse",
+        "filter callback",
+        "map callback",
+        "forEach callback",
+        "sortGroup",
+        "identity helper",
+        "stats sort callback"
+      ],
+      "calledBy": [],
+      "security": []
+    },
+    {
+      "name": "filter validator",
+      "purpose": "Check if item has id, name, and email fields",
+      "params": [
+        "item"
+      ],
+      "returns": "boolean",
+      "calls": [],
+      "calledBy": [
+        "processUserData (Array.filter)"
+      ],
+      "security": []
+    },
+    {
+      "name": "transform mapper",
+      "purpose": "Transform item: normalize name, email, extract domain, format date",
+      "params": [
+        "item"
+      ],
+      "returns": "transformed object",
+      "calls": [],
+      "calledBy": [
+        "processUserData (Array.map)"
+      ],
+      "security": []
+    },
+    {
+      "name": "sortGroup",
+      "purpose": "Sort each domain group alphabetically by displayName",
+      "params": [
+        "grouped object"
+      ],
+      "returns": "void (mutates in place)",
+      "calls": [],
+      "calledBy": [
+        "processUserData"
+      ],
+      "security": []
+    },
+    {
+      "name": "stats sorter",
+      "purpose": "Sort domain groups by user count descending (for topDomain)",
+      "params": [
+        "entryA",
+        "entryB"
+      ],
+      "returns": "number",
+      "calls": [],
+      "calledBy": [
+        "processUserData"
+      ],
+      "security": []
+    }
+  ],
+  "callGraph": {
+    "processUserData": [
+      "filter validator",
+      "transform mapper",
+      "sortGroup",
+      "stats sorter"
+    ]
+  },
+  "dataFlow": [
+    "rawData (JSON) → JSON.parse → array of items",
+    "items → filter (valid items with id/name/email) → map (transform each item: normalize fields, extract domain)",
+    "transformed items → group by email domain → sort each group alphabetically",
+    "sorted groups → compute statistics (total, domain count, top domain, invalid count)"
+  ],
+  "securityIssues": [],
+  "apiEndpoints": [],
+  "keyVariables": {},
+  "purposeKeywords": [
+    "parse|filter|map|transform|process",
+    "group.*(domain|category)|aggregate",
+    "sort|order|statistics|summary",
+    "json|array|data",
+    "validat|normalize|sanitize"
+  ]
+}
+
+Agent A (deob) Answer:
+{
+  "purpose": "Data processing pipeline that filters, transforms, groups, and aggregates JSON user records by domain with statistics output.",
+  "functions": [
+    {
+      "name": "processUserData",
+      "purpose": "Core pipeline: parse JSON, filter valid records, normalize fields, group by domain, sort groups, compute stats",
+      "calls": [
+        "parse",
+        "filter",
+        "map",
+        "forEach",
+        "sort"
+      ],
+      "calledBy": []
+    },
+    {
+      "name": "filter validator",
+      "purpose": "Check if item has id, displayName, and email fields",
+      "calls": [],
+      "calledBy": [
+        "processUserData (Array.filter)"
+      ]
+    },
+    {
+      "name": "transform mapper",
+      "purpose": "Normalize fields: trim/lowercase name, lowercase email, extract domain, format date",
+      "calls": [],
+      "calledBy": [
+        "processUserData (Array.map)"
+      ]
+    },
+    {
+      "name": "sortGroup",
+      "purpose": "Sort each domain group alphabetically by displayName",
+      "calls": [],
+      "calledBy": [
+        "processUserData"
+      ]
+    },
+    {
+      "name": "stats calculator",
+      "purpose": "Compute total, validDomains, topDomain, invalidCount",
+      "calls": [],
+      "calledBy": [
+        "processUserData"
+      ]
+    }
+  ],
+  "endpoints": [],
+  "security": [
+    {
+      "severity": "high",
+      "issue": "Sandbox escape via Function constructor to leak global object"
+    },
+    {
+      "severity": "medium",
+      "issue": "Anti-debugging detection via recursive function toString checks"
+    },
+    {
+      "severity": "medium",
+      "issue": "Self-modifying function pattern for string lookup table"
+    }
+  ],
+  "dataFlow": "JSON string → parse → filter (id/name/email) → map (normalize, extract domain) → group by domain → sort groups → compute stats → output",
+  "variables": [],
+  "entryPoint": "processUserData function",
+  "functionCount": 5
+}
+
+Agent B (raw) Answer:
+{
+  "purpose": "Parses a JSON array of user records, filters valid entries by id/displayName/email, normalizes fields (trim/lowercase), extracts email domain, groups users by domain, sorts each group alphabetically, and produces grouped data with summary statistics.",
+  "functions": [
+    {
+      "name": "processUserData",
+      "purpose": "Main pipeline: validate, filter, normalize, group, sort, stats",
+      "calls": [
+        "JSON.parse",
+        "filter",
+        "map",
+        "forEach",
+        "sort"
+      ],
+      "calledBy": [
+        "external"
+      ]
+    },
+    {
+      "name": "filter validator",
+      "purpose": "Check if item has id, name, and email",
+      "calls": [],
+      "calledBy": [
+        "processUserData"
+      ]
+    },
+    {
+      "name": "transform mapper",
+      "purpose": "Normalize fields: trim, lowercase, extract domain, format date",
+      "calls": [],
+      "calledBy": [
+        "processUserData"
+      ]
+    },
+    {
+      "name": "sortGroup",
+      "purpose": "Sort each domain group alphabetically by displayName",
+      "calls": [],
+      "calledBy": [
+        "processUserData"
+      ]
+    },
+    {
+      "name": "stats calculator",
+      "purpose": "Compute total, validDomains, topDomain, invalidCount",
+      "calls": [],
+      "calledBy": [
+        "processUserData"
+      ]
+    }
+  ],
+  "endpoints": [],
+  "security": [],
+  "dataFlow": "JSON string → parse → filter (id/name/email) → map (normalize fields, extract domain) → group by domain → sort groups → compute stats → output",
+  "variables": [],
+  "entryPoint": "processUserData function",
+  "functionCount": 5
+}

@@ -231,17 +231,17 @@ BENCH_EXP_DIR=/path/to/experiment node tools/score.js --all
 
 For example, 9 indexes and calculation
 
-| Dimension | Weight | Method |
-|-----------|--------|--------|
-| Functions | 30% | F1 score (name + purpose matching) |
-| Security | 20% | Issue keyword overlap |
-| Endpoints | 15% | Exact method + path matching |
-| DataFlow | 10% | Keyword overlap |
-| Purpose | 5% | Keyword overlap with description |
-| Time | 5% | Time spent |
-| Variables | 10% | Value/purpose matching |
-| EntryPoint | 2.5% | Existence check |
-| TokenEfficiency | 2.5% | Token consumption |
+| Dimension  | Weight | Formula                                                      |
+| ---------- | ------ | ------------------------------------------------------------ |
+| Functions  | 30%    | $F_1 = 2 \cdot \frac{P \cdot R}{P + R}$ where $P = \frac{matched}{answer}$, $R = \frac{matched}{truth}$ |
+| Security   | 20%    | $\frac{1}{n}\sum_{i=1}^n \max_{j} \; \text{overlap}(\text{answer}_j,\ \text{truth}_i)$ |
+| Endpoints  | 15%    | $\frac{\text{matched endpoints}}{\text{truth endpoints}}$    |
+| DataFlow   | 10%    | $\frac{|\text{keywords}_{\text{answer}} \cap \text{keywords}_{\text{truth}}|}{|\text{keywords}_{\text{truth}}|}$ |
+| Variables  | 10%    | $\frac{\text{matched variables}}{\text{truth variables}}$    |
+| Purpose    | 5%     | $\frac{|\text{keywords}_{\text{answer}} \cap \text{keywords}_{\text{truth}}|}{|\text{keywords}_{\text{truth}}|}$ |
+| Time       | 5%     | $1 - \frac{t_{\text{agent}}}{t_{\text{deob}} + t_{\text{raw}}}$ |
+| EntryPoint | 2.5%   | $\begin{cases}1 & \text{if identified}\\0 & \text{otherwise}\end{cases}$ |
+| Token      | 2.5%   | $1 - \frac{k_{\text{agent}}}{k_{\text{deob}} + k_{\text{raw}}}$ |
 
 ## Generate the charts
 

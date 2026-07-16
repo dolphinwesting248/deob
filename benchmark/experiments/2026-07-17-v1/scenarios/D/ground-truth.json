@@ -2,32 +2,139 @@
   "scenario": "D",
   "difficulty": "hard",
   "description": "Webpack module bundle: utils (date/HTML/function helpers) → api (event fetching + rendering) → app (debounced event loader UI)",
-  "obfuscationTechniques": ["webpack module wrapping", "module ID numbering", "__webpack_require__ pattern", "variable renaming"],
+  "obfuscationTechniques": [
+    "webpack module wrapping",
+    "module ID numbering",
+    "__webpack_require__ pattern",
+    "variable renaming"
+  ],
   "functions": [
-    {"name": "formatDate", "purpose": "Format JS Date to YYYY-MM-DD string", "params": ["date"], "returns": "string", "calls": [], "calledBy": ["fetchEvents"], "security": []},
-    {"name": "sanitize", "purpose": "HTML-escape special characters (<, >, &, \", ')", "params": ["input string"], "returns": "escaped string", "calls": [], "calledBy": ["renderEvent"], "security": ["XSS prevention - HTML entity escaping"]},
-    {"name": "debounce", "purpose": "Create debounced version of fn (delays execution until pause in calls)", "params": ["fn", "delay (ms)"], "returns": "debounced function", "calls": [], "calledBy": ["(app module)"], "security": []},
-    {"name": "fetchEvents", "purpose": "Fetch event list from API for date range", "params": ["startDate", "endDate"], "returns": "Promise<events array>", "calls": ["formatDate"], "calledBy": ["(app module)"], "security": ["fetches from external API"]},
-    {"name": "renderEvent", "purpose": "Render event as HTML div with sanitized title", "params": ["event object"], "returns": "HTML string", "calls": ["sanitize"], "calledBy": ["(app module)"], "security": ["uses innerHTML (potential XSS if sanitize is bypassed)"]}
+    {
+      "name": "formatDate",
+      "purpose": "Format JS Date to YYYY-MM-DD string",
+      "params": [
+        "date"
+      ],
+      "returns": "string",
+      "calls": [],
+      "calledBy": [
+        "fetchEvents"
+      ],
+      "security": []
+    },
+    {
+      "name": "sanitize",
+      "purpose": "HTML-escape special characters (<, >, &, \", ')",
+      "params": [
+        "input string"
+      ],
+      "returns": "escaped string",
+      "calls": [],
+      "calledBy": [
+        "renderEvent"
+      ],
+      "security": [
+        "XSS prevention - HTML entity escaping"
+      ]
+    },
+    {
+      "name": "debounce",
+      "purpose": "Create debounced version of fn (delays execution until pause in calls)",
+      "params": [
+        "fn",
+        "delay (ms)"
+      ],
+      "returns": "debounced function",
+      "calls": [],
+      "calledBy": [
+        "(app module)"
+      ],
+      "security": []
+    },
+    {
+      "name": "fetchEvents",
+      "purpose": "Fetch event list from API for date range",
+      "params": [
+        "startDate",
+        "endDate"
+      ],
+      "returns": "Promise<events array>",
+      "calls": [
+        "formatDate"
+      ],
+      "calledBy": [
+        "(app module)"
+      ],
+      "security": [
+        "fetches from external API"
+      ]
+    },
+    {
+      "name": "renderEvent",
+      "purpose": "Render event as HTML div with sanitized title",
+      "params": [
+        "event object"
+      ],
+      "returns": "HTML string",
+      "calls": [
+        "sanitize"
+      ],
+      "calledBy": [
+        "(app module)"
+      ],
+      "security": [
+        "uses innerHTML (potential XSS if sanitize is bypassed)"
+      ]
+    }
   ],
   "callGraph": {
-    "fetchEvents": ["formatDate"],
-    "renderEvent": ["sanitize"],
-    "debounced loadEvents": ["fetchEvents", "renderEvent"]
+    "fetchEvents": [
+      "formatDate"
+    ],
+    "renderEvent": [
+      "sanitize"
+    ],
+    "debounced loadEvents": [
+      "fetchEvents",
+      "renderEvent"
+    ]
   },
   "dataFlow": [
     "user click → debounced handler (300ms) → fetchEvents(now, +1day) → API response",
     "events array → forEach → renderEvent → sanitize title → innerHTML insert into DOM"
   ],
   "securityIssues": [
-    {"severity": "high", "issue": "innerHTML usage - XSS vector if sanitize fails", "location": "app module"},
-    {"severity": "medium", "issue": "API endpoint fetches without authentication", "location": "fetchEvents function"}
+    {
+      "severity": "high",
+      "issue": "innerHTML usage - XSS vector if sanitize fails",
+      "location": "app module"
+    },
+    {
+      "severity": "medium",
+      "issue": "API endpoint fetches without authentication",
+      "location": "fetchEvents function"
+    }
   ],
   "apiEndpoints": [
-    {"method": "GET", "path": "/events", "purpose": "fetch events for date range", "queryParams": ["start", "end"]}
+    {
+      "method": "GET",
+      "path": "/events",
+      "purpose": "fetch events for date range",
+      "queryParams": [
+        "start",
+        "end"
+      ]
+    }
   ],
   "keyVariables": {
     "BASE_URL": "https://api.example.com",
     "debounce delay": "300ms"
-  }
+  },
+  "purposeKeywords": [
+    "event|calendar|schedule.*(fetch|load|display)",
+    "sanitize|escape|xss",
+    "webpack|module|bundle",
+    "debounce|throttle|delay",
+    "innerhtml|dom|render|inject"
+  ]
 }

@@ -2,32 +2,136 @@
   "scenario": "E",
   "difficulty": "hard",
   "description": "Payment processing module: card validation (Luhn algorithm), card type detection, card data encryption, and payment gateway integration",
-  "obfuscationTechniques": ["control flow flattening", "string array + decoder", "variable renaming", "IIFE wrapping", "function array pattern"],
+  "obfuscationTechniques": [
+    "control flow flattening",
+    "string array + decoder",
+    "variable renaming",
+    "IIFE wrapping",
+    "function array pattern"
+  ],
   "functions": [
-    {"name": "detectCardType", "purpose": "Detect credit card type (visa/mastercard/amex) by regex pattern matching", "params": ["cardNumber"], "returns": "string (card type)", "calls": [], "calledBy": ["validateCard"], "security": ["handles card numbers"]},
-    {"name": "validateCard", "purpose": "Validate card number format and Luhn checksum", "params": ["cardNumber"], "returns": "object {valid, error?, type?}", "calls": ["detectCardType"], "calledBy": ["processPayment"], "security": ["implements Luhn algorithm for card validation"]},
-    {"name": "encryptCardData", "purpose": "Encrypt card number and CVV using base64 encoding (not real encryption)", "params": ["cardNumber", "cvv"], "returns": "object {card (hash), cvv (hash)}", "calls": [], "calledBy": ["processPayment"], "security": ["uses btoa (not real encryption) - card data weakly protected"]},
-    {"name": "processPayment", "purpose": "Full payment flow: validate card → encrypt data → send to payment gateway", "params": ["amount", "currency", "cardNumber", "cvv"], "returns": "object {success, transactionId?}", "calls": ["validateCard", "encryptCardData"], "calledBy": [], "security": ["sends card data to external API", "weak encryption (btoa)", "no input sanitization"]}
+    {
+      "name": "detectCardType",
+      "purpose": "Detect credit card type (visa/mastercard/amex) by regex pattern matching",
+      "params": [
+        "cardNumber"
+      ],
+      "returns": "string (card type)",
+      "calls": [],
+      "calledBy": [
+        "validateCard"
+      ],
+      "security": [
+        "handles card numbers"
+      ]
+    },
+    {
+      "name": "validateCard",
+      "purpose": "Validate card number format and Luhn checksum",
+      "params": [
+        "cardNumber"
+      ],
+      "returns": "object {valid, error?, type?}",
+      "calls": [
+        "detectCardType"
+      ],
+      "calledBy": [
+        "processPayment"
+      ],
+      "security": [
+        "implements Luhn algorithm for card validation"
+      ]
+    },
+    {
+      "name": "encryptCardData",
+      "purpose": "Encrypt card number and CVV using base64 encoding (not real encryption)",
+      "params": [
+        "cardNumber",
+        "cvv"
+      ],
+      "returns": "object {card (hash), cvv (hash)}",
+      "calls": [],
+      "calledBy": [
+        "processPayment"
+      ],
+      "security": [
+        "uses btoa (not real encryption) - card data weakly protected"
+      ]
+    },
+    {
+      "name": "processPayment",
+      "purpose": "Full payment flow: validate card → encrypt data → send to payment gateway",
+      "params": [
+        "amount",
+        "currency",
+        "cardNumber",
+        "cvv"
+      ],
+      "returns": "object {success, transactionId?}",
+      "calls": [
+        "validateCard",
+        "encryptCardData"
+      ],
+      "calledBy": [],
+      "security": [
+        "sends card data to external API",
+        "weak encryption (btoa)",
+        "no input sanitization"
+      ]
+    }
   ],
   "callGraph": {
-    "processPayment": ["validateCard", "encryptCardData"],
-    "validateCard": ["detectCardType"]
+    "processPayment": [
+      "validateCard",
+      "encryptCardData"
+    ],
+    "validateCard": [
+      "detectCardType"
+    ]
   },
   "dataFlow": [
     "cardNumber + cvv → validateCard (Luhn check + type detection) → encryptCardData (btoa encoding)",
     "amount + currency + encrypted card → JSON payload → POST /v1/charge → transaction ID"
   ],
   "securityIssues": [
-    {"severity": "critical", "issue": "Card data encrypted with btoa (base64, not real encryption)", "location": "encryptCardData function"},
-    {"severity": "high", "issue": "Full card number and CVV processed in plaintext memory", "location": "processPayment function"},
-    {"severity": "high", "issue": "Card data sent to external payment gateway over HTTPS", "location": "processPayment function"},
-    {"severity": "medium", "issue": "No input validation for amount/currency - potential injection", "location": "processPayment function"}
+    {
+      "severity": "critical",
+      "issue": "Card data encrypted with btoa (base64, not real encryption)",
+      "location": "encryptCardData function"
+    },
+    {
+      "severity": "high",
+      "issue": "Full card number and CVV processed in plaintext memory",
+      "location": "processPayment function"
+    },
+    {
+      "severity": "high",
+      "issue": "Card data sent to external payment gateway over HTTPS",
+      "location": "processPayment function"
+    },
+    {
+      "severity": "medium",
+      "issue": "No input validation for amount/currency - potential injection",
+      "location": "processPayment function"
+    }
   ],
   "apiEndpoints": [
-    {"method": "POST", "path": "/v1/charge", "purpose": "process payment charge", "host": "https://api.payment.com"}
+    {
+      "method": "POST",
+      "path": "/v1/charge",
+      "purpose": "process payment charge",
+      "host": "https://api.payment.com"
+    }
   ],
   "keyVariables": {
     "PAYMENT_API": "https://api.payment.com",
     "CARD_PATTERNS": "visa/mastercard/amex regex patterns"
-  }
+  },
+  "purposeKeywords": [
+    "card.*(valid|check)|luhn|payment",
+    "visa|mastercard|amex|detect",
+    "encrypt|btoa|atob|sanitize|tokenize",
+    "fetch.*(api|gateway|endpoint)|post.*charge",
+    "amount|currency|cvv|transaction"
+  ]
 }

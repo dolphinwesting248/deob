@@ -48,10 +48,6 @@ _Blue = deob, red = raw. Gap explodes from scenario D onward._
 | EntryPoint | 2.5% | $\begin{cases}1 & \text{if identified}\\0 & \text{otherwise}\end{cases}$ |
 | Token | 2.5% | $1 - \frac{k_{\text{agent}}}{k_{\text{deob}} + k_{\text{raw}}}$ |
 
-$$\text{Total} = \sum_{i=1}^{9} w_i \cdot s_i$$
-
-Where $t$ = analysis time (seconds), $k$ = input tokens consumed.
-
 **Scenarios**: 5 custom JavaScript programs obfuscated via `javascript-obfuscator` at increasing intensity:
 
 | # | Domain | Obfuscation Level | Techniques |
