@@ -12,7 +12,7 @@ const { parser, generate, t, fs } = require("./config");
 const path = require("path");
 const { processAllFunctions } = require("./traverse");
 const { extractTopLevelIIFEs } = require("./wrapper");
-const { sanitizeReservedWords, hoistDeclarations, simplify, normalizeShortCircuit, expandSequences, eliminateDeadCode, inlineReadOnlyProperties, removeUnusedHelpers, simplifyRedundantConditions, inlinePureWrappers, inlineArithmeticWrappers, sortByCallTree, inlineSingleCallerFns, normalizeSyntax, extractInlineFunctions, annotateAlerts, pushDataToBottom, resetInlineNames } = require("./passes");
+const { sanitizeReservedWords, hoistDeclarations, simplify, normalizeShortCircuit, expandSequences, eliminateDeadCode, inlineReadOnlyProperties, removeUnusedHelpers, simplifyRedundantConditions, inlinePureWrappers, inlineArithmeticWrappers, sortByCallTree, inlineSingleCallerFns, normalizeSyntax, extractInlineFunctions, annotateAlerts, pushDataToBottom, resetInlineNames, inlineConstObjects } = require("./passes");
 const { resetNames } = require("./naming");
 
 function main({ input, output, split } = {}) {
@@ -104,6 +104,11 @@ function main({ input, output, split } = {}) {
   const t10 = Date.now();
   inlineReadOnlyProperties(ast);
   console.log(`  Done in ${Date.now() - t10}ms`);
+
+  console.log("Step 10b: Inlining const object properties...");
+  const t10b = Date.now();
+  inlineConstObjects(ast);
+  console.log(`  Done in ${Date.now() - t10b}ms`);
 
   console.log("Step 11: Removing unused helper functions...");
   const t11 = Date.now();

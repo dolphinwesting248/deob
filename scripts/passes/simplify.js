@@ -733,10 +733,99 @@ function normalizeSyntax(ast) {
   console.log(`  Normalized ${count} syntax patterns`);
 }
 
+// ---- inlineConstObjects: replace obj.prop with literal value when obj is a const ----
+// Pattern: var cfg = {timeout: 5000}; ... cfg.timeout → 5000
+function inlineConstObjects(ast) {
+  let count = 0;
+
+  // Phase 1: find const object declarations with all-literal properties
+  const constObjs = new Map(); // name -> Map<propName, literalNode>
+  for (const stmt of ast.program.body) {
+    if (!t.isVariableDeclaration(stmt)) continue;
+    for (const decl of stmt.declarations) {
+      if (!t.isIdentifier(decl.id) || !t.isObjectExpression(decl.init)) continue;
+      const props = new Map();
+      let allLiteral = true;
+      for (const prop of decl.init.properties) {
+        if (!prop.shorthand && !prop.method && t.isIdentifier(prop.key) && t.isLiteral(prop.value)) {
+          props.set(prop.key.name, clone(prop.value));
+        } else if (!prop.shorthand && !prop.method && t.isStringLiteral(prop.key) && t.isLiteral(prop.value)) {
+          props.set(prop.key.value, clone(prop.value));
+        } else {
+          allLiteral = false;
+          break;
+        }
+      }
+      if (allLiteral && props.size > 0) {
+        constObjs.set(decl.id.name, props);
+      }
+    }
+  }
+
+  if (constObjs.size === 0) { console.log("  Inlined 0 const object properties"); return; }
+
+  // Phase 2: check no mutations to these objects
+  const mutated = new Set();
+  function scanMutations(node) {
+    if (!node || typeof node !== "object") return;
+    // cfg.x = ... or cfg[x] = ...
+    if (t.isAssignmentExpression(node) && t.isMemberExpression(node.left) &&
+        t.isIdentifier(node.left.object) && constObjs.has(node.left.object.name)) {
+      mutated.add(node.left.object.name);
+    }
+    // delete cfg.x
+    if (t.isUnaryExpression(node) && node.operator === "delete" &&
+        t.isMemberExpression(node.argument) && t.isIdentifier(node.argument.object) &&
+        constObjs.has(node.argument.object.name)) {
+      mutated.add(node.argument.object.name);
+    }
+    for (const k of Object.keys(node)) {
+      if (k === "start" || k === "end" || k === "loc") continue;
+      const v = node[k];
+      if (Array.isArray(v)) { for (const x of v) scanMutations(x); }
+      else if (v && typeof v.type === "string") scanMutations(v);
+    }
+  }
+  scanMutations(ast);
+  for (const name of mutated) constObjs.delete(name);
+
+  if (constObjs.size === 0) { console.log("  Inlined 0 const object properties (all mutated)"); return; }
+
+  // Phase 3: replace cfg.prop with literal value
+  function walk(node) {
+    if (!node || typeof node !== "object") return node;
+    if (t.isMemberExpression(node) && !node.computed && t.isIdentifier(node.object) &&
+        constObjs.has(node.object.name) && t.isIdentifier(node.property)) {
+      const props = constObjs.get(node.object.name);
+      if (props.has(node.property.name)) {
+        count++;
+        return props.get(node.property.name);
+      }
+    }
+    for (const k of Object.keys(node)) {
+      if (k === "start" || k === "end" || k === "loc" ||
+          k === "leadingComments" || k === "trailingComments" || k === "innerComments") continue;
+      const val = node[k];
+      if (Array.isArray(val)) {
+        for (let i = 0; i < val.length; i++) {
+          if (val[i] && typeof val[i].type === "string") val[i] = walk(val[i]);
+        }
+      } else if (val && typeof val.type === "string") {
+        node[k] = walk(val);
+      }
+    }
+    return node;
+  }
+  walk(ast);
+
+  console.log(`  Inlined ${count} const object properties`);
+}
+
 module.exports = {
   simplify,
   normalizeShortCircuit,
   expandSequences,
   simplifyRedundantConditions,
   normalizeSyntax,
+  inlineConstObjects,
 };
