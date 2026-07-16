@@ -207,7 +207,8 @@ var _0xa1b2 = ["https://api"];
 ```
 deob.js               ← CLI entry point, config parsing
 scripts/
-  config.js           ← Shared constants (parser, t, GLOBALS, RESERVED, ALERT_PATTERNS)
+  config.js           ← User-facing config (parser, t, DEFAULT_DENOISE)
+  constants.js        ← Internal constants (RESERVED, GLOBALS, ALERT_PATTERNS, SKIP_KEYS, etc.)
   ast-utils.js        ← AST walkers, pattern detectors, clone
   scope.js            ← Variable scope & external reference analysis
   naming.js           ← Sub-function naming (_S_ prefix, collision detection)
@@ -229,6 +230,13 @@ scripts/
     tier.js           ← Tier filtering (1=alerts, 2=+callees, 3=all)
     cross-file.js     ← Multi-file summary and cross-readme
     index.js          ← Re-exports all structure modules
+  types/              ← TypeScript declarations (.d.ts) — no runtime code
+    index.d.ts        ← Entry point
+    config.d.ts       ← DeobConfig, DenoiseRule
+    analysis.d.ts     ← FunctionMeta, Alert, StructureReport
+    ast.d.ts          ← ASTNode, ExtractResult, PassFunction
+    constants.d.ts    ← AlertPattern, Thresholds, OutputFiles
+    passes.d.ts       ← Pass function signatures
   metrics.js          ← Before/after readability metrics, HTML report
   index.js            ← Public API re-export
 ```

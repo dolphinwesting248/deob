@@ -89,8 +89,9 @@ output.deob/
 ```
 deob.js                          CLI entry, config parsing, directory recursion
 scripts/
-  config.js                      Shared constants: parser, t, generate, fs, path,
-                                 GLOBALS, RESERVED, ALERT_PATTERNS, DEFAULT_DENOISE
+  config.js                      User-facing config: parser, t, generate, fs, path, DEFAULT_DENOISE
+  constants.js                   Internal constants: RESERVED, GLOBALS, ALERT_PATTERNS, SKIP_KEYS,
+                                 SUB_FN_*, OUTPUT_FILES, THRESHOLDS, CATEGORIES, SEVERITY, NAMING_*
   ast-utils.js                   Generic AST walkers, pattern detectors, clone
   scope.js                       Variable scope analysis, external reference collection
   naming.js                      Sub-function naming (_S_ prefix, collision detection)
@@ -112,6 +113,13 @@ scripts/
     tier.js                      Tier filtering (1=alerts, 2=+callees, 3=all)
     cross-file.js                Multi-file summary and cross-readme
     index.js                     Re-exports all structure modules
+  types/                         TypeScript declarations (.d.ts) — no runtime code
+    index.d.ts                   Entry point, re-exports all types
+    config.d.ts                  DeobConfig, DenoiseRule, Severity
+    analysis.d.ts                FunctionMeta, Alert, StructureReport, Summary
+    ast.d.ts                     ASTNode, ExtractResult, PassFunction, BodyHint
+    constants.d.ts               AlertPattern, Thresholds, OutputFiles, Category
+    passes.d.ts                  All 18 pass function signatures
   metrics.js                     Before/after readability metrics, HTML report
   index.js                       Public API re-export
 ```
@@ -170,8 +178,12 @@ input.js
 
 ## Module Responsibilities
 
-### config.js — Shared Constants
-**Does**: Expose parser, t, generate, fs, path, GLOBALS, RESERVED, ALERT_PATTERNS, DEFAULT_DENOISE
+### config.js — User-Facing Config
+**Does**: Expose parser, t, generate, fs, path, DEFAULT_DENOISE
+**Does not**: Contain internal constants (those are in constants.js)
+
+### constants.js — Internal Constants
+**Does**: Expose RESERVED, GLOBALS, ALERT_PATTERNS, SKIP_KEYS, SUB_FN_PREFIX, SUB_FN_NAME_RE, isSubFn, DEFAULT_PARSER_OPTS, JSX_PARSER_OPTS, DEFAULT_GENERATE_OPTS, OUTPUT_FILES, THRESHOLDS, CATEGORIES, SEVERITY, NAMING_*
 **Does not**: Contain any logic or transformation code
 
 ### ast-utils.js — Generic AST Helpers
