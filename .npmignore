@@ -1,0 +1,22 @@
+# Test files
+test/
+examples/
+*.config.js
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+
+# Codegraph
+.codegraph/
+
+# Node
+node_modules/
+
+# Temp files
+*.log
+*.tmp

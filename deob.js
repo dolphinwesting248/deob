@@ -227,8 +227,15 @@ if (args[0] === "init") {
   process.exit(0);
 }
 
+if (args.includes("--version") || args.includes("-v")) {
+  try {
+    const pkg = require("./package.json");
+    console.log(pkg.version);
+  } catch (e) { console.log("unknown"); }
+  process.exit(0);
+}
+
 if (args.includes("--help") || args.includes("-h")) {
-  console.log("deob — universal JS deobfuscation pipeline\n");
   console.log("Usage: deob                       # auto-detect deob.config.js");
   console.log("       deob init [--force]        # generate config file");
   console.log("       deob --config <path>       # use specific config");

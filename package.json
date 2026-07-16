@@ -10,10 +10,28 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "deobfuscation",
+    "javascript",
+    "ast",
+    "reverse-engineering",
+    "llm",
+    "security",
+    "obfuscation",
+    "babel",
+    "static-analysis",
+    "code-analysis"
+  ],
+  "author": "dolphinwesting248",
   "license": "ISC",
   "type": "commonjs",
+  "files": [
+    "deob.js",
+    "scripts/",
+    "docs/",
+    "README.md",
+    "CLAUDE.md"
+  ],
   "dependencies": {
     "@babel/generator": "^7.29.7",
     "@babel/parser": "^7.29.7",
