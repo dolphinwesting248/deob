@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 const path = require("path");
 const fs = require("fs");
+const c = require("./scripts/colors");
 const { main } = require("./scripts/pipeline");
 const { runMetrics } = require("./scripts/metrics");
 const { runStructure, generateCrossSummary, applyTierFilter, generateIndex, generatePromptFile, writeCrossReadme, clearAnalysisCache } = require("./scripts/structure");
@@ -27,9 +28,9 @@ function collectJsFilesRecursive(dir, baseDir) {
 function processOneFile(file, outDir, opts) {
   if (clearAnalysisCache) clearAnalysisCache();
   if (!opts.quiet) {
-    console.log(`\n${"=".repeat(50)}`);
-    console.log(`Input:  ${file}`);
-    console.log(`Output: ${outDir}/`);
+    console.log(`\n${c.dim}${"=".repeat(50)}${c.reset}`);
+    console.log(`Input:  ${c.bold}${file}${c.reset}`);
+    console.log(`Output: ${c.dim}${outDir}/${c.reset}`);
     if (opts.split) console.log("        (split mode)");
     console.log("");
   }
@@ -37,8 +38,8 @@ function processOneFile(file, outDir, opts) {
   try {
     main({ input: file, output: outDir, split: opts.split });
   } catch (e) {
-    if (opts.fatal) { console.error(`\nERROR: ${e.message.split("\n")[0]}`); process.exit(1); }
-    console.error(`  SKIPPED: ${e.message.split("\n")[0]}`);
+    if (opts.fatal) { console.error(`\n${c.red}ERROR:${c.reset} ${e.message.split("\n")[0]}`); process.exit(1); }
+    console.error(`  ${c.yellow}SKIPPED:${c.reset} ${e.message.split("\n")[0]}`);
     return [];
   }
 

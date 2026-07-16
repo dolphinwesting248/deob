@@ -15,6 +15,7 @@ const { processAllFunctions } = require("./traverse");
 const { extractTopLevelIIFEs } = require("./wrapper");
 const { sanitizeReservedWords, hoistDeclarations, simplify, normalizeShortCircuit, expandSequences, eliminateDeadCode, inlineReadOnlyProperties, removeUnusedHelpers, simplifyRedundantConditions, inlinePureWrappers, inlineArithmeticWrappers, sortByCallTree, inlineSingleCallerFns, normalizeSyntax, extractInlineFunctions, annotateAlerts, pushDataToBottom, resetInlineNames, inlineConstObjects } = require("./passes");
 const { resetNames } = require("./naming");
+const c = require("./colors");
 
 function main({ input, output, split } = {}) {
   if (!input) throw new Error("main() requires { input: '<path>' }");
@@ -36,16 +37,16 @@ function main({ input, output, split } = {}) {
   }
 
   // ==================== Sanitization ====================
-  console.log("Step 0: Sanitizing reserved-word identifiers...");
+  console.log(`${c.cyan}Step 0:${c.reset} Sanitizing reserved-word identifiers...`);
   sanitizeReservedWords(ast);
 
   // ==================== Extraction Passes ====================
-  console.log("Step 1: Processing all function bodies...");
+  console.log(`${c.cyan}Step 1:${c.reset} Processing all function bodies...`);
   const t0 = Date.now();
   const subFns1 = processAllFunctions(ast);
   console.log(`  ${subFns1.length} sub-functions generated in ${Date.now() - t0}ms`);
 
-  console.log("Step 2: Extracting top-level IIFEs from comma chain...");
+  console.log(`${c.cyan}Step 2:${c.reset} Extracting top-level IIFEs from comma chain...`);
   const t1 = Date.now();
   const subFns2 = extractTopLevelIIFEs(ast);
   console.log(`  ${subFns2.length} top-level sub-functions generated in ${Date.now() - t1}ms`);
@@ -67,100 +68,100 @@ function main({ input, output, split } = {}) {
   }
 
   // ==================== Post-Processing Passes ====================
-  console.log("Step 3: Hoisting helper function declarations...");
+  console.log(`${c.cyan}Step 3:${c.reset} Hoisting helper function declarations...`);
   const t2 = Date.now();
   hoistDeclarations(ast);
-  console.log(`  Done in ${Date.now() - t2}ms`);
+  console.log(`  ${c.dim}Done in ${Date.now() - t2}ms${c.reset}`);
 
-  console.log("Step 4: Extracting inline function expressions...");
+  console.log(`${c.cyan}Step 4:${c.reset} Extracting inline function expressions...`);
   const t3b = Date.now();
   extractInlineFunctions(ast);
-  console.log(`  Done in ${Date.now() - t3b}ms`);
+  console.log(`  ${c.dim}Done in ${Date.now() - t3b}ms${c.reset}`);
 
-  console.log("Step 5: Simplifying expressions (fold+boolean+strings)...");
+  console.log(`${c.cyan}Step 5:${c.reset} Simplifying expressions (fold+boolean+strings)...`);
   const t3 = Date.now();
   simplify(ast);
-  console.log(`  Done in ${Date.now() - t3}ms`);
+  console.log(`  ${c.dim}Done in ${Date.now() - t3}ms${c.reset}`);
 
-  console.log("Step 6: Normalizing short-circuit to if blocks...");
+  console.log(`${c.cyan}Step 6:${c.reset} Normalizing short-circuit to if blocks...`);
   const t4 = Date.now();
   normalizeShortCircuit(ast);
-  console.log(`  Done in ${Date.now() - t4}ms`);
+  console.log(`  ${c.dim}Done in ${Date.now() - t4}ms${c.reset}`);
 
-  console.log("Step 7: Expanding sequence expressions...");
+  console.log(`${c.cyan}Step 7:${c.reset} Expanding sequence expressions...`);
   const t5 = Date.now();
   expandSequences(ast);
-  console.log(`  Done in ${Date.now() - t5}ms`);
+  console.log(`  ${c.dim}Done in ${Date.now() - t5}ms${c.reset}`);
 
-  console.log("Step 8: Re-normalizing short-circuit after expansion...");
+  console.log(`${c.cyan}Step 8:${c.reset} Re-normalizing short-circuit after expansion...`);
   const t6 = Date.now();
   normalizeShortCircuit(ast);
-  console.log(`  Done in ${Date.now() - t6}ms`);
+  console.log(`  ${c.dim}Done in ${Date.now() - t6}ms${c.reset}`);
 
-  console.log("Step 9: Eliminating dead code...");
+  console.log(`${c.cyan}Step 9:${c.reset} Eliminating dead code...`);
   const t9 = Date.now();
   eliminateDeadCode(ast);
-  console.log(`  Done in ${Date.now() - t9}ms`);
+  console.log(`  ${c.dim}Done in ${Date.now() - t9}ms${c.reset}`);
 
-  console.log("Step 10: Inlining read-only property access...");
+  console.log(`${c.cyan}Step 10:${c.reset} Inlining read-only property access...`);
   const t10 = Date.now();
   inlineReadOnlyProperties(ast);
-  console.log(`  Done in ${Date.now() - t10}ms`);
+  console.log(`  ${c.dim}Done in ${Date.now() - t10}ms${c.reset}`);
 
-  console.log("Step 10b: Inlining const object properties...");
+  console.log(`${c.cyan}Step 10b:${c.reset} Inlining const object properties...`);
   const t10b = Date.now();
   inlineConstObjects(ast);
-  console.log(`  Done in ${Date.now() - t10b}ms`);
+  console.log(`  ${c.dim}Done in ${Date.now() - t10b}ms${c.reset}`);
 
-  console.log("Step 11: Removing unused helper functions...");
+  console.log(`${c.cyan}Step 11:${c.reset} Removing unused helper functions...`);
   const t11 = Date.now();
   removeUnusedHelpers(ast);
-  console.log(`  Done in ${Date.now() - t11}ms`);
+  console.log(`  ${c.dim}Done in ${Date.now() - t11}ms${c.reset}`);
 
-  console.log("Step 12: Simplifying redundant conditions...");
+  console.log(`${c.cyan}Step 12:${c.reset} Simplifying redundant conditions...`);
   const t12 = Date.now();
   simplifyRedundantConditions(ast);
-  console.log(`  Done in ${Date.now() - t12}ms`);
+  console.log(`  ${c.dim}Done in ${Date.now() - t12}ms${c.reset}`);
 
-  console.log("Step 13: Inlining pure wrapper functions...");
+  console.log(`${c.cyan}Step 13:${c.reset} Inlining pure wrapper functions...`);
   const t13 = Date.now();
   inlinePureWrappers(ast);
-  console.log(`  Done in ${Date.now() - t13}ms`);
+  console.log(`  ${c.dim}Done in ${Date.now() - t13}ms${c.reset}`);
 
   // Step 13b: disabled — too slow on large files (142KB+), needs optimization
   // console.log("Step 13b: Inlining arithmetic wrappers...");
   // inlineArithmeticWrappers(ast);
 
-  console.log("Step 14: Sorting functions by call tree...");
+  console.log(`${c.cyan}Step 14:${c.reset} Sorting functions by call tree...`);
   const t14 = Date.now();
   sortByCallTree(ast);
-  console.log(`  Done in ${Date.now() - t14}ms`);
+  console.log(`  ${c.dim}Done in ${Date.now() - t14}ms${c.reset}`);
 
-  console.log("Step 15: Inlining single-caller functions...");
+  console.log(`${c.cyan}Step 15:${c.reset} Inlining single-caller functions...`);
   const t15 = Date.now();
   inlineSingleCallerFns(ast);
-  console.log(`  Done in ${Date.now() - t15}ms`);
+  console.log(`  ${c.dim}Done in ${Date.now() - t15}ms${c.reset}`);
 
-  console.log("Step 16: Normalizing syntax patterns...");
+  console.log(`${c.cyan}Step 16:${c.reset} Normalizing syntax patterns...`);
   const t16 = Date.now();
   normalizeSyntax(ast);
-  console.log(`  Done in ${Date.now() - t16}ms`);
+  console.log(`  ${c.dim}Done in ${Date.now() - t16}ms${c.reset}`);
 
-  console.log("Step 17: Re-extracting exposed inline functions...");
+  console.log(`${c.cyan}Step 17:${c.reset} Re-extracting exposed inline functions...`);
   const t17 = Date.now();
   extractInlineFunctions(ast);
-  console.log(`  Done in ${Date.now() - t17}ms`);
+  console.log(`  ${c.dim}Done in ${Date.now() - t17}ms${c.reset}`);
 
-  console.log("Step 18: Annotating functions with security alerts...");
+  console.log(`${c.cyan}Step 18:${c.reset} Annotating functions with security alerts...`);
   const t18 = Date.now();
   annotateAlerts(ast);
-  console.log(`  Done in ${Date.now() - t18}ms`);
+  console.log(`  ${c.dim}Done in ${Date.now() - t18}ms${c.reset}`);
 
   // ==================== Final Sanitization ====================
-  console.log("Step 19: Sanitizing reserved-word identifiers...");
+  console.log(`${c.cyan}Step 19:${c.reset} Sanitizing reserved-word identifiers...`);
   sanitizeReservedWords(ast);
 
-  console.log("Step 20: Separating DATA functions...");
+  console.log(`${c.cyan}Step 20:${c.reset} Separating DATA functions...`);
   pushDataToBottom(ast);
 
   // ==================== Output ====================
@@ -192,10 +193,10 @@ function writeSingleOutput(ast, output, code) {
 
   const finalSize = fs.statSync(mainFile).size;
   const ratio = ((finalSize / code.length) * 100).toFixed(1);
-  console.log(`Done! Output: ${(finalSize / 1024 / 1024).toFixed(2)} MB (${ratio}% of original)`);
+  console.log(`${c.green}Done!${c.reset} Output: ${(finalSize / 1024 / 1024).toFixed(2)} MB (${ratio}% of original)`);
 
   const fnCount = fs.readFileSync(mainFile, "utf-8").split("\n").filter((l) => l.includes(`function ${SUB_FN_PREFIX}`)).length;
-  console.log(`${SUB_FN_PREFIX} function declarations in output: ${fnCount}`);
+  console.log(`${SUB_FN_PREFIX} function declarations in output: ${c.bold}${fnCount}${c.reset}`);
   return generated;
 }
 
