@@ -220,13 +220,13 @@ const DOMAIN_RULES = [
   { tag: "turbopack runtime", regex: /\bTURBOPACK\b|\bturbopack\b/ },
   { tag: "CommonJS", regex: /\bmodule\.exports\b|\bexports\[/, extra: /\brequire\s*\(/ },
   { tag: "AMD", regex: /\bdefine\s*\(\s*(['"]|function)/ },
-  // Frameworks
-  { tag: "Vue", regex: /\b__VUE__\b|\bvue\b.*\breactive\b|\bVue\b.*\bcomponent\b/i },
-  { tag: "React", regex: /\b__REACT_DEVTOOLS_GLOBAL_HOOK__\b|\bReactDOM\b/ },
-  { tag: "Angular", regex: /\b__ANGULAR__\b|\bNgModule\b|\bzone\.js\b/ },
-  { tag: "Svelte", regex: /\b__svelte\b|\bSvelte\b.*\bcompile\b/i },
-  { tag: "Next.js", regex: /\b__NEXT_DATA__\b|\b__next\b/ },
-  { tag: "Nuxt", regex: /\b__nuxt\b|\bNuxt\b/ },
+  // Frameworks (framework: true = higher weight in domain scoring)
+  { tag: "Vue", regex: /\b__VUE__\b|\bvue\b.*\breactive\b|\bVue\b.*\bcomponent\b/i, framework: true },
+  { tag: "React", regex: /\b__REACT_DEVTOOLS_GLOBAL_HOOK__\b|\bReactDOM\b/, framework: true },
+  { tag: "Angular", regex: /\b__ANGULAR__\b|\bNgModule\b|\bzone\.js\b/, framework: true },
+  { tag: "Svelte", regex: /\b__svelte\b|\bSvelte\b.*\bcompile\b/i, framework: true },
+  { tag: "Next.js", regex: /\b__NEXT_DATA__\b|\b__next\b/, framework: true },
+  { tag: "Nuxt", regex: /\b__nuxt\b|\bNuxt\b/, framework: true },
   // Module runtimes
   { tag: "Worker runtime", regex: /\bimportScripts\b|\bWorker\b.*\bimport\b/i },
   { tag: "Node.js", regex: /\bprocess\.(?!env)/ },

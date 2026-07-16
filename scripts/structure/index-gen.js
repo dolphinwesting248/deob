@@ -1,6 +1,6 @@
 // Compact function index generation
 const { fs, path } = require("../config");
-const { OUTPUT_FILES } = require("../constants");
+const { OUTPUT_FILES, CATEGORY_LABELS } = require("../constants");
 const { analyzeStructure, categorizeFn } = require("./analyze");
 
 // ── Compact Index ──────────────────────────────────────────────────
@@ -120,7 +120,7 @@ function generateIndex(outputDir, opts) {
     if (!groups[cat]) groups[cat] = [];
     groups[cat].push(f);
   }
-  const groupLabels = { core: "Core runtime", branch: "Branches", callback: "Callbacks", data: "Data tables", network: "Network", websocket: "WebSocket", crypto: "Crypto", parser: "Parser", i18n: "i18n", polyfill: "Polyfill", filesystem: "Filesystem", timer: "Timers", construct: "Constructors", delegate: "Delegates", varargs: "Varargs", boilerplate: "Webpack boilerplate", other: "Other" };
+  const groupLabels = CATEGORY_LABELS;
 
   // Build parent-name lookup for single-letter function disambiguation
   const parentOf = new Map(); // fnName → parentFnName
@@ -136,7 +136,8 @@ function generateIndex(outputDir, opts) {
     const stubs = fns.filter(f => /^_S_return_\d+_fn$/.test(f.name) && f.calledBy.length <= 1 && (f.description || "").includes("callback"));
     const meaningful = fns.filter(f => !stubs.includes(f));
 
-    lines.push(`## fn/${cat}  (${fns.length})`);
+    const label = groupLabels[cat] || cat;
+    lines.push(`## fn/${cat}  (${fns.length}) — ${label}`);
     for (const f of meaningful) {
       const meta = fnMeta.get(f.name) || { totalLines: 0, stmts: f.bodyLen, heavyHex: false };
       const size = `${meta.stmts}S/${f.params}P`;
@@ -154,14 +155,6 @@ function generateIndex(outputDir, opts) {
       const nameDisplay = f.name.length <= 2 && parentOf.has(f.name) ? `${f.name} (←${parentOf.get(f.name)})` : f.name;
       const extras = [roles, semTags, desc, flags].filter(Boolean).join(" ; ");
       lines.push(`${nameDisplay} | ${size} | cc=${f.complexity || 1}${calls}${calledBy}${extras ? " | " + extras : ""}`);
-      // Context snippet (first statement, max 100 chars)
-      if (meta.srcText) {
-        const firstLine = meta.srcText.split("\n").find(l => l.trim().length > 0);
-        if (firstLine) {
-          const snippet = firstLine.trim().length > 100 ? firstLine.trim().slice(0, 100) + " ..." : firstLine.trim();
-          lines.push(`  ${snippet}`);
-        }
-      }
     }
     if (stubs.length >= 3) {
       const ccRange = stubs.map(f => f.complexity || 1).sort((a, b) => a - b);

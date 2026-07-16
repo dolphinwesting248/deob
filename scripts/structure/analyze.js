@@ -889,34 +889,55 @@ function computeDensity(functions, file) {
 function classifyDomain(filepath) {
   try {
     const src = fs.readFileSync(filepath, "utf-8");
-    const tags = [];
+    const scored = []; // [{tag, score}]
 
     for (const rule of DOMAIN_RULES) {
-      // Exclusive: skip if tags already contain a webpack match
-      if (rule.exclusive && tags.some(t => t.includes("webpack"))) continue;
-      // Extra: CommonJS needs require() too
+      // Extra: needs additional match
       if (rule.extra && !rule.extra.test(src)) continue;
-      // Exclude: Protobuf vs TextEncoder
+      // Exclude: skip if excluded pattern matches
       if (rule.exclude && rule.exclude.test(src)) continue;
-      // MinCount: Event-driven needs > N matches
-      if (rule.minCount) {
-        const count = (src.match(rule.regex) || []).length;
-        if (count <= rule.minCount) continue;
-      }
-      if (rule.regex.test(src)) tags.push(rule.tag);
+
+      // Count matches
+      const matches = src.match(new RegExp(rule.regex, "gi"));
+      const count = matches ? matches.length : 0;
+      if (count === 0) continue;
+
+      // MinCount: need > N matches
+      if (rule.minCount && count <= rule.minCount) continue;
+
+      let score = count;
+      // Exclusive rules get higher weight
+      if (rule.exclusive) score *= 2;
+      // Framework rules get higher weight (more informative than generic patterns)
+      if (rule.framework) score *= 3;
+
+      scored.push({ tag: rule.tag, score, framework: !!rule.framework });
     }
 
     // Compound rules
     const hasFetch = /\bfetch\s*\(/.test(src);
     const hasXHR = /\bXMLHttpRequest\b/.test(src);
     const hasAxios = /\baxios\b/.test(src);
-    if ((hasFetch && (hasXHR || /https?:\/\/[^\s"']+/.test(src))) || hasAxios) tags.push("Network");
+    if ((hasFetch && (hasXHR || /https?:\/\/[^\s"']+/.test(src))) || hasAxios) {
+      scored.push({ tag: "Network", score: 5 });
+    }
     const apiPaths = (src.match(/\/api\//g) || []).length;
-    if (apiPaths > 5) tags.push("API Router");
+    if (apiPaths > 5) scored.push({ tag: "API Router", score: apiPaths });
     const evals = (src.match(/\beval\s*\(/g) || []).length;
-    if (evals > 5) tags.push("Eval-heavy");
+    if (evals > 5) scored.push({ tag: "Eval-heavy", score: evals });
 
-    return tags.length > 0 ? tags.join(" + ") : "General JS";
+    // Two-tier: frameworks first, then feature domains by score
+    const frameworks = scored.filter(d => d.framework).sort((a, b) => b.score - a.score);
+    const features = scored.filter(d => !d.framework).sort((a, b) => b.score - a.score);
+
+    const result = [];
+    // Frameworks get first priority (up to 2)
+    for (const f of frameworks) { if (result.length < 2) result.push(f); }
+    // Fill remaining slots with top feature domains
+    for (const f of features) { if (result.length < 3) result.push(f); }
+
+    if (result.length === 0) return "General JS";
+    return result.map(d => d.tag).join(" + ");
   } catch (e) {
     return "Unknown";
   }
