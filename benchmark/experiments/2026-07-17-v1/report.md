@@ -19,17 +19,19 @@
 | Functions identified | 0.55 | 0.34 | **1.6x** |
 | Security issues | 0.42 | 0.30 | **1.4x** |
 
-### Quick Glance
+### Score Comparison
 
+```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {'fontSize': '14px'}}}%%
+xychart-beta
+    title "Total Score: deob vs raw"
+    x-axis ["A (Easy)", "B (Medium)", "C (Medium)", "D (Hard)", "E (Hard)"]
+    y-axis "Score" 0 --> 1
+    bar [0.55, 0.42, 0.84, 0.77, 0.63]
+    bar [0.48, 0.33, 0.79, 0.17, 0.29]
 ```
-deob vs raw 总分
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-A ████████▌ 0.55 │ 0.48 ███████▎ raw   1.2x
-B ██████▍   0.42 │ 0.33 █████▎   raw   1.3x
-C ██████████ 0.84 │ 0.79 █████████▌ raw 1.1x
-D █████████ 0.77 │ 0.17 ██▍      raw   4.6x ← 最大差距
-E ███████▋  0.63 │ 0.29 ███▌     raw   2.2x
-```
+
+_Blue = deob, Orange = raw. Gap widens dramatically for Hard scenarios (D: 0.77 vs 0.17)_
 
 ---
 
@@ -135,7 +137,18 @@ Deob correctly identified `validateCard` (Luhn algorithm), `detectCardType` (Vis
 
 ## 4. Aggregate Analysis
 
-### By Difficulty
+### Improvement by Difficulty
+
+```mermaid
+%%{init: {'theme': 'base'}}%%
+xychart-beta
+    title "Improvement Multiplier by Difficulty"
+    x-axis ["Easy (A)", "Medium (B)", "Medium (C)", "Hard (D)", "Hard (E)"]
+    y-axis "deob/raw ratio" 0 --> 5
+    line [1.2, 1.3, 1.1, 4.6, 2.2]
+```
+
+> The gap widens dramatically with obfuscation intensity. Hard scenarios show 3-5x improvement; Easy/Medium show 1.1-1.3x.
 
 | Difficulty | deob Total | raw Total | Gain |
 |-----------|-----------|-----------|------|
@@ -143,9 +156,16 @@ Deob correctly identified `validateCard` (Luhn algorithm), `detectCardType` (Vis
 | Medium (B,C avg) | 0.63 | 0.56 | 1.1x |
 | Hard (D,E avg) | 0.70 | 0.23 | **3.1x** |
 
-> The gap widens dramatically with obfuscation intensity. For Easy/Medium scenarios, both agents can reason about the code. For Hard scenarios, raw analysis collapses.
-
 ### By Dimension
+
+```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {'pieSectionTextSize': '12px'}}}%%
+pie showData
+    title "API Endpoints Found (5 total across all scenarios)"
+    "deob found (5)" : 5
+    "raw found (2)" : 2
+    "raw missed (3)" : 3
+```
 
 | Dimension | Avg deob | Avg raw | Avg Gain |
 |-----------|----------|---------|----------|
@@ -188,6 +208,29 @@ Deob correctly identified `validateCard` (Luhn algorithm), `detectCardType` (Vis
 
 ### Efficiency
 
+```mermaid
+%%{init: {'theme': 'base'}}%%
+gantt
+    title Analysis Time Comparison (seconds)
+    dateFormat X
+    axisFormat %s
+    section Scenario A
+    deob : 0, 30
+    raw  : 0, 80
+    section Scenario B
+    deob : 0, 35
+    raw  : 0, 60
+    section Scenario C
+    deob : 0, 35
+    raw  : 0, 80
+    section Scenario D
+    deob : 0, 115
+    raw  : 0, 400
+    section Scenario E
+    deob : 0, 190
+    raw  : 0, 255
+```
+
 | Scenario | deob Time | raw Time | Speedup |
 |----------|-----------|----------|---------|
 | A | ~30s | ~80s | 2.7x |
@@ -196,7 +239,7 @@ Deob correctly identified `validateCard` (Luhn algorithm), `detectCardType` (Vis
 | D | ~115s | ~400s | **3.5x** |
 | E | ~190s | ~255s | 1.3x |
 
-> For the hardest scenario (D), deob reduced analysis time by 3.5x. The structured output (prompts, index, banners) lets LLMs skip the tedious step of manually decoding each string and tracing each branch.
+> For scenario D, deob reduced analysis time by 3.5x. The structured output lets LLMs skip manually decoding each string and tracing each branch.
 
 ---
 
