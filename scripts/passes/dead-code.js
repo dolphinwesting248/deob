@@ -188,11 +188,19 @@ function removeUnusedHelpers(ast, refGraph) {
   }
 
   // Don't remove program-level functions (they might be entry points)
+  // Count how many declarations exist per name (unique names are safe to remove)
+  const nameDeclCount = new Map();
+  for (const { name } of fnDecls.values()) {
+    nameDeclCount.set(name, (nameDeclCount.get(name) || 0) + 1);
+  }
   const toRemove = [];
   for (const [key, { name, node, array, index }] of fnDecls) {
     if (!deadNames.has(key)) continue;
     if (array === ast.program.body) continue; // skip program-level
-    if (!node.id || !node.id.name.startsWith("_0x")) continue; // only obfuscated helpers
+    // Remove if _0x prefix (obfuscated helpers) OR unique unreferenced name
+    const isObfuscated = node.id && node.id.name.startsWith("_0x");
+    const isUniqueDead = nameDeclCount.get(name) === 1;
+    if (!isObfuscated && !isUniqueDead) continue;
     toRemove.push({ name, array, node, index });
   }
 
