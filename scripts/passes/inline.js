@@ -10,11 +10,11 @@ const { safeParam } = require("../emit");
 function inlineReadOnlyProperties(ast, refGraph) {
   let count = 0;
 
-  // Phase 1: collect ALL const literal objects (any scope — including inside functions)
+  // Phase 1: collect ALL literal object declarations (any scope, var/let/const)
   const configs = new Map(); // varName -> { propName: valueNode }
   function findConfigs(node) {
     if (!node || typeof node !== "object") return;
-    if (t.isVariableDeclaration(node) && node.kind === "const") {
+    if (t.isVariableDeclaration(node)) {
       for (const decl of node.declarations) {
         if (t.isIdentifier(decl.id) && decl.init && t.isObjectExpression(decl.init) &&
             decl.init.properties.every((p) =>
