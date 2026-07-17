@@ -253,6 +253,7 @@ const DOMAIN_RULES = [
   { tag: "Bot Detection", regex: /\b(?:baxia|webdriver|phantom|selenium|puppeteer|playwright|headless|__nightmare|_phantom|callPhantom|_Selenium_IDE_Recorder|spf(?:Request|API)|bot\s*detect|is(?:Bot|Spider|Crawler))\b/i },
   { tag: "Fingerprinting", regex: /\b(?:fingerprint|buvid_fp|fp_risk|canvas.*(?:hash|fingerprint)|webgl.*(?:render|debug)|audio.*fingerprint|font.*(?:detect|fingerprint)|navigator\.(?:platform|language|hardwareConcurrency|deviceMemory|plugins|languages|userAgent)|screen\.(?:width|height|colorDepth|avail)|timezone.*offset|doNotTrack)\b/i },
   { tag: "Risk Control", regex: /\b(?:risk|fraud|disposal)\w*\b/gi, minCount: 10 },
+  { tag: "Anti-Tamper", regex: /\b(?:selfDefending|debugProtection|anti\w*(?:tamper|debug|hook)|integrity\s*(?:check|verify)|dom\s*integrity|console\s*disabled|debugger\s*statement|toString\s*check|constructor\s*check)\b/i, minCount: 2 },
 ];
 
 // ---- Function Category Rules (for categorizeFn) ----
