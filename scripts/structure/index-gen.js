@@ -241,13 +241,18 @@ function generateIndex(outputDir, opts) {
     if (shared.length > 0) {
       lines.push("## shared");
       for (const [name, fns] of shared) {
-        const kind = refGraph.declarations.get(name) || {};
-        const mutated = refGraph.isMutated.has(name)
-          ? "mutated"
-          : "not mutated";
-        const typeStr = kind.isConst ? "const" : kind.kind || "var";
+        const decl = refGraph.declarations.get(name);
+        const kind = decl || {};
+        const isMut = refGraph.isMutated.has(name);
+        // Semantic role: fn (function), cfg (object), var (plain variable)
+        let role = "";
+        if (kind.isConst) role = "const";
+        else if (kind.kind === "function") role = "fn";
+        else if (decl && decl.node && decl.node.init && decl.node.init.type === "ObjectExpression") role = "cfg";
+        else role = kind.kind || "var";
+        if (isMut) role += ", mut";
         lines.push(
-          `${name} ⇒ ${[...fns].slice(0, 6).join(", ")}${fns.size > 6 ? " +" + (fns.size - 6) : ""} (${typeStr}, ${mutated})`,
+          `${name} ⇒ ${[...fns].slice(0, 5).join(", ")}${fns.size > 5 ? " +" + (fns.size - 5) : ""} · ${fns.size} fns · ${role}`,
         );
       }
       lines.push("");
