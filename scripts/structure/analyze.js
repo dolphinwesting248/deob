@@ -724,7 +724,7 @@ function detectSemanticTags(name, stmt) {
   if (buildCount >= 2) tags.push("table-init");
   if (hasBigArray) tags.push("table-init");
   if (hasRegex && propSetters >= 2) tags.push("integrity-check");
-  if (name.startsWith("$") && n.includes("_prg_")) tags.push("module-init");
+  if (name.startsWith("$") && name.includes("_prg_")) tags.push("module-init");
 
   return tags;
 }
