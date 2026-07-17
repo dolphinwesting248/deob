@@ -447,7 +447,16 @@ function extractInlineFunctions(ast) {
 
     // --- Return statement with FunctionExpression/ArrowFunction ---
     if (t.isReturnStatement(node) && node.argument) {
-      const fn = findEmbeddedFn(node.argument);
+      let fn = findEmbeddedFn(node.argument);
+      // Skip 1-statement functions without nested control flow
+      if (fn && t.isBlockStatement(fn.body) && fn.body.body.length === 1) {
+        const onlyStmt = fn.body.body[0];
+        if (!(t.isIfStatement(onlyStmt) || t.isForStatement(onlyStmt) || t.isWhileStatement(onlyStmt) ||
+              t.isTryStatement(onlyStmt) || t.isSwitchStatement(onlyStmt) || t.isDoWhileStatement(onlyStmt) ||
+              t.isForInStatement(onlyStmt) || t.isForOfStatement(onlyStmt))) {
+          fn = null;
+        }
+      }
       if (fn && t.isBlockStatement(fn.body)) {
         const name = uniqueName(`${SUB_FN_PREFIX}return_${++count}_fn`);
         const fnParamNames = new Set(fn.params.map((p) => (t.isIdentifier(p) ? p.name : null)).filter(Boolean));
@@ -473,6 +482,15 @@ function extractInlineFunctions(ast) {
       for (const decl of node.declarations) {
         if (decl.init && (t.isFunctionExpression(decl.init) || t.isArrowFunctionExpression(decl.init)) &&
             t.isBlockStatement(decl.init.body) && decl.init.body.body.length > 0) {
+          // Skip 1-statement functions without nested control flow
+          if (decl.init.body.body.length === 1) {
+            const onlyStmt = decl.init.body.body[0];
+            if (!(t.isIfStatement(onlyStmt) || t.isForStatement(onlyStmt) || t.isWhileStatement(onlyStmt) ||
+                  t.isTryStatement(onlyStmt) || t.isSwitchStatement(onlyStmt) || t.isDoWhileStatement(onlyStmt) ||
+                  t.isForInStatement(onlyStmt) || t.isForOfStatement(onlyStmt))) {
+              continue;
+            }
+          }
           const varName = t.isIdentifier(decl.id) ? decl.id.name : `var${count}`;
           const name = uniqueName(`${SUB_FN_PREFIX}${varName}_${count}_fn`);
           const fn = decl.init;
