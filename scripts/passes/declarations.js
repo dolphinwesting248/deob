@@ -143,7 +143,7 @@ function sanitizeReservedWords(ast) {
 }
 
 // ---- annotateAlerts: inject [Label] comments before functions with security-relevant strings ----
-function annotateAlerts(ast, callGraph, refGraph) {
+function annotateAlerts(ast, callGraph, refGraph, minimalBanner) {
   let count = 0;
   let bannerCount = 0;
 
@@ -240,31 +240,37 @@ function annotateAlerts(ast, callGraph, refGraph) {
         }
         countBranches(node.body);
 
-        banner.push(`${name} | ${bodyLen}S/${params}P | cc=${cc}`);
+        if (minimalBanner) {
+          // Agent mode: compact banner — just function name
+          banner.push(name);
+          if (matches.length > 0) banner.push(matches.map(a => `[${a.label}]`).join(" "));
+        } else {
+          banner.push(`${name} | ${bodyLen}S/${params}P | cc=${cc}`);
 
-        // Callers
-        if (callersMap && callersMap.has(name)) {
-          const callers = [...callersMap.get(name)].slice(0, 5);
-          banner.push("⇐ " + callers.join(", "));
-        }
-
-        // Callees
-        if (calleesMap && calleesMap.has(name)) {
-          const callees = [...calleesMap.get(name)].slice(0, 5);
-          banner.push("→ " + callees.join(", "));
-        }
-
-        // Closure captures
-        if (refGraph && refGraph.closureCaptures) {
-          const captures = refGraph.closureCaptures.filter(c => c.fnName === name);
-          if (captures.length > 0) {
-            banner.push("closure: " + captures.map(c => c.varName).join(", "));
+          // Callers
+          if (callersMap && callersMap.has(name)) {
+            const callers = [...callersMap.get(name)].slice(0, 5);
+            banner.push("⇐ " + callers.join(", "));
           }
-        }
 
-        // Alerts (already in matches)
-        if (matches.length > 0) {
-          banner.push(matches.map(a => `[${a.label}]`).join(" "));
+          // Callees
+          if (calleesMap && calleesMap.has(name)) {
+            const callees = [...calleesMap.get(name)].slice(0, 5);
+            banner.push("→ " + callees.join(", "));
+          }
+
+          // Closure captures
+          if (refGraph && refGraph.closureCaptures) {
+            const captures = refGraph.closureCaptures.filter(c => c.fnName === name);
+            if (captures.length > 0) {
+              banner.push("closure: " + captures.map(c => c.varName).join(", "));
+            }
+          }
+
+          // Alerts (already in matches)
+          if (matches.length > 0) {
+            banner.push(matches.map(a => `[${a.label}]`).join(" "));
+          }
         }
 
         if (!node.leadingComments) node.leadingComments = [];

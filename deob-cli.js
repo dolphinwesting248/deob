@@ -36,14 +36,15 @@ function processOneFile(file, outDir, opts) {
   }
 
   try {
-    main({ input: file, output: outDir, split: opts.split });
+    main({ input: file, output: outDir, split: opts.split, agent: opts.agent });
   } catch (e) {
     if (opts.fatal) { console.error(`\n${c.red}ERROR:${c.reset} ${e.message.split("\n")[0]}`); process.exit(1); }
     console.error(`  ${c.yellow}SKIPPED:${c.reset} ${e.message.split("\n")[0]}`);
     return [];
   }
 
-  if (opts.tier && opts.tier < 3) applyTierFilter(outDir, opts.tier, opts.fold, opts.denoise);
+  // Apply fold at all tiers (tier 3 + fold collapses mechanical functions)
+  if (opts.fold) applyTierFilter(outDir, opts.tier || 3, opts.fold, opts.denoise);
 
   const reports = [];
   if (opts.metrics) runMetrics(file, outDir);
@@ -151,16 +152,19 @@ function parseConfig(filepath) {
     console.error("Config must specify 'input' (file, directory, or array)");
     process.exit(1);
   }
+  // Agent mode: auto-configure optimal defaults for LLM consumption
+  const isAgent = !!cfg.agent;
   return {
     input: input.filter(Boolean),
     output: cfg.output || null,
     split: !!cfg.split,
     metrics: !!cfg.metrics,
-    md: !!cfg.md,
-    index: !!cfg.index,
+    md: cfg.md != null ? !!cfg.md : true,
+    index: cfg.index != null ? !!cfg.index : !isAgent,  // agent mode skips index by default
     tier: cfg.tier != null ? cfg.tier : 3,
-    fold: !!cfg.fold,
+    fold: cfg.fold != null ? !!cfg.fold : isAgent,       // agent mode enables fold by default
     denoise: Array.isArray(cfg.denoise) ? cfg.denoise : DEFAULT_DENOISE,
+    agent: isAgent,
   };
 }
 
@@ -182,6 +186,7 @@ module.exports = {
   metrics: false, // HTML readability comparison report
   md: true,       // Markdown structure report
   index: true,   // compact index.txt for LLM navigation
+  agent: false,  // LLM agent mode: compact output, minimal banners, auto fold+tier
 
   // LLM-oriented output tuning
   tier: 3,        // 1=alerts+hotspots only, 2=+callees, 3=all functions

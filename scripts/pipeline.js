@@ -19,12 +19,18 @@ const { buildCallGraph } = require("./callgraph");
 const { buildRefGraph } = require("./refgraph");
 const c = require("./colors");
 
-function main({ input, output, split } = {}) {
+function main({ input, output, split, agent } = {}) {
   if (!input) throw new Error("main() requires { input: '<path>' }");
   if (!output) throw new Error("main() requires { output: '<path>' }");
   resetNames();
   resetInlineNames();
   const pipelineStart = Date.now();
+
+  // Agent mode: compact output, minimal banners, optimal for LLM consumption
+  const isAgent = !!agent;
+  const generateOpts = isAgent
+    ? { ...DEFAULT_GENERATE_OPTS, compact: true, comments: true }
+    : DEFAULT_GENERATE_OPTS;
 
   console.log("Reading file...");
   const code = fs.readFileSync(input, "utf-8");
@@ -162,7 +168,7 @@ function main({ input, output, split } = {}) {
 
   console.log(`${c.cyan}Step 18:${c.reset} Annotating functions with security alerts...`);
   const t18 = Date.now();
-  annotateAlerts(ast, callGraph, refGraph);
+  annotateAlerts(ast, callGraph, refGraph, isAgent);
   console.log(`  ${c.dim}Done in ${Date.now() - t18}ms${c.reset}`);
 
   // ==================== Final Sanitization ====================
@@ -175,9 +181,9 @@ function main({ input, output, split } = {}) {
   // ==================== Output ====================
   let result;
   if (split) {
-    result = writeSplitOutput(ast, output, code);
+    result = writeSplitOutput(ast, output, code, generateOpts);
   } else {
-    result = writeSingleOutput(ast, output, code);
+    result = writeSingleOutput(ast, output, code, generateOpts);
   }
   const totalMs = Date.now() - pipelineStart;
   const speed = (code.length / 1024 / (totalMs / 1000)).toFixed(0);
@@ -185,7 +191,7 @@ function main({ input, output, split } = {}) {
   return result;
 }
 
-function writeSingleOutput(ast, output, code) {
+function writeSingleOutput(ast, output, code, generateOpts) {
   // output is always a directory; write deobfuscated code as main.js inside it
   const outDir = output;
   if (fs.existsSync(outDir)) fs.rmSync(outDir, { recursive: true });
@@ -194,7 +200,7 @@ function writeSingleOutput(ast, output, code) {
   // Safety: filter out any non-statement nodes from program body
   ast.program.body = ast.program.body.filter((n) => n && typeof n.type === "string" && n.type !== "CommentLine" && n.type !== "CommentBlock");
 
-  const generated = generate(ast, DEFAULT_GENERATE_OPTS).code;
+  const generated = generate(ast, generateOpts).code;
 
   const mainFile = path.join(outDir, OUTPUT_FILES.MAIN);
   fs.writeFileSync(mainFile, generated, "utf-8");
@@ -208,7 +214,7 @@ function writeSingleOutput(ast, output, code) {
   return generated;
 }
 
-function writeSplitOutput(ast, output, code) {
+function writeSplitOutput(ast, output, code, generateOpts) {
   console.log("Splitting into per-function files...");
 
   // Ensure output directory
@@ -233,10 +239,7 @@ function writeSplitOutput(ast, output, code) {
 
   // --- Phase 1: generate ALL function codes at once ---
   // Write main.js with full combined output (used by reports)
-  fs.writeFileSync(path.join(outDir, "main.js"), generate(ast, {
-    retainLines: false, retainFunctionParens: false,
-    comments: true, compact: false,
-  }).code, "utf-8");
+  fs.writeFileSync(path.join(outDir, "main.js"), generate(ast, generateOpts || DEFAULT_GENERATE_OPTS).code, "utf-8");
 
   // Generate each function separately but without prettier — batch format at end
   const generatedFns = new Map();
