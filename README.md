@@ -31,7 +31,6 @@ module.exports = {
   fold: true,                     // collapse mechanical functions to comments
   banner: true,                   // true=verbose, false=minimal metadata
   compact: false,                 // compact code generation
-  merged: true,                   // merge reports into main.js header
   denoise: [                      // alert denoising rules (optional)
     { match: "regex-source", label: "Label", severity: "low" },
   ],
@@ -51,7 +50,6 @@ module.exports = {
 | `fold` | `boolean` | `true` | Collapse mechanical functions to comments (works at all tiers) |
 | `banner` | `boolean` | `true` | true=verbose metadata banner, false=minimal (name + alerts) |
 | `compact` | `boolean` | `false` | Compact code generation (less whitespace) |
-| `merged` | `boolean` | `true` | Merge prompt/structure/index into main.js header comment |
 | `denoise` | `DenoiseRule[]` | defaults | Alert denoising rules |
 
 See [tier-and-fold.md](./docs/tier-and-fold.md) for more details for `tier` and `fold`.
@@ -65,7 +63,7 @@ output.deob/
   0-prompt.md       ← LLM entry: architecture, alerts, top 5, reading path
   1-structure.md    ← call graph, hotspots, alert traces, naming convention
   2-index.txt       ← function catalog: legend, categories, shared vars, closures
-  main.js           ← deobfuscated code with metadata banners on _S_ functions
+  main.js           ← deobfuscated code with metadata banners on extracted functions
   summary.md        ← (directory mode) cross-file legend and keyword index
 ```
 
@@ -86,7 +84,7 @@ output.deob/
 ## Hotspots             — most-called functions, entry points, leaves
 ## Alerts               — security patterns with severity, function, trace
 ## Call Graph           — Mermaid diagram of cross-function calls
-## Naming Convention    — _S_<parent>_<seq>_<hint> format explanation
+## Naming Convention    — $<seq>_<hint> format explanation
 ```
 
 ### 2-index.txt
@@ -128,7 +126,7 @@ output.deob/
 | 15 | `inlineSingleCallerFns` | inline.js | Inline functions called from exactly one place |
 | 16 | `normalizeSyntax` | simplify.js | `~arr.indexOf`→`arr.includes`, reversed typeof, multi-decl split (non-trivial only) |
 | 17 | `extractInlineFunctions` | inline.js | Re-extract with enclosing scope defs, skip 1-stmt without control flow |
-| 18 | `annotateAlerts` | declarations.js | Inject alerts + metadata banners on `_S_` functions |
+| 18 | `annotateAlerts` | declarations.js | Inject alerts + metadata banners on extracted functions |
 | 19 | `sanitizeReservedWords` | declarations.js | Re-sanitize reserved-word identifiers |
 | 20 | `pushDataToBottom` | dead-code.js | Move DATA-heavy functions to end with separator |
 
@@ -143,10 +141,10 @@ function a0_0x5465(_0x147aca,_0x1c469e){var _0x477d9d=a0_0x1cb6();return (a0_0x5
 // Output
 function a0_0x5465(_0x147aca, _0x1c469e) {
   var _0x477d9d = a0_0x1cb6();
-  a0_0x5465 = _S_return_1_fn;
+  a0_0x5465 = $1_fn;
   return a0_0x5465(_0x147aca, _0x1c469e);
 }
-function _S_return_1_fn(_0x593f2d, _0x4d5e1e, _0x477d9d, _0x147aca) {
+function $1_fn(_0x593f2d, _0x4d5e1e, _0x477d9d, _0x147aca) {
   var _0x2a8c = _0x477d9d[_0x593f2d];
   return _0x2a8c ? _0x2a8c(_0x4d5e1e, _0x147aca) : _0x4d5e1e;
 }

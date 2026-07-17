@@ -26,7 +26,6 @@ module.exports = {
   fold: true,                     // collapse mechanical functions to comments (all tiers)
   banner: true,                   // true=verbose metadata banner, false=minimal
   compact: false,                 // compact code generation (less whitespace)
-  merged: true,                   // merge prompt/structure/index into main.js header
   denoise: [                      // alert denoising rules (optional)
     { match: "regex-source", label: "Label", severity: "low" },
   ],
@@ -46,7 +45,6 @@ module.exports = {
 | `fold` | `boolean` | `true` | Collapse mechanical functions to comments (works at all tiers) |
 | `banner` | `boolean` | `true` | true=verbose metadata banner, false=minimal (name + alerts only) |
 | `compact` | `boolean` | `false` | Compact code generation (less whitespace) |
-| `merged` | `boolean` | `true` | Merge prompt/structure/index into main.js header comment |
 | `denoise` | `DenoiseRule[]` | defaults | Alert denoising rules |
 
 ## Output Files
@@ -78,7 +76,7 @@ output.deob/
 ## Hot Spots            — most-called functions, entry points, leaves
 ## Alerts               — security patterns with severity, function, trace
 ## Call Graph           — Mermaid diagram of cross-function calls
-## Naming Convention    — _S_<parent>_<seq>_<hint> format explanation
+## Naming Convention    — $<seq>_<hint> format explanation
 ```
 
 ### 2-index.txt Structure
@@ -108,7 +106,7 @@ scripts/
   callgraph.js                   Shared call graph builder (forward/reverse edges), reused by 									pipeline
   refgraph.js                    Full-scope reference graph (declarations, mutations, refs, 									closure captures), reused by pipeline
   scope.js                       Variable scope analysis, external reference collection
-  naming.js                      Sub-function naming (_S_ prefix, collision detection)
+  naming.js                      Sub-function naming ($ prefix, global counter, collision detection)
   emit.js                        Sub-function AST node creation, safeParam
   extract.js                     Syntactic extraction (IIFE, try/catch, loop, if/else, switch, 										callbacks)
   traverse.js                    Innermost-first function collection and body processing
@@ -164,7 +162,7 @@ scripts/
 | 15 | `inlineSingleCallerFns` | inline.js | Inline functions called from exactly one place |
 | 16 | `normalizeSyntax` | simplify.js | `~arr.indexOf`→`arr.includes`, reversed typeof, multi-decl split (non-trivial only) |
 | 17 | `extractInlineFunctions` | inline.js | Re-extract with scope defs, skip 1-stmt without nested control flow |
-| 18 | `annotateAlerts` | declarations.js | Inject `[Label]` comments + function metadata banners for `_S_` functions |
+| 18 | `annotateAlerts` | declarations.js | Inject `[Label]` comments + function metadata banners for extracted (`$`) functions |
 | 19 | `sanitizeReservedWords` | declarations.js | Re-sanitize (pipeline may have introduced new reserved words) |
 | 20 | `pushDataToBottom` | dead-code.js | Move DATA-heavy functions to end of file with separator |
 
@@ -207,7 +205,7 @@ input.js
 
 ### ast-utils.js — Generic AST Helpers
 **Does**: walkAST, walkASTDeep, walkStmtLists, isIIFE, describeBody, clone, hasBail, hasReturn, containsAwait, containsYield
-**Does not**: Transform AST, know about _S_ naming, contain pass logic
+**Does not**: Transform AST, know about sub-function naming, contain pass logic
 
 ### callgraph.js — Shared Call Graph
 **Does**: buildCallGraph(ast) → { forward, reverse, allNames } — bidirectional call edges
@@ -400,7 +398,7 @@ annotateAlerts (step 18)
   ├─ scanStringLiterals: ALERT_PATTERNS regex → matches[]
   ├─ scanAST: DebuggerStatement, eval(), new Function() → matches[]
   ├─ add leadingComments to function node
-  └─ add metadata banner to _S_ functions: name, size, cc, callers, callees, closures, alerts
+  └─ add metadata banner to extracted functions: name, size, cc, callers, callees, closures, alerts
 
 analyzeStructure (post-pipeline)
   ├─ scanStringLiterals: same ALERT_PATTERNS → alerts[]
@@ -438,7 +436,7 @@ Functions are categorized by `categorizeFn` in structure/analyze.js, using `CATE
 | Category | Source | Example |
 |----------|--------|---------|
 | `data` | heavyHex flag | Large hex string arrays |
-| `core` | Not `_S_` prefix | Original function names |
+| `core` | Not `$` prefix | Original function names |
 | `framework` | `FRAMEWORK_PATTERNS` | Vue/React/Regenerator internals |
 | `network` | `CATEGORY_RULES` | fetch/xhr/axios patterns |
 | `crypto` | `CATEGORY_RULES` | sign/encrypt/hash patterns |
@@ -451,8 +449,8 @@ Functions are categorized by `categorizeFn` in structure/analyze.js, using `CATE
 | `timer` | Behavioral desc | setTimeout/setInterval |
 | `construct` | Behavioral desc | factory/construct |
 | `delegate` | Behavioral desc | pass-through/returns arg |
-| `callback` | Name pattern | `_S_return_*` |
-| `branch` | Name pattern | `_S_*_if/_else/_try/_catch` |
+| `callback` | Name pattern | `$<N>_fn` |
+| `branch` | Name pattern | `$<N>_if / $<N>_try / $<N>_catch` |
 | `handler` | Event/Promise patterns | Event listeners, message callbacks |
 | `obfuscation` | Obfuscation tool patterns | selfDefending, debugProtection, Function('return this') |
 | `other` | Fallback | Uncategorized |
@@ -574,7 +572,7 @@ git add -A && git commit -m "feat: inlineConstObjects — replace obj.prop with 
 | Pitfall | Cause | Solution |
 |---------|-------|----------|
 | Stack overflow on large files | Recursive AST walk | Use iterative walk (stack-based) |
-| Name collisions | Global counter reset | Use `_S_` + line number + collision detection |
+| Name collisions | Global counter collision | Append `_L<line>` or suffix number |
 | Regex state bugs | `ALERT_PATTERNS` with `g` flag | Always reset `lastIndex` after use |
 | Triple re-parse | `analyzeStructure` called 3x | Use `_analysisCache` (already implemented) |
 | Reserved words in output | Pipeline introduces new ones | Step 19 re-sanitizes |
