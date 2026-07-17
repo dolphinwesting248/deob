@@ -2,6 +2,7 @@ const { t } = require("./config");
 const { RESERVED } = require("./constants");
 
 const usedNames = new Set();
+let globalSeq = 0;
 
 // ---- safeName: normalize LLM-generated or arbitrary names into valid JS identifiers ----
 function safeName(name) {
@@ -30,20 +31,13 @@ function safeName(name) {
   return safe;
 }
 
-function cleanName(name) {
-  let cleaned = name.replace(/^_S_/, "").replace(/^_+/, "");
-  if (cleaned.length > 40) cleaned = cleaned.slice(-40);
-  return cleaned;
-}
-
 function subName(parentName, seq, hint, sourceNode) {
-  const s = String(seq).padStart(2, "0");
-  let clean = cleanName(parentName);
-  let base = `_S_${clean}_${s}_${hint || "fn"}`;
+  globalSeq++;
+  let base = `$${globalSeq}_${hint || "fn"}`;
   if (!usedNames.has(base)) { usedNames.add(base); return base; }
   // Collision: add source line number for disambiguation
   if (sourceNode && sourceNode.loc) {
-    const withLine = `_S_${clean}_L${sourceNode.loc.start.line}_${s}_${hint || "fn"}`;
+    const withLine = `$${globalSeq}_L${sourceNode.loc.start.line}_${hint || "fn"}`;
     if (!usedNames.has(withLine)) { usedNames.add(withLine); return withLine; }
   }
   let i = 2;
@@ -53,7 +47,7 @@ function subName(parentName, seq, hint, sourceNode) {
   return name;
 }
 
-function resetNames() { usedNames.clear(); }
+function resetNames() { usedNames.clear(); globalSeq = 0; }
 
 function getFnName(node) {
   if (!node) return "anon";
@@ -66,6 +60,10 @@ function getFnName(node) {
   }
   if (node.loc) return `l${node.loc.start.line}`;
   return "anon";
+}
+
+function cleanName(name) {
+  return (name || "").replace(/^\$/, "").replace(/^_+/, "");
 }
 
 module.exports = { safeName, cleanName, subName, getFnName, resetNames };

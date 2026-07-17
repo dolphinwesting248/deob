@@ -3,6 +3,7 @@
 const { t } = require("./config");
 const { descIIFE, clone, isIIFE } = require("./ast-utils");
 const { createSubFn } = require("./emit");
+const { subName } = require("./naming");
 
 function extractTopLevelIIFEs(ast) {
   const newBody = [];
@@ -28,7 +29,7 @@ function extractTopLevelIIFEs(ast) {
         iifeIdx++;
         const fn = expr.callee;
         const lineNum = expr.loc ? expr.loc.start.line : iifeIdx;
-        const name = `_S_program_${descIIFE(fn.body.body)}_l${lineNum}`;
+        const name = subName("prg", iifeIdx, descIIFE(fn.body.body), expr);
 
         if (t.isFunctionExpression(fn) && t.isBlockStatement(fn.body) && fn.body.body.length > 0) {
           const wrapperFn = createSubFn(name, fn.params.map((p) => clone(p)), fn.body.body, expr);
@@ -43,7 +44,7 @@ function extractTopLevelIIFEs(ast) {
         const inner = expr.argument;
         const fn = inner.callee;
         const lineNum = expr.loc ? expr.loc.start.line : iifeIdx;
-        const name = `_S_program_${descIIFE(fn.body.body)}_l${lineNum}`;
+        const name = subName("prg", iifeIdx, descIIFE(fn.body.body), expr);
 
         if ((t.isFunctionExpression(fn) || t.isArrowFunctionExpression(fn)) && t.isBlockStatement(fn.body) && fn.body.body.length > 0) {
           const wrapperFn = createSubFn(name, fn.params.map((p) => clone(p)), fn.body.body, expr);

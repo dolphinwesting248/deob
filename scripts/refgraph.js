@@ -271,7 +271,7 @@ function buildRefGraph(ast) {
   function enclosingSubFn(scopeId) {
     let s = scopes.get(scopeId);
     while (s !== null) {
-      if (s.type === "function" && s.fnName && s.fnName.startsWith("_S_")) return s;
+      if (s.type === "function" && s.fnName && s.fnName.startsWith("$")) return s;
       s = s.parent !== null ? scopes.get(s.parent) : null;
     }
     return null;

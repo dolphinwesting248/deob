@@ -58,7 +58,7 @@ function generateReadingGuide(report) {
   // 4. What you can skip
   const skippable = functions.filter((f) => {
     const isMech = /forward|pure computation|pass-through/.test(f.description || "");
-    const isData = f.name.includes("_S_return_") && f.bodyLen <= 3;
+    const isData = /^\$\d+_fn$/.test(f.name) && f.bodyLen <= 3;
     const isUtil = !f.flat && f.complexity <= 1 && f.calledBy.length === 0 && f.calls.length === 0;
     return isMech || isData || isUtil;
   });

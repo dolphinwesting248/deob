@@ -3,6 +3,7 @@
 const { t } = require("../config");
 const { SKIP_KEYS, isSubFn, SUB_FN_PREFIX } = require("../constants");
 const { clone, containsYield, containsForAwait } = require("../ast-utils");
+const { subName } = require("../naming");
 const { collectDefined, getExternalRefs } = require("../scope");
 const { safeParam } = require("../emit");
 
@@ -430,19 +431,9 @@ function inlineSingleCallerFns(ast, callGraph) {
 // ---- extractInlineFunctions: lift embedded function expressions to top level ----
 // Targets: return statement bodies, variable initializers, assignment RHS
 // Result: clean return values, readable function names
-const _inlineUsedNames = new Set();
 function extractInlineFunctions(ast) {
   let count = 0;
   const newFns = []; // collected new function declarations
-
-  function uniqueName(base) {
-    if (!_inlineUsedNames.has(base)) { _inlineUsedNames.add(base); return base; }
-    let i = 2;
-    while (_inlineUsedNames.has(base + "_" + i)) i++;
-    const name = base + "_" + i;
-    _inlineUsedNames.add(name);
-    return name;
-  }
 
   // Collect enclosing scope defs for a function node
   function collectEnclosingDefs(fn) {
@@ -486,7 +477,7 @@ function extractInlineFunctions(ast) {
         }
       }
       if (fn && t.isBlockStatement(fn.body)) {
-        const name = uniqueName(`${SUB_FN_PREFIX}return_${++count}_fn`);
+        const name = subName("rt", ++count, "fn");
         const fnParamNames = new Set(fn.params.map((p) => (t.isIdentifier(p) ? p.name : null)).filter(Boolean));
         const defined = collectDefined(fn.body.body);
         for (const n of fnParamNames) defined.add(n);
@@ -520,7 +511,7 @@ function extractInlineFunctions(ast) {
             }
           }
           const varName = t.isIdentifier(decl.id) ? decl.id.name : `var${count}`;
-          const name = uniqueName(`${SUB_FN_PREFIX}${varName}_${count}_fn`);
+          const name = subName("vr", ++count, "fn");
           const fn = decl.init;
           const fnParamNames = new Set(fn.params.map((p) => (t.isIdentifier(p) ? p.name : null)).filter(Boolean));
           const defined = collectDefined(fn.body.body);
@@ -629,5 +620,5 @@ module.exports = {
   inlineArithmeticWrappers,
   inlineSingleCallerFns,
   extractInlineFunctions,
-  resetInlineNames: () => _inlineUsedNames.clear(),
+  resetInlineNames: () => {},  // names now managed by naming.js global counter
 };

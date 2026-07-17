@@ -221,7 +221,7 @@ function generateIndex(outputDir, opts) {
     // Separate return stubs (auto-generated callbacks with 1 caller) from meaningful functions
     const stubs = fns.filter(
       (f) =>
-        /^_S_return_\d+_fn$/.test(f.name) &&
+        /^\$\d+_fn$/.test(f.name) &&
         f.calledBy.length <= 1 &&
         (f.description || "").includes("callback"),
     );

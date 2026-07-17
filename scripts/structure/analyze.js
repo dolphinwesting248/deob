@@ -149,8 +149,8 @@ function analyzeStructureFallback(filepath, code) {
     else if (n.match(/_if$/) || n.match(/_else$/)) types.ifElse = (types.ifElse || 0) + 1;
     else if (n.includes("_iife") || n.includes("_init_")) types.iife = (types.iife || 0) + 1;
     else if (n.includes("_case")) types.switch = (types.switch || 0) + 1;
-    else if (n.startsWith(SUB_FN_PREFIX + "return_")) types.inlineFn = (types.inlineFn || 0) + 1;
-    else if (n.startsWith("_S_program")) types.program = (types.program || 0) + 1;
+    else if (n.endsWith("_fn")) types.inlineFn = (types.inlineFn || 0) + 1;
+    else if (n.startsWith("$") && n.includes("_prg_")) types.program = (types.program || 0) + 1;
     else types.other = (types.other || 0) + 1;
   }
 
@@ -387,8 +387,8 @@ function analyzeStructureImpl(filepath, opts) {
     else if (n.match(/_if$/) || n.match(/_else$/)) types.ifElse = (types.ifElse || 0) + 1;
     else if (n.includes("_iife") || n.includes("_init_")) types.iife = (types.iife || 0) + 1;
     else if (n.includes("_case")) types.switch = (types.switch || 0) + 1;
-    else if (n.startsWith(SUB_FN_PREFIX + "return_")) types.inlineFn = (types.inlineFn || 0) + 1;
-    else if (n.startsWith("_S_program")) types.program = (types.program || 0) + 1;
+    else if (n.endsWith("_fn")) types.inlineFn = (types.inlineFn || 0) + 1;
+    else if (n.startsWith("$") && n.includes("_prg_")) types.program = (types.program || 0) + 1;
     else types.other = (types.other || 0) + 1;
   }
 
@@ -724,7 +724,7 @@ function detectSemanticTags(name, stmt) {
   if (buildCount >= 2) tags.push("table-init");
   if (hasBigArray) tags.push("table-init");
   if (hasRegex && propSetters >= 2) tags.push("integrity-check");
-  if (name.startsWith("_S_program")) tags.push("module-init");
+  if (name.startsWith("$") && n.includes("_prg_")) tags.push("module-init");
 
   return tags;
 }
@@ -979,7 +979,7 @@ function categorizeFn(name, fn, meta) {
   if (desc.includes("side-effects") && !desc.includes("callback-driven")) return "sideeffect";
 
   // Structural patterns — AFTER domain checks so try/catch with domain code wins
-  if (name.includes(SUB_FN_PREFIX + "return_") || name.includes(SUB_FN_PREFIX + "return_L")) return "callback";
+  if (name.endsWith("_fn")) return "callback";
   if (/_(if|else|try|catch|case)(?:_\d+)?$/.test(name)) return "branch";
 
   return "other";

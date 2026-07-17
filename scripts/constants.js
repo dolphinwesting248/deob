@@ -82,8 +82,8 @@ const SKIP_KEYS = new Set([
 const SKIP_KEYS_LIST = ["start", "end", "loc", "leadingComments", "trailingComments", "innerComments"];
 
 // ---- Sub-function Naming ----
-const SUB_FN_PREFIX = "_S_";
-const SUB_FN_NAME_RE = /^_S_(.+?)_\d{2}_/;
+const SUB_FN_PREFIX = "$";
+const SUB_FN_NAME_RE = /^\$(\d+)_/;
 const isSubFn = (name) => name.startsWith(SUB_FN_PREFIX);
 
 // ---- Parser & Generator ----
