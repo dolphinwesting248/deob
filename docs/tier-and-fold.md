@@ -65,8 +65,6 @@ These patterns are safe to collapse because the function does not interact with 
 | 1 | false | Full code | Signature | Signature |
 | 1 | true | Full code | Signature | `// [type] name · ...` |
 
-> **tier 3 + fold** added in the 2026-07-18 release. Previously fold only applied at tier 1-2. Now `tier: 3, fold: true` keeps all non-mechanical functions with full bodies while collapsing mechanical ones (pure forward, pure computation, self-contained) to comment stubs.
-
 ## Choosing Parameters
 
 ### By task

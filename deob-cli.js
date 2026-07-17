@@ -185,7 +185,7 @@ module.exports = {
 
   // LLM-oriented output tuning
   tier: 3,        // 1=alerts+hotspots only, 2=+callees, 3=all functions
-  fold: false,    // collapse mechanical functions (polyfill/pure compute/forward) to comments
+  fold: true,    // collapse mechanical functions (polyfill/pure compute/forward) to comments
 
   // Alert denoising — downgrade false-positive alerts.
   // Each rule: { match: regex, label: "new label", severity?: "low"|"medium"|... }

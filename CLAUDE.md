@@ -92,17 +92,17 @@ output.deob/
 ```
 deob-cli.js                          CLI entry, config parsing, directory recursion
 scripts/
-  config.js                      User-facing config: parser, t, generate, fs, path, DEFAULT_DENOISE
-  constants.js                   Internal constants: RESERVED, GLOBALS, ALERT_PATTERNS, SKIP_KEYS,
-                                 SUB_FN_*, OUTPUT_FILES, THRESHOLDS, CATEGORIES, SEVERITY, NAMING_*,
+  config.js                      User-facing config: parser, t, generate, fs, path, 								         DEFAULT_DENOISE
+  constants.js                   Internal constants: RESERVED, GLOBALS, ALERT_PATTERNS, 									 SKIP_KEYS,
+                                 SUB_FN_*, OUTPUT_FILES, THRESHOLDS, CATEGORIES, SEVERITY, 									 NAMING_*,
                                  DOMAIN_RULES, CATEGORY_RULES, FRAMEWORK_PATTERNS
   ast-utils.js                   Generic AST walkers, pattern detectors, clone
-  callgraph.js                   Shared call graph builder (forward/reverse edges), reused by pipeline
-  refgraph.js                    Full-scope reference graph (declarations, mutations, refs, closure captures), reused by pipeline
+  callgraph.js                   Shared call graph builder (forward/reverse edges), reused by 									pipeline
+  refgraph.js                    Full-scope reference graph (declarations, mutations, refs, 									closure captures), reused by pipeline
   scope.js                       Variable scope analysis, external reference collection
   naming.js                      Sub-function naming (_S_ prefix, collision detection)
   emit.js                        Sub-function AST node creation, safeParam
-  extract.js                     Syntactic extraction (IIFE, try/catch, loop, if/else, switch, callbacks)
+  extract.js                     Syntactic extraction (IIFE, try/catch, loop, if/else, switch, 										callbacks)
   traverse.js                    Innermost-first function collection and body processing
   wrapper.js                     Top-level IIFE extraction from comma chains
   pipeline.js                    20-step pipeline orchestration, output writing
