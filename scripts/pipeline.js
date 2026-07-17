@@ -19,7 +19,7 @@ const { buildCallGraph } = require("./callgraph");
 const { buildRefGraph } = require("./refgraph");
 const c = require("./colors");
 
-function main({ input, output, split, agent, banner, compact } = {}) {
+function main({ input, output, split, agent, banner, compact, merged } = {}) {
   if (!input) throw new Error("main() requires { input: '<path>' }");
   if (!output) throw new Error("main() requires { output: '<path>' }");
   resetNames();
@@ -182,7 +182,7 @@ function main({ input, output, split, agent, banner, compact } = {}) {
   if (split) {
     result = writeSplitOutput(ast, output, code, useCompact);
   } else {
-    result = writeSingleOutput(ast, output, code, useCompact);
+    result = writeSingleOutput(ast, output, code, useCompact, merged);
   }
   const totalMs = Date.now() - pipelineStart;
   const speed = (code.length / 1024 / (totalMs / 1000)).toFixed(0);
@@ -190,7 +190,7 @@ function main({ input, output, split, agent, banner, compact } = {}) {
   return result;
 }
 
-function writeSingleOutput(ast, output, code, useCompact) {
+function writeSingleOutput(ast, output, code, useCompact, useMerged) {
   // output is always a directory; write deobfuscated code as main.js inside it
   const outDir = output;
   if (fs.existsSync(outDir)) fs.rmSync(outDir, { recursive: true });
@@ -199,17 +199,34 @@ function writeSingleOutput(ast, output, code, useCompact) {
   // Safety: filter out any non-statement nodes from program body
   ast.program.body = ast.program.body.filter((n) => n && typeof n.type === "string" && n.type !== "CommentLine" && n.type !== "CommentBlock");
 
+  // Merged mode: build function index header BEFORE generate (which strips loc info)
+  let mergedHeader = "";
+  if (useMerged) {
+    const fnDecls = ast.program.body.filter(s => s.type === "FunctionDeclaration" && s.id);
+    const subFns = fnDecls.filter(s => s.id.name.startsWith(SUB_FN_PREFIX));
+    const headerLines = [`/* deob: ${fnDecls.length} functions (${subFns.length} extracted)`];
+    for (const s of fnDecls.slice(0, 30)) {
+      const line = s.loc && s.loc.start ? s.loc.start.line : "?";
+      headerLines.push(`   ${s.id.name}:L${line}`);
+    }
+    if (fnDecls.length > 30) headerLines.push(`   ... +${fnDecls.length-30} more`);
+    headerLines.push(`*/`);
+    mergedHeader = headerLines.join("\n") + "\n";
+  }
+
   let generated = generate(ast, DEFAULT_GENERATE_OPTS).code;
 
   // Compact mode: post-process to reduce whitespace without breaking syntax
   if (useCompact) {
-    // Remove blank lines and collapse multiple spaces (preserve string content)
     generated = generated
       .split("\n")
       .filter((l) => l.trim() !== "")
       .map((l) => l.replace(/^ +/, (m) => m.length > 1 ? " ".repeat(Math.max(1, Math.floor(m.length / 2))) : m))
       .join("\n");
   }
+
+  // Prepend merged header
+  if (mergedHeader) generated = mergedHeader + generated;
 
   const mainFile = path.join(outDir, OUTPUT_FILES.MAIN);
   fs.writeFileSync(mainFile, generated, "utf-8");

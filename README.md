@@ -31,6 +31,7 @@ module.exports = {
   fold: true,                     // collapse mechanical functions to comments
   banner: true,                   // true=verbose, false=minimal metadata
   compact: false,                 // compact code generation
+  merged: true,                   // merge reports into main.js header
   denoise: [                      // alert denoising rules (optional)
     { match: "regex-source", label: "Label", severity: "low" },
   ],
@@ -50,6 +51,7 @@ module.exports = {
 | `fold` | `boolean` | `true` | Collapse mechanical functions to comments (works at all tiers) |
 | `banner` | `boolean` | `true` | true=verbose metadata banner, false=minimal (name + alerts) |
 | `compact` | `boolean` | `false` | Compact code generation (less whitespace) |
+| `merged` | `boolean` | `true` | Merge prompt/structure/index into main.js header comment |
 | `denoise` | `DenoiseRule[]` | defaults | Alert denoising rules |
 
 See [tier-and-fold.md](./docs/tier-and-fold.md) for more details for `tier` and `fold`.

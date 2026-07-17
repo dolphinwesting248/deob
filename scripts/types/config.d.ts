@@ -36,4 +36,6 @@ export interface DeobConfig {
   banner?: boolean;
   /** Compact code generation (less whitespace). Agent mode defaults to true. */
   compact?: boolean;
+  /** Merge prompt/structure/index into main.js header comment. Agent mode defaults to true. */
+  merged?: boolean;
 }
