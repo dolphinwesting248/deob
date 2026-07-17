@@ -36,7 +36,7 @@ function processOneFile(file, outDir, opts) {
   }
 
   try {
-    main({ input: file, output: outDir, split: opts.split, agent: opts.agent });
+    main({ input: file, output: outDir, split: opts.split, agent: opts.agent, banner: opts.banner });
   } catch (e) {
     if (opts.fatal) { console.error(`\n${c.red}ERROR:${c.reset} ${e.message.split("\n")[0]}`); process.exit(1); }
     console.error(`  ${c.yellow}SKIPPED:${c.reset} ${e.message.split("\n")[0]}`);
@@ -163,6 +163,7 @@ function parseConfig(filepath) {
     index: cfg.index != null ? !!cfg.index : !isAgent,  // agent mode skips index by default
     tier: cfg.tier != null ? cfg.tier : 3,
     fold: cfg.fold != null ? !!cfg.fold : isAgent,       // agent mode enables fold by default
+    banner: cfg.banner != null ? !!cfg.banner : !isAgent, // agent mode defaults to minimal
     denoise: Array.isArray(cfg.denoise) ? cfg.denoise : DEFAULT_DENOISE,
     agent: isAgent,
   };
@@ -187,6 +188,7 @@ module.exports = {
   md: true,       // Markdown structure report
   index: true,   // compact index.txt for LLM navigation
   agent: false,  // LLM agent mode: compact output, minimal banners, auto fold+tier
+  banner: true,  // true=verbose metadata banner, false=minimal (name + alerts only)
 
   // LLM-oriented output tuning
   tier: 3,        // 1=alerts+hotspots only, 2=+callees, 3=all functions

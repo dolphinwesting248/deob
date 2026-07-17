@@ -19,7 +19,7 @@ const { buildCallGraph } = require("./callgraph");
 const { buildRefGraph } = require("./refgraph");
 const c = require("./colors");
 
-function main({ input, output, split, agent } = {}) {
+function main({ input, output, split, agent, banner } = {}) {
   if (!input) throw new Error("main() requires { input: '<path>' }");
   if (!output) throw new Error("main() requires { output: '<path>' }");
   resetNames();
@@ -168,7 +168,8 @@ function main({ input, output, split, agent } = {}) {
 
   console.log(`${c.cyan}Step 18:${c.reset} Annotating functions with security alerts...`);
   const t18 = Date.now();
-  annotateAlerts(ast, callGraph, refGraph, isAgent);
+  const minimalBanner = banner != null ? !banner : isAgent;
+  annotateAlerts(ast, callGraph, refGraph, minimalBanner);
   console.log(`  ${c.dim}Done in ${Date.now() - t18}ms${c.reset}`);
 
   // ==================== Final Sanitization ====================
