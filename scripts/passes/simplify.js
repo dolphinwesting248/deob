@@ -117,6 +117,16 @@ function simplify(ast) {
       return t.stringLiteral(node.callee.object.elements.map((e) => e.value).join(sep));
     }
 
+    // --- string concat: "".concat(a, b) → when all literals, compute result ---
+    if (t.isCallExpression(node) && t.isMemberExpression(node.callee) &&
+        t.isIdentifier(node.callee.property, { name: "concat" }) &&
+        t.isStringLiteral(node.callee.object) &&
+        node.arguments.every((a) => t.isStringLiteral(a))) {
+      const parts = [node.callee.object.value, ...node.arguments.map((a) => a.value)];
+      strCount++;
+      return t.stringLiteral(parts.join(""));
+    }
+
     // --- hex/unicode string normalization: extra.raw still has \x escapes after Babel decoding ---
     if (t.isStringLiteral(node) && node.extra && node.extra.raw && /\\x[0-9a-f]{2}|\\u[0-9a-f]{4}/i.test(node.extra.raw)) {
       strCount++;
@@ -731,29 +741,38 @@ function normalizeSyntax(ast) {
 function inlineConstObjects(ast, refGraph) {
   let count = 0;
 
-  // Phase 1: find const object declarations with all-literal properties
+  // Phase 1: find const object declarations with all-literal properties (all scopes)
   const constObjs = new Map(); // name -> Map<propName, literalNode>
-  for (const stmt of ast.program.body) {
-    if (!t.isVariableDeclaration(stmt)) continue;
-    for (const decl of stmt.declarations) {
-      if (!t.isIdentifier(decl.id) || !t.isObjectExpression(decl.init)) continue;
-      const props = new Map();
-      let allLiteral = true;
-      for (const prop of decl.init.properties) {
-        if (!prop.shorthand && !prop.method && t.isIdentifier(prop.key) && t.isLiteral(prop.value)) {
-          props.set(prop.key.name, clone(prop.value));
-        } else if (!prop.shorthand && !prop.method && t.isStringLiteral(prop.key) && t.isLiteral(prop.value)) {
-          props.set(prop.key.value, clone(prop.value));
-        } else {
-          allLiteral = false;
-          break;
+  function findConstObjs(node) {
+    if (!node || typeof node !== "object") return;
+    if (t.isVariableDeclaration(node)) {
+      for (const decl of node.declarations) {
+        if (!t.isIdentifier(decl.id) || !t.isObjectExpression(decl.init)) continue;
+        const props = new Map();
+        let allLiteral = true;
+        for (const prop of decl.init.properties) {
+          if (!prop.shorthand && !prop.method && t.isIdentifier(prop.key) && t.isLiteral(prop.value)) {
+            props.set(prop.key.name, clone(prop.value));
+          } else if (!prop.shorthand && !prop.method && t.isStringLiteral(prop.key) && t.isLiteral(prop.value)) {
+            props.set(prop.key.value, clone(prop.value));
+          } else {
+            allLiteral = false;
+            break;
+          }
+        }
+        if (allLiteral && props.size > 0) {
+          constObjs.set(decl.id.name, props);
         }
       }
-      if (allLiteral && props.size > 0) {
-        constObjs.set(decl.id.name, props);
-      }
+    }
+    for (const k of Object.keys(node)) {
+      if (SKIP_KEYS.has(k)) continue;
+      const v = node[k];
+      if (Array.isArray(v)) { for (const x of v) findConstObjs(x); }
+      else if (v && typeof v.type === "string") findConstObjs(v);
     }
   }
+  findConstObjs(ast);
 
   if (constObjs.size === 0) { console.log("  Inlined 0 const object properties"); return; }
 
