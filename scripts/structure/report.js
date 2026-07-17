@@ -94,9 +94,9 @@ ${hotspots.mostCalled.filter(f => f.calledBy.length >= 3).length > 0 ? `| Rank |
 |------|------|---------|
 ${hotspots.mostCalled.filter(f => f.calledBy.length >= 3).map((f, i) => `| ${i + 1} | Most-called | \`${f.name}\` — called by ${f.calledBy.length} functions, calls ${f.calls.length} others |`).join("\n")}
 ` : ""}${hotspots.roots.length > 0 ? `| — | Roots (${hotspots.roots.length}) | Entry points: ${hotspots.roots.slice(0, 8).map((f) => `\`${f.name}\``).join(", ")}${hotspots.roots.length > 8 ? " …" : ""} |\n` : ""}${hotspots.mostCalled.filter(f => f.calledBy.length >= 3).length === 0 && hotspots.roots.length === 0 ? "_No significant call patterns._\n" : ""}
-## String Alerts
+## Alerts
 
-${alerts.length === 0 ? "" : (() => { const deduped = []; const seen = new Map(); for (const a of alerts) { const key = a.label + "|" + a.fn; if (seen.has(key)) { const prev = deduped[seen.get(key)]; prev.matches = [...new Set([...prev.matches, ...a.matches])]; if (!prev._count) prev._count = 1; prev._count++; continue; } seen.set(key, deduped.length); deduped.push({...a, _count: 1}); } return `| Severity | Pattern | Function | Trace | Matches |
+${alerts.length === 0 ? "_No significant alerts._\n" : (() => { const deduped = []; const seen = new Map(); for (const a of alerts) { const key = a.label + "|" + a.fn; if (seen.has(key)) { const prev = deduped[seen.get(key)]; prev.matches = [...new Set([...prev.matches, ...a.matches])]; if (!prev._count) prev._count = 1; prev._count++; continue; } seen.set(key, deduped.length); deduped.push({...a, _count: 1}); } return `| Severity | Pattern | Function | Trace | Matches |
 |----------|---------|----------|-------|---------|
 ${deduped.map((a) => {
     const tr = (report.alertTraces || []).find((t) => t.fn === a.fn);
@@ -110,9 +110,7 @@ ${deduped.map((a) => {
 | Rank | Group | Edges |
 |------|-------|-------|
 ${hotspots.hotGroups.filter(([, c]) => c > 0).map(([g, c], i) => `| ${i + 1} | \`${g}\` | ${c} |`).join("\n")}
-` : ""}## Naming Convention
-
-\`_S_<parent>_<seq>_<hint>\` — \`try\`=try body, \`catch\`=catch handler, \`if\`=if branch, \`else\`=else branch, \`case\`=switch case, \`iife\`=IIFE, \`init\`=var init, \`return\`=inline fn, \`block\`=code block, \`loop\`=loop body. \`_L<line>\` disambiguates collisions.
+` : ""}
 `;
 
   return result;
@@ -194,23 +192,22 @@ ${roots.length > 0 ? `- **Entry point**: \`${roots[0].name}\` → ${roots[0].cal
 ${showCaptures ? `- **Closure captures**: ${captureCount} variables captured by ${new Set(refGraph.closureCaptures.map(c => c.fnName)).size} functions` : ""}
 ${refGraph ? (() => { const shared = [...refGraph.varUsedBy.entries()].filter(([n, fns]) => fns.size >= 2).sort((a, b) => b[1].size - a[1].size).slice(0, 5); return shared.length > 0 ? `- **Shared variables**: ${shared.map(([n, fns]) => `${n} (${fns.size} functions)`).join(", ")}` : ""; })() : ""}
 
-## Alerts (${alerts.filter(a => a.severity !== "info" && a.severity !== "low").length} significant)
-${alerts.filter(a => a.severity !== "info" && a.severity !== "low").slice(0, 10).map((a) => {
-    const countStr = a.count > 1 ? ` (×${a.count})` : "";
-    const fnStr = a.count > 1 && a.fns ? a.fns.slice(0, 3).join(", ") : `\`${a.fn}\``;
-    return `- [${a.severity}] **${a.label}**${countStr} in ${fnStr}: ${(a.matches || []).slice(0, 3).join(", ")}`;
-  }).join("\n") || "_No significant security alerts detected._"}
-${alerts.filter(a => a.severity === "info" || a.severity === "low").length > 0 ? `\n_${alerts.filter(a => a.severity === "info" || a.severity === "low").length} low/info alerts omitted (denoised)._` : ""}
+${(() => {
+    const sig = alerts.filter(a => a.severity !== "info" && a.severity !== "low");
+    if (sig.length === 0) return "";
+    return `\n## Alerts (${sig.length} significant)\n` + sig.slice(0, 10).map((a) => {
+      const countStr = a.count > 1 ? ` (×${a.count})` : "";
+      const fnStr = a.count > 1 && a.fns ? a.fns.slice(0, 3).join(", ") : `\`${a.fn}\``;
+      return `- [${a.severity}] **${a.label}**${countStr} in ${fnStr}: ${(a.matches || []).slice(0, 3).join(", ")}`;
+    }).join("\n") + (alerts.filter(a => a.severity === "info" || a.severity === "low").length > 0 ? `\n_${alerts.filter(a => a.severity === "info" || a.severity === "low").length} low/info alerts omitted._` : "");
+  })()}
 
-## Start Here (top 5)
+## Start Here
 ${scored.map((f, i) => {
     const why = [];
-    if (alerts.some((a) => a.fn === f.name)) why.push("alerts");
-    if (f.flat) why.push("flattened");
-    if (f.complexity > 5) why.push("cc=" + f.complexity);
-    const callees = f.calls.length > 0 ? " → " + f.calls.slice(0, 5).join(", ") : "";
-    const callers = f.calledBy.length > 0 ? " ⇐ " + f.calledBy.slice(0, 3).join(", ") : callees ? " root" : "";
-    return `${i + 1}. \`${f.name}\` | ${f.bodyLen || "?"}/${f.params.length}P${callees}${callers} | ${f.description || ""}${why.length > 0 ? " [" + why.join(", ") + "]" : ""}`;
+    if (alerts.some((a) => a.fn === f.name)) why.push("[alerts]");
+    if (f.flat) why.push("[flat]");
+    return `${i + 1}. \`${f.name}\` — ${f.description || "no description"}${why.length > 0 ? " " + why.join(" ") : ""}`;
   }).join("\n")}
 
 ${passThrough > 0 ? `## Skip\n${passThrough} pass-through functions (zero logic). See \`2-index.txt\` for full function catalog.\n` : ""}`;
