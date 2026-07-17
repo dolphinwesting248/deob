@@ -46,7 +46,10 @@ function applyTierFilter(outputDir, tier, fold, denoise) {
     for (const name of expanded) keep.add(name);
   }
 
-  if (tier >= 3 || keep.size === 0 || keep.size >= report.functions.length) return;
+  if (keep.size === 0 || keep.size >= report.functions.length) return;
+  if (tier >= 3 && !fold) return;
+  // tier >= 3 + fold: only fold mechanical functions, keep all
+  const tier3Fold = tier >= 3;
 
   // Step 3: parse the generated code
   const code = fs.readFileSync(mainPath, "utf-8");
@@ -65,12 +68,29 @@ function applyTierFilter(outputDir, tier, fold, denoise) {
   let mechCount = 0;
 
   for (const stmt of ast.program.body) {
-    if (!t.isFunctionDeclaration(stmt) || !stmt.id || keep.has(stmt.id.name)) continue;
+    if (!t.isFunctionDeclaration(stmt) || !stmt.id) continue;
 
     const name = stmt.id.name;
     const fn = fnIdx.get(name);
     const lines = fn && fn.lines[0] ? `L${fn.lines[0]}-${fn.lines[1]}` : "L?";
     const cmp = fn && fn.complexity > 1 ? `, cc=${fn.complexity}` : "";
+
+    // tier 3 + fold: only fold mechanical functions, keep everything else
+    if (tier3Fold) {
+      if (!fold) continue;
+      const mech = detectMechanical(stmt);
+      if (mech) {
+        mechCount++;
+        edits.push({
+          start: stmt.start, end: stmt.end,
+          replacement: `// [${mech.type}] ${name} · ${lines}${cmp}${mech.detail ? " · " + mech.detail : ""}`,
+        });
+      }
+      continue;
+    }
+
+    // tier < 3: non-kept functions get stripped or folded
+    if (keep.has(stmt.id.name)) continue;
 
     if (fold) {
       const mech = detectMechanical(stmt);
@@ -99,10 +119,14 @@ function applyTierFilter(outputDir, tier, fold, denoise) {
   }
 
   fs.writeFileSync(mainPath, filtered, "utf-8");
-  const skipped = edits.length;
+  const skipped = tier3Fold ? 0 : edits.length - mechCount;
   const kept = report.functions.length - skipped;
-  const extra = fold && mechCount > 0 ? ` (${mechCount} folded)` : "";
-  console.log(`  Tier ${tier}: kept ${kept}/${report.functions.length} functions, ${skipped} signatures${extra}`);
+  const extra = mechCount > 0 ? ` (${mechCount} folded)` : "";
+  if (tier3Fold) {
+    console.log(`  Fold: collapsed ${mechCount} mechanical functions to comments`);
+  } else {
+    console.log(`  Tier ${tier}: kept ${kept}/${report.functions.length} functions, ${skipped} signatures${extra}`);
+  }
 }
 
 module.exports = { applyTierFilter };
