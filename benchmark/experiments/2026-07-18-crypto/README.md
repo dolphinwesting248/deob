@@ -1,93 +1,90 @@
-# Crypto Cracking Benchmark
+# deob Crypto Cracking Benchmark
 
-Tests deobscura's effectiveness at preparing obfuscated JavaScript for LLM-driven client-side encryption analysis.
+Quantify deob's impact on LLM-driven client-side encryption analysis. Adapted from real production encryption code.
 
 ## Quick Start
 
 ```bash
-# 1. Run deob on all scenarios
+# 1. Prepare scenarios: write original.js + ground-truth.json
+# 2. Generate obfuscated code
+node tools/obfuscate.js
+
+# 3. Run deob on all scenarios
 node tools/runner.js
 
-# 2. Have LLM analyze each scenario (deob output vs raw obfuscated)
-#    Provide: results/deob-output/<A|B|C>/main.js + 0-prompt.md
+# 4. Spawn sub-agents (deob vs raw)
+#    Save answers to results/agent-answers/scenario_<X>_deob.json and **_raw.json
 
-# 3. LLM produces answer JSON per scenario → save to results/agent-answers/
+# 5. Embed token/time metadata (_meta) into answer JSONs
 
-# 4. Score results
-node tools/score.js results/agent-answers/
+# 6. Generate LLM scoring prompt
+node tools/score-llm.js
+
+# 7. Send prompt to LLM → save response as results/scores/llm-scores.json
+
+# 8. Compute final scores
+node tools/score.js --all
+
+# 9. Generate charts
+node tools/gen-charts.js
 ```
+
+## Scoring (8 dimensions)
+
+| # | Dimension | Weight | Type | Description |
+|---|-----------|--------|------|-------------|
+| 1 | Algorithm | 20% | LLM | Correctly identified encryption algorithm and mode |
+| 2 | Key | 25% | LLM | Found salt/key/secret value and source |
+| 3 | Parameters | 20% | LLM | IV, padding, encoding, separator, data format |
+| 4 | PseudoCode | 10% | LLM | Pseudo-code is logically executable |
+| 5 | Result | 10% | LLM | Recovered correct plaintext/signature/HMAC |
+| 6 | Token | 5% | Rule | Bidirectional normalization |
+| 7 | Time | 5% | Rule | Bidirectional normalization |
+| 8 | EntryPoint | 5% | Rule | Correctly identified encryption entry function |
 
 ## Scenarios
 
-| Scenario | Algorithm | Difficulty | Obfuscation | Adapted From |
-|----------|-----------|------------|-------------|--------------|
-| **A** | MD5 Request Signing | Medium | stringArray + controlFlow + deadCode | sina_ads.js + suning_da.js |
-| **B** | AES-128-CBC Encryption | Hard | stringArray + controlFlow + deadCode + selfDefending | weibo_fp.js `We()` function |
-| **C** | RC4 + HMAC-SHA256 | Extreme | All options (RC4 string array + selfDefending + debugProtection) | tmall_security.js |
+| Scenario | Algorithm | Difficulty | Source |
+|----------|-----------|------------|--------|
+| A | MD5 Request Signing | Medium | sina_ads + suning_da |
+| B | AES-128-CBC Encryption | Hard | weibo_fp.js |
+| C | RC4 + HMAC-SHA256 | Extreme | tmall_security.js |
 
-### Scenario A — MD5 Signing
-
-Hidden salt `x7k9m_2025`, separator `|`, sorted params. LLM must find the salt and reproduce the signature.
-
-### Scenario B — AES-CBC Encryption  
-
-Hardcoded 128-bit AES key (`2b7e151628aed2a6...`), random IV, payload format `base64(iv).base64(ciphertext)`. LLM must extract the key and decrypt a provided ciphertext.
-
-### Scenario C — RC4 + HMAC
-
-RC4-encoded string table (20 strings) + HMAC-SHA256 integrity key (`integrity_key_2025`). LLM must decode all strings, find the HMAC key, and verify a test HMAC.
-
-## Expected LLM Answer Format
+## Agent Answer Format
 
 ```json
 {
-  "scenario": "A",
+  "scenario": "B",
   "agentType": "deob",
-  "algorithm": "MD5",
-  "salt": "x7k9m_2025",
-  "separator": "|",
-  "paramFormat": "sorted key=value pairs joined by &",
-  "signStringFormat": "{params}&{separator}{timestamp}{separator}{salt}",
-  "pythonSignature": "f35292a6eb1648cd1099d06e9606d6df",
-  "_meta": { "timeMs": 45000, "tokensUsed": 3200 }
+  "algorithm": "AES-128-CBC with PKCS#7 and random IV",
+  "keyOrSalt": "2b7e151628aed2a6abf7158809cf4f3c",
+  "separator": ".",
+  "payloadFormat": "base64(iv).base64(ciphertext)",
+  "entryFunction": "encryptPayload",
+  "pseudoCode": "def decrypt(payload): ...",
+  "plaintextOrSignature": {"user":"test_user",...},
+  "endpoints": [],
+  "_meta": { "timeMs": 85000, "tokensUsed": 4200 }
 }
 ```
-
-## Scoring
-
-| Dimension | Weight | Scenario A | Scenario B | Scenario C |
-|-----------|--------|------------|------------|------------|
-| Algorithm ID | 20% | MD5 | AES-CBC | RC4 + HMAC |
-| Key/Salt Locating | 30% | salt value | AES key hex | RC4 key + HMAC key |
-| Parameters | 20% | separator + format | IV + format + padding | string table decode |
-| Pseudo/Code | 20% | format description | format + separator | format description |
-| Verification | 10% | correct signature | correct plaintext | correct HMAC |
-
-Verification is objective — the scoring script compares LLM output against ground-truth values directly.
 
 ## File Structure
 
 ```
-scenarios/
-  A/  original.js  obfuscated.js  ground-truth.json
-  B/  original.js  obfuscated.js  ground-truth.json
-  C/  original.js  obfuscated.js  ground-truth.json
-tools/
-  runner.js      — runs deob on all scenarios
-  score.js       — scores LLM answers against ground truth
-results/
-  deob-output/   — deob main.js + prompt + structure + index per scenario
-  agent-answers/ — LLM-produced answer JSONs go here
-  deob-metrics.json — pipeline metrics
-  scores.json    — scoring output
+experiments/2026-07-18-crypto/
+  README.md
+  imgs/
+    bar-total.svg
+    radar-A.svg, radar-B.svg, radar-C.svg
+  tools/
+    obfuscate.js, runner.js, score.js, score-llm.js, gen-charts.js
+  scenarios/
+    A/  original.js  obfuscated.js  ground-truth.json
+    B/  ...
+    C/  ...
+  results/
+    deob-output/      scenario_A_deob/  scenario_B_deob/  scenario_C_deob/
+    agent-answers/    scenario_A_deob.json  scenario_A_raw.json  ...
+    agent-prompts/    (optional)
+    scores/           llm-score-prompt.txt  llm-scores.json  final-scores.json
 ```
-
-## Deob Processing Results
-
-| Scenario | Input | Output | Ratio | Time | Sub-fns |
-|----------|-------|--------|-------|------|---------|
-| A | 44.7 KB | 31.4 KB | **70.2%** | 290ms | 4 |
-| B | 26.4 KB | 25.2 KB | **95.5%** | 214ms | 11 |
-| C | 39.5 KB | 35.6 KB | **90.1%** | 232ms | 24 |
-
-All three produced smaller output than input after deob processing.

@@ -1,165 +1,129 @@
 #!/usr/bin/env node
-// Scoring script for crypto benchmark
-// Reads agent answers and compares against ground truth
+// 8-dimension scoring: 5 LLM-judged (85%) + 3 Rule-calculated (15%)
 const fs = require("fs");
 const path = require("path");
-const crypto = require("crypto");
 
+const BASE = path.join(__dirname, "..");
 const SCENARIOS = ["A", "B", "C"];
-const RESULTS_DIR = path.join(__dirname, "..", "results");
-const SCENARIO_DIR = path.join(__dirname, "..", "scenarios");
 
-// ---- Scenario A scoring: MD5 signature ----
-function scoreA(answer) {
-  const truth = JSON.parse(fs.readFileSync(
-    path.join(SCENARIO_DIR, "A", "ground-truth.json"), "utf8"
-  ));
-  const scores = {};
-
-  // Algorithm identification
-  scores.algorithm = answer.algorithm && answer.algorithm.toLowerCase().includes("md5") ? 1.0 : 0.0;
-
-  // Salt location
-  scores.salt = answer.salt === truth.encryption.salt ? 1.0 :
-    (answer.salt && answer.salt.length > 0 ? 0.5 : 0.0);
-
-  // Separator
-  scores.separator = answer.separator === truth.encryption.separator ? 1.0 : 0.0;
-
-  // Format description
-  const formatCorrect = answer.signStringFormat &&
-    answer.signStringFormat.includes("param") &&
-    answer.signStringFormat.includes("timestamp") &&
-    answer.signStringFormat.includes("salt");
-  scores.format = formatCorrect ? 1.0 : 0.5;
-
-  // Signature verification (objective)
-  if (answer.pythonSignature) {
-    const expected = truth.verification.expectedSignature;
-    scores.verification = answer.pythonSignature === expected ? 1.0 : 0.0;
-  } else {
-    scores.verification = 0.0;
-  }
-
-  const weights = { algorithm: 0.20, salt: 0.30, separator: 0.20, format: 0.20, verification: 0.10 };
-  scores.total = Object.entries(weights).reduce((s, [k, w]) => s + (scores[k] || 0) * w, 0);
-
-  return { dimensionScores: scores, weights };
+// Normalize token/time bidirectionally: lower is better, 0..1 range
+function scoreMetric(agentVal, deobVal, rawVal) {
+  if (!agentVal || !deobVal || !rawVal) return 0.5;
+  const total = deobVal + rawVal;
+  if (total === 0) return 0.5;
+  return Math.max(0, Math.min(1, 1 - agentVal / total));
 }
 
-// ---- Scenario B scoring: AES-CBC decryption ----
-function scoreB(answer) {
-  const truth = JSON.parse(fs.readFileSync(
-    path.join(SCENARIO_DIR, "B", "ground-truth.json"), "utf8"
-  ));
-  const scores = {};
-
-  // Algorithm identification
-  const algo = (answer.algorithm || "").toLowerCase();
-  scores.algorithm = algo.includes("aes") && algo.includes("cbc") ? 1.0 :
-    (algo.includes("aes") ? 0.5 : 0.0);
-
-  // Key extraction
-  const key = (answer.keyHex || answer.key || "").toLowerCase().replace(/\s/g, "");
-  scores.key = key === truth.encryption.keyHex ? 1.0 :
-    (key.length >= 16 ? 0.3 : 0.0);
-
-  // IV and format
-  scores.format = answer.payloadFormat &&
-    answer.payloadFormat.includes("iv") &&
-    answer.payloadFormat.includes("base64") ? 1.0 : 0.3;
-
-  // Separator
-  scores.separator = answer.separator === truth.encryption.separator ? 1.0 : 0.0;
-
-  // Decryption verification (objective)
-  if (answer.decryptedPlaintext) {
-    const expected = JSON.stringify(truth.verification.expectedPlaintext);
-    scores.verification = JSON.stringify(answer.decryptedPlaintext) === expected ? 1.0 : 0.0;
-  } else {
-    scores.verification = 0.0;
-  }
-
-  const weights = { algorithm: 0.20, key: 0.30, format: 0.20, separator: 0.20, verification: 0.10 };
-  scores.total = Object.entries(weights).reduce((s, [k, w]) => s + (scores[k] || 0) * w, 0);
-
-  return { dimensionScores: scores, weights };
+function loadAnswer(name) {
+  const p = path.join(BASE, "results", "agent-answers", name);
+  return fs.existsSync(p) ? JSON.parse(fs.readFileSync(p, "utf-8")) : null;
 }
 
-// ---- Scenario C scoring: RC4 + HMAC ----
-function scoreC(answer) {
-  const truth = JSON.parse(fs.readFileSync(
-    path.join(SCENARIO_DIR, "C", "ground-truth.json"), "utf8"
-  ));
-  const scores = {};
+function loadTruth(s) {
+  return JSON.parse(fs.readFileSync(path.join(BASE, "scenarios", s, "ground-truth.json"), "utf-8"));
+}
 
-  // Algorithm identification
-  const algo = (answer.algorithm || "").toLowerCase();
-  scores.algorithm = (algo.includes("rc4") && algo.includes("hmac")) ? 1.0 :
-    (algo.includes("rc4") || algo.includes("hmac") ? 0.5 : 0.0);
+// ---- LLM scores from llm-scores.json ----
+let llmScores = {};
+const llmPath = path.join(BASE, "results", "scores", "llm-scores.json");
+if (fs.existsSync(llmPath)) llmScores = JSON.parse(fs.readFileSync(llmPath, "utf-8"));
 
-  // RC4 key
-  const rc4Key = (answer.rc4Key || answer.rc4KeyHex || "").toLowerCase().replace(/\s/g, "");
-  scores.rc4Key = rc4Key === truth.encryption.rc4.keyHex ? 1.0 :
-    (rc4Key.length >= 8 ? 0.3 : 0.0);
+function getLlmScore(scenario, agentType, dim) {
+  try { return llmScores[scenario]?.[agentType]?.[dim] ?? null; }
+  catch { return null; }
+}
 
-  // HMAC key
-  scores.hmacKey = answer.hmacKey === truth.encryption.hmac.key ? 1.0 :
-    (answer.hmacKey && answer.hmacKey.length > 0 ? 0.5 : 0.0);
+// ---- Rule-based scores ----
+function scoreEndpoints(answer, truth) {
+  const expected = truth.expectedAnswers?.endpoints || [];
+  if (expected.length === 0) return 1;
+  const found = answer?.endpoints || [];
+  let matched = 0;
+  for (const te of expected) {
+    if (found.some(fe => (fe.url || "").includes(te.url) && fe.method === te.method)) matched++;
+  }
+  return expected.length > 0 ? matched / expected.length : 1;
+}
 
-  // String table decoding (check first 5)
-  if (answer.decodedStrings) {
-    const expected = truth.encryption.stringTable.decoded;
-    let matchCount = 0;
-    for (const [k, v] of Object.entries(expected)) {
-      if (answer.decodedStrings[k] === v) matchCount++;
-    }
-    scores.strings = matchCount / Object.keys(expected).length;
-  } else {
-    scores.strings = 0.0;
+function scoreEntryPoint(answer, truth) {
+  const expected = truth.expectedAnswers?.entryFunction || "";
+  if (!expected) return 0.5;
+  const ans = (answer?.entryFunction || "").toLowerCase();
+  return ans.includes(expected.toLowerCase()) ? 1 : 0;
+}
+
+function computeScores(scenario, deobAnswer, rawAnswer) {
+  const truth = loadTruth(scenario);
+  const deobMeta = deobAnswer?._meta || {};
+  const rawMeta = rawAnswer?._meta || {};
+
+  const llmDims = ["algorithm", "keyOrSalt", "parameters", "pseudoCode", "plaintextOrSignature"];
+  const dimLabels = { algorithm: "Algorithm", keyOrSalt: "Key", parameters: "Parameters", pseudoCode: "PseudoCode", plaintextOrSignature: "Result" };
+
+  const deobScores = {}, rawScores = {};
+
+  // LLM dimensions
+  for (const dim of llmDims) {
+    const dDeob = getLlmScore(scenario, "deob", dimLabels[dim]);
+    const dRaw = getLlmScore(scenario, "raw", dimLabels[dim]);
+    deobScores[dim] = dDeob !== null ? dDeob : 0;
+    rawScores[dim] = dRaw !== null ? dRaw : 0;
   }
 
-  // HMAC verification
-  if (answer.pythonHmac) {
-    scores.verification = answer.pythonHmac === truth.verification.expectedHmac ? 1.0 : 0.0;
-  } else {
-    scores.verification = 0.0;
+  // Rule dimensions
+  const deobTime = deobMeta.timeMs || 0, rawTime = rawMeta.timeMs || 0;
+  const deobTokens = deobMeta.tokensUsed || 0, rawTokens = rawMeta.tokensUsed || 0;
+
+  deobScores.endpoints = scoreEndpoints(deobAnswer, truth);
+  rawScores.endpoints = scoreEndpoints(rawAnswer, truth);
+  deobScores.time = scoreMetric(deobTime, deobTime, rawTime); // deob's own time normalized
+  rawScores.time = scoreMetric(rawTime, deobTime, rawTime);
+  deobScores.token = scoreMetric(deobTokens, deobTokens, rawTokens);
+  rawScores.token = scoreMetric(rawTokens, deobTokens, rawTokens);
+  deobScores.entry = scoreEntryPoint(deobAnswer, truth);
+  rawScores.entry = scoreEntryPoint(rawAnswer, truth);
+
+  // Weights: 5 LLM (85%) + 3 Rule (15%)
+  const weights = {
+    algorithm: 0.20, keyOrSalt: 0.25, parameters: 0.20,
+    pseudoCode: 0.10, plaintextOrSignature: 0.10,
+    token: 0.05, time: 0.05, entry: 0.05,
+  };
+
+  function total(scores) {
+    return Object.entries(weights).reduce((s, [k, w]) => s + (scores[k] || 0) * w, 0);
   }
 
-  const weights = { algorithm: 0.20, rc4Key: 0.30, hmacKey: 0.20, strings: 0.20, verification: 0.10 };
-  scores.total = Object.entries(weights).reduce((s, [k, w]) => s + (scores[k] || 0) * w, 0);
-
-  return { dimensionScores: scores, weights };
+  return {
+    scenario,
+    deob: { dimensionScores: deobScores, total: total(deobScores), weights },
+    raw: { dimensionScores: rawScores, total: total(rawScores), weights },
+  };
 }
 
 // ---- Main ----
-const scorers = { A: scoreA, B: scoreB, C: scoreC };
-
-function scoreAll(answersDir) {
-  const allScores = {};
-  for (const s of SCENARIOS) {
-    const answerFile = path.join(answersDir, `scenario_${s}_answer.json`);
-    if (!fs.existsSync(answerFile)) {
-      console.log(`Scenario ${s}: NO ANSWER FILE`);
-      continue;
-    }
-    const answer = JSON.parse(fs.readFileSync(answerFile, "utf8"));
-    const result = scorers[s](answer);
-    allScores[s] = result;
-    console.log(`Scenario ${s}: ${(result.dimensionScores.total * 100).toFixed(0)}%`);
-  }
-  return allScores;
-}
-
-// CLI
 const args = process.argv.slice(2);
 if (args.length === 0) {
-  console.log("Usage: node score.js <answers-dir>");
-  console.log("  answers-dir: directory containing scenario_A_answer.json etc.");
+  console.log("Usage: node score.js --all          (score all scenarios using llm-scores.json)");
+  console.log("       node score.js <answer.json>  (quick single-answer check)");
   process.exit(1);
 }
 
-const scores = scoreAll(args[0]);
-const outPath = path.join(RESULTS_DIR, "scores.json");
-fs.writeFileSync(outPath, JSON.stringify(scores, null, 2));
-console.log(`\nScores saved to ${outPath}`);
+if (args[0] === "--all") {
+  const allScores = {};
+  for (const s of SCENARIOS) {
+    const deob = loadAnswer(`scenario_${s}_deob.json`);
+    const raw = loadAnswer(`scenario_${s}_raw.json`);
+    if (!deob && !raw) { console.log(`Scenario ${s}: NO ANSWERS`); continue; }
+    allScores[s] = computeScores(s, deob, raw);
+    console.log(`Scenario ${s}: deob=${(allScores[s].deob.total*100).toFixed(0)}% raw=${(allScores[s].raw.total*100).toFixed(0)}%`);
+  }
+  fs.writeFileSync(path.join(BASE, "results", "scores", "final-scores.json"), JSON.stringify(allScores, null, 2));
+  console.log(`\nScores saved to results/scores/final-scores.json`);
+} else {
+  const ans = JSON.parse(fs.readFileSync(args[0], "utf-8"));
+  const s = ans.scenario || "A";
+  // For single-answer, just compute raw (no deob comparison)
+  const truth = loadTruth(s);
+  console.log(JSON.stringify({ scenario: s, answer: ans }, null, 2));
+}

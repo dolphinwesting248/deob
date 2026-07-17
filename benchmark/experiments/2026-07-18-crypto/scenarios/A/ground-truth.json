@@ -2,14 +2,22 @@
   "scenario": "A",
   "difficulty": "medium",
   "algorithm": "MD5",
-  "description": "MD5 request signing with hidden salt and separator",
-  "encryption": {
-    "algorithm": "MD5",
-    "salt": "x7k9m_2025",
+  "adaptationSource": "sina_ads.js + suning_da.js Signature alert patterns",
+  "description": "MD5 request signing with hidden salt and separator. LLM must find the salt, separator, and parameter format to reproduce the signature.",
+
+  "expectedAnswers": {
+    "algorithm": "MD5 hash for request signing",
+    "keyOrSalt": "x7k9m_2025",
+    "keySource": "hardcoded in CONFIG object as API_SALT",
     "separator": "|",
-    "paramFormat": "key=value pairs sorted alphabetically, joined by &",
-    "signStringFormat": "{sorted_params}&{separator}{timestamp}{separator}{salt}"
+    "paramFormat": "sorted key=value pairs joined by &",
+    "signStringFormat": "{sorted_params}|{timestamp}|{salt}",
+    "entryFunction": "signRequest",
+    "endpoints": [],
+    "pseudoCodeCorrect": true,
+    "plaintextOrSignature": "f35292a6eb1648cd1099d06e9606d6df"
   },
+
   "verification": {
     "input": {
       "params": { "user": "test123", "action": "login", "from": "web" },

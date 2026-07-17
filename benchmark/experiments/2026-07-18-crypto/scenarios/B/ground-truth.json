@@ -2,19 +2,21 @@
   "scenario": "B",
   "difficulty": "hard",
   "algorithm": "AES-128-CBC",
-  "description": "AES-CBC data encryption with hardcoded key and random IV",
-  "encryption": {
-    "algorithm": "AES-128-CBC",
-    "keyHex": "2b7e151628aed2a6abf7158809cf4f3c",
-    "keySize": 128,
-    "mode": "CBC",
-    "ivSource": "random 16 bytes per encryption, prepended to ciphertext",
-    "padding": "PKCS#7",
-    "encoding": "base64",
-    "payloadFormat": "base64(iv).base64(ciphertext)",
+  "adaptationSource": "weibo_fp.js We() function (lines 924-949)",
+  "description": "AES-128-CBC encryption with hardcoded key and random IV. LLM must extract the key bytes, understand the IV+ciphertext format, and decrypt a provided payload.",
+
+  "expectedAnswers": {
+    "algorithm": "AES-128-CBC with PKCS#7 padding and random 16-byte IV",
+    "keyOrSalt": "2b7e151628aed2a6abf7158809cf4f3c",
+    "keySource": "hardcoded byte array AES_KEY in source code",
     "separator": ".",
-    "plaintextEncoding": "JSON.stringify then UTF-8"
+    "paramFormat": "base64(iv).base64(ciphertext)",
+    "entryFunction": "encryptPayload",
+    "endpoints": [],
+    "pseudoCodeCorrect": true,
+    "plaintextOrSignature": { "user": "test_user", "action": "purchase", "amount": 99.99, "currency": "CNY" }
   },
+
   "verification": {
     "testPayload": "n3wswV2JC/FfIYJTWpVdkA==.zyBMpBBV+23WovKoJwVn34Ese54amkq/FDqJAhToWJbYMQbpQVG6NZ2s8eVoSWOIyXYq0VDGRLFVLpYfBOhPzcAyHYQ2MbRq9tGLnwUvCPk=",
     "expectedPlaintext": { "user": "test_user", "action": "purchase", "amount": 99.99, "currency": "CNY" }
