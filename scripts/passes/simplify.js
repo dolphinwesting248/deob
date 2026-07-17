@@ -486,6 +486,20 @@ function simplifyRedundantConditions(ast) {
         replacements.push({ array: stmtArray, index: i, count: 2, stmts: [replacement] });
       }
 
+      // ---- Pattern: if (!a) return false; return true; → return !!a ----
+      if (t.isIfStatement(s) && s.alternate === null &&
+          t.isUnaryExpression(s.test) && s.test.operator === "!" &&
+          t.isReturnStatement(s.consequent) && s.consequent.argument &&
+          t.isBooleanLiteral(s.consequent.argument, { value: false }) &&
+          i + 1 < stmtArray.length && t.isReturnStatement(stmtArray[i + 1]) && stmtArray[i + 1].argument &&
+          t.isBooleanLiteral(stmtArray[i + 1].argument, { value: true })) {
+        count++;
+        const replacement = t.returnStatement(
+          t.unaryExpression("!", t.unaryExpression("!", clone(s.test.argument))),
+        );
+        replacements.push({ array: stmtArray, index: i, count: 2, stmts: [replacement] });
+      }
+
       // ---- Pattern: if (a) return false; return true; → return !a ----
       if (t.isIfStatement(s) && t.isReturnStatement(s.consequent) && s.consequent.argument &&
           t.isBooleanLiteral(s.consequent.argument, { value: false }) && s.alternate === null &&
@@ -494,6 +508,20 @@ function simplifyRedundantConditions(ast) {
         count++;
         const replacement = t.returnStatement(
           t.unaryExpression("!", clone(s.test)),
+        );
+        replacements.push({ array: stmtArray, index: i, count: 2, stmts: [replacement] });
+      }
+
+      // ---- Pattern: if (!a) return true; return false; → return !a ----
+      if (t.isIfStatement(s) && s.alternate === null &&
+          t.isUnaryExpression(s.test) && s.test.operator === "!" &&
+          t.isReturnStatement(s.consequent) && s.consequent.argument &&
+          t.isBooleanLiteral(s.consequent.argument, { value: true }) &&
+          i + 1 < stmtArray.length && t.isReturnStatement(stmtArray[i + 1]) && stmtArray[i + 1].argument &&
+          t.isBooleanLiteral(stmtArray[i + 1].argument, { value: false })) {
+        count++;
+        const replacement = t.returnStatement(
+          t.unaryExpression("!", clone(s.test.argument)),
         );
         replacements.push({ array: stmtArray, index: i, count: 2, stmts: [replacement] });
       }
@@ -519,6 +547,27 @@ function simplifyRedundantConditions(ast) {
         count++;
         const consequent = t.isBlockStatement(s.consequent) ? s.consequent.body : [s.consequent];
         replacements.push({ array: stmtArray, index: i, count: 1, stmts: consequent });
+      }
+
+      // ---- Pattern: if (a) { return b; } return c; → return a ? b : c; ----
+      // Also handles brace-less: if (a) return b; return c;
+      if (t.isIfStatement(s) && s.alternate === null &&
+          i + 1 < stmtArray.length && t.isReturnStatement(stmtArray[i + 1]) && stmtArray[i + 1].argument) {
+        let ifReturn = null;
+        if (t.isBlockStatement(s.consequent) && s.consequent.body.length === 1 &&
+            t.isReturnStatement(s.consequent.body[0])) {
+          ifReturn = s.consequent.body[0];
+        } else if (t.isReturnStatement(s.consequent)) {
+          ifReturn = s.consequent;
+        }
+        if (ifReturn) {
+          count++;
+          const elseReturn = stmtArray[i + 1];
+          const replacement = t.returnStatement(
+            t.conditionalExpression(clone(s.test), ifReturn.argument || t.identifier("undefined"), elseReturn.argument),
+          );
+          replacements.push({ array: stmtArray, index: i, count: 2, stmts: [replacement] });
+        }
       }
     }
   }
