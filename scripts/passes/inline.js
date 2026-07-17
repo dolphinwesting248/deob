@@ -111,11 +111,32 @@ function inlinePureWrappers(ast) {
     const stmt = ast.program.body[i];
     if (!t.isFunctionDeclaration(stmt) || !stmt.id) continue;
     const body = stmt.body.body;
-    if (body.length === 1 && t.isReturnStatement(body[0]) &&
-        body[0].argument && t.isCallExpression(body[0].argument) &&
-        t.isIdentifier(body[0].argument.callee)) {
-      const target = body[0].argument.callee.name;
-      // Only inline if target exists at program level
+    if (body.length !== 1 || !t.isReturnStatement(body[0]) || !body[0].argument) continue;
+    const retArg = body[0].argument;
+    let target = null;
+    let matched = false;
+
+    // Pattern 1: return target(args) — simple pass-through
+    if (t.isCallExpression(retArg) && t.isIdentifier(retArg.callee)) {
+      target = retArg.callee.name;
+      matched = true;
+    }
+    // Pattern 2: return target.apply(this, arguments) — apply bridge
+    if (!matched && t.isCallExpression(retArg) && t.isMemberExpression(retArg.callee) &&
+        t.isIdentifier(retArg.callee.property, { name: "apply" }) &&
+        t.isIdentifier(retArg.callee.object)) {
+      target = retArg.callee.object.name;
+      matched = true;
+    }
+    // Pattern 3: return target.call(this, ...params) — call bridge
+    if (!matched && t.isCallExpression(retArg) && t.isMemberExpression(retArg.callee) &&
+        t.isIdentifier(retArg.callee.property, { name: "call" }) &&
+        t.isIdentifier(retArg.callee.object)) {
+      target = retArg.callee.object.name;
+      matched = true;
+    }
+
+    if (matched && target) {
       const targetExists = ast.program.body.some(s => t.isFunctionDeclaration(s) && s.id && s.id.name === target);
       if (targetExists) {
         wrappers.set(stmt.id.name, target);
