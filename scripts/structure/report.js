@@ -113,14 +113,14 @@ ${hotspots.mostCalled.map((f, i) => `| ${i + 1} | Most-called | \`${f.name}\` �
 ` : ""}${hotspots.roots.length > 0 ? `| — | Roots (${hotspots.roots.length}) | Entry points: ${hotspots.roots.slice(0, 8).map((f) => `\`${f.name}\``).join(", ")}${hotspots.roots.length > 8 ? " …" : ""} |\n` : ""}${hotspots.leaves.length > 0 ? `| — | Leaves (${hotspots.leaves.length}) | Terminal functions: ${hotspots.leaves.slice(0, 8).map((f) => `\`${f.name}\``).join(", ")}${hotspots.leaves.length > 8 ? " …" : ""} |\n` : ""}${hotspots.mostCalled.length === 0 && hotspots.roots.length === 0 && hotspots.leaves.length === 0 ? "_No cross-function calls detected._\n" : ""}
 ## String Alerts
 
-${alerts.length === 0 ? "_No significant patterns detected._\n" : (() => { const deduped = []; const seen = new Map(); for (const a of alerts) { const key = a.label + "|" + (a.matches||[])[0]; if (seen.has(key)) { const prev = deduped[seen.get(key)]; if (!prev._dupes) prev._dupes = []; prev._dupes.push(a.fn); continue; } seen.set(key, deduped.length); deduped.push({...a}); } return `| Severity | Pattern | Function | Trace | Matches |
+${alerts.length === 0 ? "_No significant patterns detected._\n" : (() => { const deduped = []; const seen = new Map(); for (const a of alerts) { const key = a.label + "|" + a.fn; if (seen.has(key)) { const prev = deduped[seen.get(key)]; prev.matches = [...new Set([...prev.matches, ...a.matches])]; if (!prev._count) prev._count = 1; prev._count++; continue; } seen.set(key, deduped.length); deduped.push({...a, _count: 1}); } return `| Severity | Pattern | Function | Trace | Matches |
 |----------|---------|----------|-------|---------|
 ${deduped.map((a) => {
     const tr = (report.alertTraces || []).find((t) => t.fn === a.fn);
     const afn = functions.find((f) => f.name === a.fn);
     const traceStr = tr ? tr.path.join(" → ") : (afn && afn.calledBy.length === 0) ? "no callers" : "no path";
-    const dupes = a._dupes ? " (+ " + a._dupes.length + " dupes)" : "";
-    return `| ${a.severity} | ${a.label} | \`${a.fn}\` | ${traceStr} | ${a.matches.join(" · ")}${dupes} |`;
+    const count = a._count > 1 ? " (x" + a._count + ")" : "";
+    return `| ${a.severity} | ${a.label} | \`${a.fn}\` | ${traceStr} | ${a.matches.slice(0, 3).join(" · ")}${a.matches.length > 3 ? " +" + (a.matches.length - 3) : ""}${count} |`;
   }).join("\n")}
 `})()}
 ## Hot Groups
