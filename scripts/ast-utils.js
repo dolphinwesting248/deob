@@ -109,6 +109,7 @@ function clone(n) {
     const val = n[key];
     if (Array.isArray(val)) { copy[key] = val.map((v) => clone(v)); }
     else if (val && typeof val.type === "string") { copy[key] = clone(val); }
+    else if (typeof val === "function") { /* skip — Function objects don't belong in AST */ }
     else { copy[key] = val; }
   }
   return copy;
