@@ -19,14 +19,16 @@ function processAllFunctions(ast) {
                  t.isArrowFunctionExpression(node) || t.isObjectMethod(node) ||
                  t.isClassMethod(node) || t.isClassPrivateMethod(node);
     if (isFn) {
-      if (parent) fnParent.set(node, parent);
+      const isMethod = t.isObjectMethod(node) || t.isClassMethod(node) || t.isClassPrivateMethod(node);
+      if (parent && !isMethod) fnParent.set(node, parent);
       for (const key of ["body", "params", "id", "key", "decorators"]) {
         const v = node[key];
         if (v && typeof v.type === "string") collectFns(v, node);
         else if (Array.isArray(v)) { for (const x of v) { if (x && typeof x.type === "string") collectFns(x, node); } }
       }
       if (t.isBlockStatement(node.body)) { for (const stmt of node.body.body) collectFns(stmt, node); }
-      fnNodes.push(node);
+      // Methods don't need extraction — their bodies are already processed via parent
+      if (!isMethod) fnNodes.push(node);
     } else {
       for (const key of Object.keys(node)) {
         if (key === "start" || key === "end" || key === "loc" ||
