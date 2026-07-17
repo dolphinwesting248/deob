@@ -19,16 +19,17 @@ const { buildCallGraph } = require("./callgraph");
 const { buildRefGraph } = require("./refgraph");
 const c = require("./colors");
 
-function main({ input, output, split, agent, banner } = {}) {
+function main({ input, output, split, agent, banner, compact } = {}) {
   if (!input) throw new Error("main() requires { input: '<path>' }");
   if (!output) throw new Error("main() requires { output: '<path>' }");
   resetNames();
   resetInlineNames();
   const pipelineStart = Date.now();
 
-  // Agent mode: compact output, minimal banners, optimal for LLM consumption
+  // Agent mode: auto-configures compact + minimal banners for LLM consumption
   const isAgent = !!agent;
-  const generateOpts = isAgent
+  const useCompact = compact != null ? !!compact : isAgent;
+  const generateOpts = useCompact
     ? { ...DEFAULT_GENERATE_OPTS, compact: true, comments: true }
     : DEFAULT_GENERATE_OPTS;
 

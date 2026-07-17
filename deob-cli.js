@@ -36,7 +36,7 @@ function processOneFile(file, outDir, opts) {
   }
 
   try {
-    main({ input: file, output: outDir, split: opts.split, agent: opts.agent, banner: opts.banner });
+    main({ input: file, output: outDir, split: opts.split, agent: opts.agent, banner: opts.banner, compact: opts.compact });
   } catch (e) {
     if (opts.fatal) { console.error(`\n${c.red}ERROR:${c.reset} ${e.message.split("\n")[0]}`); process.exit(1); }
     console.error(`  ${c.yellow}SKIPPED:${c.reset} ${e.message.split("\n")[0]}`);
@@ -164,6 +164,7 @@ function parseConfig(filepath) {
     tier: cfg.tier != null ? cfg.tier : 3,
     fold: cfg.fold != null ? !!cfg.fold : isAgent,       // agent mode enables fold by default
     banner: cfg.banner != null ? !!cfg.banner : !isAgent, // agent mode defaults to minimal
+    compact: cfg.compact != null ? !!cfg.compact : isAgent, // agent mode defaults to compact
     denoise: Array.isArray(cfg.denoise) ? cfg.denoise : DEFAULT_DENOISE,
     agent: isAgent,
   };
@@ -182,15 +183,16 @@ module.exports = {
   // Output directory (optional — auto-derived from input if omitted)
   // output: "out/",
 
+  agent: false,  // LLM agent mode: compact output, minimal banners, auto fold+tier
+  compact: false,// compact code generation (less whitespace)
+
   // Feature flags
   split: false,  // per-function file output
   metrics: false, // HTML readability comparison report
   md: true,       // Markdown structure report
   index: true,   // compact index.txt for LLM navigation
-  agent: false,  // LLM agent mode: compact output, minimal banners, auto fold+tier
   banner: true,  // true=verbose metadata banner, false=minimal (name + alerts only)
-
-  // LLM-oriented output tuning
+  compact: false,// compact code generation (less whitespace)
   tier: 3,        // 1=alerts+hotspots only, 2=+callees, 3=all functions
   fold: true,    // collapse mechanical functions (polyfill/pure compute/forward) to comments
 
