@@ -58,11 +58,14 @@ These patterns are safe to collapse because the function does not interact with 
 
 | tier | fold | Signal functions | Non-signal, not mechanical | Non-signal, mechanical |
 |------|------|-----------------|---------------------------|----------------------|
-| 3 | — | Full code | Full code | Full code |
+| 3 | false | Full code | Full code | Full code |
+| 3 | true | Full code | Full code | `// [type] name · ...` |
 | 2 | false | Full code | Signature | Signature |
 | 2 | true | Full code | Signature | `// [type] name · ...` |
 | 1 | false | Full code | Signature | Signature |
 | 1 | true | Full code | Signature | `// [type] name · ...` |
+
+> **tier 3 + fold** added in the 2026-07-18 release. Previously fold only applied at tier 1-2. Now `tier: 3, fold: true` keeps all non-mechanical functions with full bodies while collapsing mechanical ones (pure forward, pure computation, self-contained) to comment stubs.
 
 ## Choosing Parameters
 
@@ -90,9 +93,12 @@ In practice, start with `tier: 1`. If the LLM reports that call chains are broke
 
 ### When to enable fold
 
-`fold: true` is a safe default. The detection is conservative — it only collapses functions that are provably self-contained. There is no risk of hiding a function that calls into the rest of the codebase.
+`fold: true` is a safe default at all tiers. The detection is conservative — it only collapses functions that are provably self-contained. There is no risk of hiding a function that calls into the rest of the codebase.
 
-The only reason to leave it `false` is if you want the LLM to see every function signature for completeness, even for pure computations. This is rare.
+- **tier 3**: Fold mechanical functions for cleaner output while keeping all signal and non-signal functions intact
+- **tier 1-2**: Fold non-signal mechanical functions for maximum noise reduction
+
+The only reason to leave it `false` is if you want the LLM to see every function body for completeness, even for pure computations. This is rare.
 
 ## Output Size Comparison
 

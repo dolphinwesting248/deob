@@ -43,7 +43,7 @@ module.exports = {
 | `md` | `boolean` | `true` | Generate 0-prompt.md + 1-structure.md |
 | `index` | `boolean` | `true` | Generate 2-index.txt |
 | `tier` | `1 \| 2 \| 3` | `3` | Output filtering level |
-| `fold` | `boolean` | `false` | Collapse mechanical functions to comments |
+| `fold` | `boolean` | `true` | Collapse mechanical functions to comments |
 | `denoise` | `DenoiseRule[]` | defaults | Alert denoising rules |
 
 See [tier-and-fold.md](./docs/tier-and-fold.md) for more details for `tier` and `fold`.
@@ -109,16 +109,17 @@ output.deob/
 | 6 | `normalizeShortCircuit` | simplify.js | Convert `A \|\| B` to `if (!A) { B }` |
 | 7 | `expandSequences` | simplify.js | Break comma chains into independent statements |
 | 8 | `normalizeShortCircuit` | simplify.js | Re-normalize after expansion |
-| 9 | `eliminateDeadCode` | dead-code.js | Remove unreachable statements, `if(false)` branches |
-| 10 | `inlineReadOnlyProperties` | inline.js | Replace `cfg.PROP` with its literal value |
-| 10b | `inlineConstObjects` | simplify.js | Replace `cfg.timeout` with `5000` when cfg is const |
-| 11 | `removeUnusedHelpers` | dead-code.js | Delete function declarations never referenced |
-| 12 | `simplifyRedundantConditions` | simplify.js | `if(a) return true; return false` → `return !!a` |
-| 13 | `inlinePureWrappers` | inline.js | Inline functions that are just `return call(args)` |
+| 9 | `eliminateDeadCode` | dead-code.js | Remove unreachable statements, `if(false)`, empty branches |
+| 10 | `inlineReadOnlyProperties` | inline.js | Replace `cfg.PROP` with literal value (all scopes, per-property mutation check) |
+| 10b | `inlineConstObjects` | simplify.js | Replace `cfg.timeout` with `5000` (all scopes) |
+| 11 | `removeUnusedHelpers` | dead-code.js | Delete unreferenced function declarations (`_0x` + unique dead names) |
+| 12 | `simplifyRedundantConditions` | simplify.js | `if(a)return true;return false`→`return !!a`, if-return→ternary, negated-tests |
+| 13 | `inlinePureWrappers` | inline.js | Inline `return call(args)`, `.apply(this,args)`, `.call(this,...)` bridges |
+| 13b | `inlineArithmeticWrappers` | inline.js | Collapse `function(a,b){return a+b}` at call sites |
 | 14 | `sortByCallTree` | declarations.js | Topological sort: callees before callers |
 | 15 | `inlineSingleCallerFns` | inline.js | Inline functions called from exactly one place |
-| 16 | `normalizeSyntax` | simplify.js | `~arr.indexOf` → `arr.includes`, `~~x` → `Math.trunc` |
-| 17 | `extractInlineFunctions` | inline.js | Re-extract exposed inline functions |
+| 16 | `normalizeSyntax` | simplify.js | `~arr.indexOf`→`arr.includes`, reversed typeof, multi-decl split (non-trivial only) |
+| 17 | `extractInlineFunctions` | inline.js | Re-extract with enclosing scope defs, skip 1-stmt without control flow |
 | 18 | `annotateAlerts` | declarations.js | Inject alerts + metadata banners on `_S_` functions |
 | 19 | `sanitizeReservedWords` | declarations.js | Re-sanitize reserved-word identifiers |
 | 20 | `pushDataToBottom` | dead-code.js | Move DATA-heavy functions to end with separator |

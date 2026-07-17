@@ -135,26 +135,27 @@ scripts/
 | Step | Pass | Module | Description |
 |------|------|--------|-------------|
 | 0 | `sanitizeReservedWords` | declarations.js | Rename reserved-word identifiers (let, default, delete…) |
-| 1 | `processAllFunctions` | traverse.js | Collect all function nodes, process innermost-first |
+| 1 | `processAllFunctions` | traverse.js | Collect function nodes, skip ObjectMethod/ClassMethod, accumulate scope defs |
 | 2 | `extractTopLevelIIFEs` | wrapper.js | Extract top-level IIFEs from comma chains |
 | — | `buildCallGraph` | callgraph.js | Build shared forward/reverse call edges (reused by step 14 & 15) |
 | — | `buildRefGraph` | refgraph.js | Build shared declaration/reference/mutation graph (reused by step 10/10b/11) |
 | 3 | `hoistDeclarations` | declarations.js | Import→top, export→bottom; var/let/const/fn to top of scope |
-| 4 | `extractInlineFunctions` | inline.js | Lift embedded function expressions to top level |
-| 5 | `simplify` | simplify.js | Constant folding + boolean + string + hex normalization |
+| 4 | `extractInlineFunctions` | inline.js | Lift function expressions with enclosing scope defs (reduces external ref params) |
+| 5 | `simplify` | simplify.js | Constant folding + boolean + string (incl. `.concat` folding) + hex normalization |
 | 6 | `normalizeShortCircuit` | simplify.js | Convert `A \|\| B` to `if (!A) { B }` |
 | 7 | `expandSequences` | simplify.js | Break comma chains `(a, b, c)` into independent statements |
 | 8 | `normalizeShortCircuit` | simplify.js | Re-normalize after expansion |
-| 9 | `eliminateDeadCode` | dead-code.js | Remove unreachable statements, `if(false)` branches |
-| 10 | `inlineReadOnlyProperties` | inline.js | Replace `cfg.PROP` with its literal value |
-| 10b | `inlineConstObjects` | simplify.js | Replace `cfg.timeout` with `5000` when cfg is const object |
-| 11 | `removeUnusedHelpers` | dead-code.js | Delete function declarations that are never referenced |
-| 12 | `simplifyRedundantConditions` | simplify.js | `if(a) return true; return false` → `return !!a` |
-| 13 | `inlinePureWrappers` | inline.js | Remove functions that are just `return call(args)` |
+| 9 | `eliminateDeadCode` | dead-code.js | Remove unreachable, `if(false)`, empty branches |
+| 10 | `inlineReadOnlyProperties` | inline.js | Replace `cfg.PROP` with literal (all scopes, per-property mutation, hasOwnProperty check) |
+| 10b | `inlineConstObjects` | simplify.js | Replace `cfg.timeout` with `5000` (all scopes) |
+| 11 | `removeUnusedHelpers` | dead-code.js | Delete unreferenced functions (`_0x` prefix + unique dead names) |
+| 12 | `simplifyRedundantConditions` | simplify.js | `if(a)return true;return false`→`return !!a`, if-return→ternary, negated variants |
+| 13 | `inlinePureWrappers` | inline.js | Inline `return call(args)` + `.apply(this,args)` + `.call(this,...)` bridges |
+| 13b | `inlineArithmeticWrappers` | inline.js | Collapse `function(a,b){return a+b}` at call sites (program-level scan) |
 | 14 | `sortByCallTree` | declarations.js | Topological sort: callees before callers |
 | 15 | `inlineSingleCallerFns` | inline.js | Inline functions called from exactly one place |
-| 16 | `normalizeSyntax` | simplify.js | `~arr.indexOf` → `arr.includes`, `~~x` → `Math.trunc` |
-| 17 | `extractInlineFunctions` | inline.js | Re-extract exposed inline functions after transforms |
+| 16 | `normalizeSyntax` | simplify.js | `~arr.indexOf`→`arr.includes`, reversed typeof, multi-decl split (non-trivial only) |
+| 17 | `extractInlineFunctions` | inline.js | Re-extract with scope defs, skip 1-stmt without nested control flow |
 | 18 | `annotateAlerts` | declarations.js | Inject `[Label]` comments + function metadata banners for `_S_` functions |
 | 19 | `sanitizeReservedWords` | declarations.js | Re-sanitize (pipeline may have introduced new reserved words) |
 | 20 | `pushDataToBottom` | dead-code.js | Move DATA-heavy functions to end of file with separator |
@@ -571,7 +572,8 @@ git add -A && git commit -m "feat: inlineConstObjects — replace obj.prop with 
 | Reserved words in output | Pipeline introduces new ones | Step 19 re-sanitizes |
 | `!![]` not simplified | Boolean pass runs before expansion | Step 8 re-normalizes after expansion |
 | Comments crash generator | CommentLine in program body | Filter non-statements before generate |
-
+| Prototype pollution (Babel crash) | `cfg[key] !== undefined` matches inherited properties | Use `hasOwnProperty.call(cfg, key)` for plain-object property checks |
+| Function objects in AST | `clone()` blindly copies non-AST values | Skip `typeof val === "function"` in clone; use hasOwnProperty for config lookups |
 ## Anti-Overfitting Rules
 
 1. Every optimization must be **general-purpose**, not tailored to one test file

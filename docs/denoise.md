@@ -58,13 +58,17 @@ Pass an empty array to see all alerts unfiltered:
 denoise: []
 ```
 
+## Alert Deduplication
+
+Alerts are automatically deduplicated by **function + label** in `1-structure.md`. Multiple matches of the same alert type within a single function are merged into one row with a `(xN)` count. This prevents flooding the report with near-identical entries (e.g. 13 "API Endpoint" alerts from the same function's CDN URLs collapse to 2-3 lines).
+
 ## Severity Levels
 
 | Level | Meaning | When to use |
 |-------|---------|-------------|
 | `critical` | Immediate concern | eval(), new Function() |
-| `high` | Likely security-relevant | API endpoints, crypto, fingerprints |
-| `medium` | Potentially interesting | Storage, DOM sinks |
+| `high` | Likely security-relevant | API endpoints, crypto, fingerprints, anti-tamper |
+| `medium` | Potentially interesting | Storage, DOM sinks, network |
 | `low` | Informational | Config fields, test data |
 | `info` | No concern | Suppressed in reports |
 
