@@ -50,10 +50,8 @@ node experiments/<date>/tools/gen-charts.js
 ## File Structure
 
 ```
-benchmark/
-  README.md                           ← this file
-  experiments/                         ← all experiment runs
-    2026-07-17-v1/                    ← one experiment (date-based naming)
+ experiments/                         ← all experiment runs
+    2026-07-17-v1/                    ← one experiment (date-based naming)                     
       imgs/							  ← experiment charts
       	pie.svg
       	bar.svg
@@ -64,7 +62,7 @@ benchmark/
         runner.js                      ← run deob on all scenarios
         score.js                       ← compare agent answers to ground truth
         gen-charts.js                  ← generate SVG charts
-        score-llm.js                   ← generate LLM scoring prompt
+        ...
       scenarios/                       ← experiment scenarios
         A/                             ← scenario A
           original.js                  ← original source code
@@ -77,12 +75,18 @@ benchmark/
         deob-output/                   ← deob output directories
           scenario_A/                  ← deob output for scenario A
           ...
-        scenario_A_deob.json          ← Agent A answer (with _meta: tokens, time)
-        scenario_A_raw.json           ← Agent B answer (with _meta: tokens, time)
-        ...
-        llm-scores.json               ← LLM-judged qualitative dimension scores
-        llm-score-prompt.txt          ← generated scoring prompt
-      report.md                       ← experiment report
+        agent-answers/
+          scenario_A_deob.json          ← Agent A answer  with deob
+          scenario_A_raw.json           ← Agent B answer  with raw
+          ...
+        agengt-prompts/
+        	scenario_A_deob_agent_prompt.txt  ← Agent A prompt with deob
+        	scenario_A_raw_agent_prompt.txt   ← Agent A prompt with raw
+          ...
+         scores/
+            scores.json               ← final scores
+          ...
+       report.md                       ← experiment report
 ```
 
 ## Scenario Requirements

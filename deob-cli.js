@@ -36,7 +36,7 @@ function processOneFile(file, outDir, opts) {
   }
 
   try {
-    main({ input: file, output: outDir, split: opts.split, agent: opts.agent, banner: opts.banner, compact: opts.compact, merged: opts.merged });
+    main({ input: file, output: outDir, split: opts.split, agent: opts.agent, banner: opts.banner, compact: opts.compact });
   } catch (e) {
     if (opts.fatal) { console.error(`\n${c.red}ERROR:${c.reset} ${e.message.split("\n")[0]}`); process.exit(1); }
     console.error(`  ${c.yellow}SKIPPED:${c.reset} ${e.message.split("\n")[0]}`);
@@ -165,7 +165,6 @@ function parseConfig(filepath) {
     fold: cfg.fold != null ? !!cfg.fold : isAgent,       // agent mode enables fold by default
     banner: cfg.banner != null ? !!cfg.banner : !isAgent, // agent mode defaults to minimal
     compact: cfg.compact != null ? !!cfg.compact : isAgent, // agent mode defaults to compact
-    merged: cfg.merged != null ? !!cfg.merged : isAgent,   // agent mode defaults to merged
     denoise: Array.isArray(cfg.denoise) ? cfg.denoise : DEFAULT_DENOISE,
     agent: isAgent,
   };
@@ -185,7 +184,6 @@ module.exports = {
   // output: "out/",
 
   agent: false,  // LLM agent mode: compact output, minimal banners, auto fold+tier
-  merged: true,  // merge prompt/structure/index into main.js header
 
   // Feature flags
   split: false,  // per-function file output
