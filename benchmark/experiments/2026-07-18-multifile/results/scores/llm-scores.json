@@ -1,0 +1,89 @@
+{
+  "A": {
+    "deob": {
+      "total": 0.88,
+      "dimensions": {
+        "filePurposes": 0.95,
+        "dependencies": 0.88,
+        "dataFlow": 0.93,
+        "sharedResources": 0.85,
+        "entry": 1.0,
+        "token": 0.22,
+        "time": 0.65
+      },
+      "meta": { "timeMs": 28000, "tokensUsed": 58000 }
+    },
+    "raw": {
+      "total": 0.89,
+      "dimensions": {
+        "filePurposes": 0.95,
+        "dependencies": 0.83,
+        "dataFlow": 0.90,
+        "sharedResources": 0.92,
+        "entry": 1.0,
+        "token": 0.78,
+        "time": 0.35
+      },
+      "meta": { "timeMs": 51000, "tokensUsed": 16000 }
+    },
+    "notes": "Tied result. Deob had better dataFlow precision; raw found more sharedResources and had token/time advantage. Both correctly identified API_SALT=x7k9m_2025 and all cross-file dependencies."
+  },
+  "B": {
+    "deob": {
+      "total": 0.92,
+      "dimensions": {
+        "filePurposes": 0.95,
+        "dependencies": 0.93,
+        "dataFlow": 0.95,
+        "sharedResources": 0.92,
+        "entry": 1.0,
+        "token": 0.45,
+        "time": 0.84
+      },
+      "meta": { "timeMs": 8500, "tokensUsed": 14500 }
+    },
+    "raw": {
+      "total": 0.89,
+      "dimensions": {
+        "filePurposes": 0.90,
+        "dependencies": 0.85,
+        "dataFlow": 0.88,
+        "sharedResources": 0.88,
+        "entry": 1.0,
+        "token": 0.55,
+        "time": 0.16
+      },
+      "meta": { "timeMs": 45000, "tokensUsed": 12000 }
+    },
+    "notes": "Deob +3pp. Deob better on dependencies (correctly identified scheduler as the orchestration layer) and dataFlow (more precise about Promise.all aggregation). Both found HMAC_KEY=integrity_v2_2025 and XOR_KEY=0xA3."
+  },
+  "C": {
+    "deob": {
+      "total": 0.93,
+      "dimensions": {
+        "filePurposes": 0.95,
+        "dependencies": 0.95,
+        "dataFlow": 0.95,
+        "sharedResources": 0.90,
+        "entry": 1.0,
+        "token": 0.20,
+        "time": 0.98
+      },
+      "meta": { "timeMs": 2800, "tokensUsed": 3800 }
+    },
+    "raw": {
+      "total": 0.91,
+      "dimensions": {
+        "filePurposes": 0.95,
+        "dependencies": 0.93,
+        "dataFlow": 0.93,
+        "sharedResources": 0.95,
+        "entry": 1.0,
+        "token": 0.80,
+        "time": 0.02
+      },
+      "meta": { "timeMs": 180000, "tokensUsed": 15000 }
+    },
+    "notes": "Deob +2pp. Both correctly identified HMAC_KEY=tracker_prod_2025_v2, endpoint, webpack module system, and event-driven architecture. Deob's structured navigation led to faster analysis (2.8s vs 180s). Raw found more sharedResources but had significant time disadvantage."
+  }
+}

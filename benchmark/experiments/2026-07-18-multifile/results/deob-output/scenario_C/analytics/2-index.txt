@@ -1,0 +1,72 @@
+# main.js · Function Index · 28 functions
+_Previous: 1-structure.md  →  **Now: 2-index.txt**  →  Jump to main.js by function name._
+
+## Legend
+name | Ss/Pp | cc=N | → callees ⇐ callers | extras
+S=statements, P=params, cc=complexity, → calls, ⇐ called-by, root=entry
+closure:v = captures v, [tag] = semantic tag, FLAT=flattened, DATA=hex-data
+
+## entry
+_0x4304 | cc=3 | → _0x4915, $28_if, $29_if, $31_else
+$35_fn | cc=3 | → $20_if
+$38_fn | cc=2 | → $23_if, $24_else
+$33_declare_fn | cc=2 | → $39_fn, $40_fn, $41_fn, $42_fn | FLAT
+
+## trace
+$33_declare_fn → $40_fn → _0x131921 → $1_try
+
+## flat
+$33_declare_fn | cc=2 | while+switch
+
+## shared
+_0x320493 ⇒ $35_fn, $38_fn, $33_declare_fn, _0xa6b93b, _0x232833 +7 · 12 fns · param
+_0x4304 ⇒ _0x4304, _0x131921, $32_loop_body, $38_fn, $28_if +5 · 10 fns · const
+_0x131921 ⇒ _0x4304, $29_if, $31_else, $40_fn · 4 fns · const, mut
+_0x27847e ⇒ $33_declare_fn, _0xa6b93b, _0x232833, _0x1410e7 · 4 fns · var
+arguments ⇒ $20_if, $43_fn, $44_fn · 3 fns · param
+_0x58c49b ⇒ _0x28b4c6, _0x46db8f, _0x1497a2 · 3 fns · var
+_0x45921f ⇒ _0x28b4c6, _0x46db8f, _0x1497a2 · 3 fns · var, mut
+_0x4915 ⇒ _0x4304, _0x4915 · 2 fns · const, mut
+_0x40bb42 ⇒ _0x131921, _0x59d113 · 2 fns · var
+$35_fn ⇒ $18_if, $39_fn · 2 fns · const
+_0x54fbe8 ⇒ $38_fn, $24_else · 2 fns · param
+_0x400174 ⇒ $20_if, $45_fn · 2 fns · param
+_0x33f6e6 ⇒ $20_if, $45_fn · 2 fns · param
+_0x44ce53 ⇒ _0x2b47ce, _0x5e6de7 · 2 fns · var
+_0xe1d2c1 ⇒ _0x2b47ce, _0x5e6de7 · 2 fns · var
+_0x2b6129 ⇒ _0x28b4c6, _0x46db8f · 2 fns · var
+_0x28b4c6 ⇒ _0x46db8f, _0x1497a2 · 2 fns · const
+
+## fn/core  (2) — Core Functions
+_0x4304 | 9S/2P | cc=3 | → _0x4915, $28_if, $29_if, $31_else root | out=_0x55a6da ; [returns arg]
+_0x131921 | 3S/1P | cc=2 | → $1_try, $2_catch ⇐ $40_fn | [void, 3S]
+
+## fn/obfuscation  (24) — Obfuscation Artifacts
+$18_if | 2S/0P | cc=1 | [returns arg]
+$32_loop_body | 3S/2P | cc=4 | cb=_0x3b1131 ; [void, 3S; callback-driven]
+$34_fn | 0S/1P | cc=1 | [pass-through]
+$35_fn | 2S/5P | cc=3 | → $20_if root | closure: $20_if +3 obf ; cfg:this=_0x320493, out=_0x496706 ; [returns via 2 paths]
+$36_fn | 8S/1P | cc=8 | cfg:this=_0x430401 ; [calls → decodeURIComponent]
+$37_fn | 9S/2P | cc=4 | cfg:out:this=_0x46cc41, cfg:this=_0x6b848a ; [returns arg]
+$23_if | 4S/0P | cc=2 | → $43_fn ⇐ $38_fn | closure: $43_fn +2 obf ; [returns arg]
+$24_else | 1S/1P | cc=1 | ⇐ $38_fn | cfg:this=_0x54fbe8 ; [void, 1S; side-effects]
+$20_if | 1S/4P | cc=2 | → $44_fn, $45_fn ⇐ $35_fn | [returns via 2 paths]
+$1_try | 1S/1P | cc=3 | ⇐ _0x131921 | cfg:this=_0x22d4c7 ; [returns via 2 paths]
+$2_catch | 0S/1P | cc=1 | ⇐ _0x131921 | [pass-through]
+$28_if | 5S/1P | cc=1 | ⇐ _0x4304 | cfg:this=_0x4304 ; [void, 5S; side-effects]
+$29_if | 3S/2P | cc=2 | ⇐ _0x4304 | closure: $46_fn ; cfg:this=_0x4304 ; [void, 3S; side-effects]
+$31_else | 1S/0P | cc=1 | ⇐ _0x4304 | [void, 1S]
+$39_fn | 2S/1P | cc=1 | ⇐ $33_declare_fn | [returns arg]
+$41_fn | 1S/3P | cc=3 | ⇐ $33_declare_fn | cfg:this=_0x591e22 ; [returns conditional]
+$42_fn | 2S/3P | cc=2 | ⇐ $33_declare_fn | out=_0x508452 ; [returns conditional]
+$43_fn | 1S/3P | cc=2 | ⇐ $23_if | closure: 1 obf ; [calls expr]
+$44_fn | 3S/3P | cc=1 | ⇐ $20_if | cfg:out:this=_0x4a8980 ; [returns arg]
+$46_fn | 5S/1P | cc=1 | [void, 5S; side-effects]
+$33_declare_fn | 14S/0P | cc=2 | → $39_fn, $40_fn, $41_fn, $42_fn root | closure: $38_fn, $39_fn, $40_fn, $41_fn, $42_fn +36 obf ; [void, 14S; can throw] ; FLAT
+... +3 auto-generated callbacks (cc=2-3)
+
+## fn/branch  (1) — Branches
+$19_else | 1S/0P | cc=1 | [void, 1S]
+
+## fn/data  (1) — Data Tables
+_0x4915 | 3S/0P | cc=1 | → _0x4915 ⇐ _0x4304, _0x4915 | self-modifying table-init ; [calls → _0x4915] ; DATA

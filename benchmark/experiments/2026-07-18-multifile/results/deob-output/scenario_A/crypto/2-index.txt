@@ -1,0 +1,33 @@
+# main.js · Function Index · 6 functions
+_Previous: 1-structure.md  →  **Now: 2-index.txt**  →  Jump to main.js by function name._
+
+## Legend
+name | Ss/Pp | cc=N | → callees ⇐ callers | extras
+S=statements, P=params, cc=complexity, → calls, ⇐ called-by, root=entry
+closure:v = captures v, [tag] = semantic tag, FLAT=flattened, DATA=hex-data
+
+## entry
+_0xec8c | cc=3 | → _0x3199, $1_if
+
+## trace
+_0xec8c → _0x3199
+
+## shared
+_0x2daa87 ⇒ _0x411527, _0x1bc6f3, _0x718ed3, _0x3f1fad, _0x57e904 +4 · 9 fns · var
+_0x139789 ⇒ _0x1bc6f3, _0x718ed3, _0x3f1fad, _0x423835, _0x52fec0 +3 · 8 fns · var
+_0x1e0e12 ⇒ _0x57e904, _0x4e3f4f, _0x10fc5a, _0x1a4775, _0x4b8df7 +1 · 6 fns · var
+_0xec8c ⇒ _0xec8c, $2_loop_body, $1_if, $3_declare_fn · 4 fns · const
+_0x25384d ⇒ $3_declare_fn, _0x411527, _0x4953e8, _0x1e6b5d · 4 fns · var
+_0x718ed3 ⇒ _0x4e3f4f, _0x52fec0, _0x10fc5a, _0x1a4775 · 4 fns · const
+_0x1bc6f3 ⇒ _0x4e3f4f, _0x52fec0, _0x10fc5a, _0x1a4775 · 4 fns · const
+_0x3199 ⇒ _0xec8c, _0x3199 · 2 fns · const, mut
+
+## fn/core  (2) — Core Functions
+_0xec8c | 9S/2P | cc=3 | → _0x3199, $1_if root | out=_0x2d4c86 ; [returns arg]
+_0x3199 | 3S/0P | cc=1 | → _0x3199 ⇐ _0xec8c, _0x3199 | self-modifying table-init ; [calls → _0x3199]
+
+## fn/obfuscation  (4) — Obfuscation Artifacts
+$2_loop_body | 3S/2P | cc=4 | cb=_0x587207 ; [void, 3S; callback-driven]
+$4_fn | 5S/1P | cc=6 | cfg:this=_0x147bf7 ; [calls → decodeURIComponent]
+$1_if | 4S/1P | cc=1 | ⇐ _0xec8c | cfg:this=_0xec8c ; [void, 4S; side-effects]
+$3_declare_fn | 5S/0P | cc=1 | closure: 11 obf ; [void, 5S; side-effects]

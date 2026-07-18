@@ -1,0 +1,112 @@
+{
+  "scenario": "B",
+  "difficulty": "hard",
+  "algorithm": "XOR obfuscation + HMAC-SHA256",
+  "description": "Multi-file device fingerprinting & risk scoring engine: 7 files with an async scheduler dispatching 3 parallel collectors (device/canvas/audio), then encoding results via XOR obfuscation, and reporting with HMAC-SHA256 signing. Agents must understand Promise-based async scheduling, the plugin/registry pattern, and distinguish 4 noise polyfills from 1 actually-used polyfill (atob).",
+
+  "files": [
+    {
+      "name": "polyfills.js",
+      "purpose": "ES6 polyfills: Promise, Array.from, Object.assign, atob, btoa. Only atob is actually used (by reporter.js for base64 decode). The rest (Promise, Array.from, Object.assign, btoa) are noise.",
+      "isNoise": true,
+      "actuallyUsed": ["atob"],
+      "exports": ["__POLYFILLS_READY__", "globalThis.atob", "globalThis.btoa", "globalThis.Promise"],
+      "keyValues": {}
+    },
+    {
+      "name": "scheduler.js",
+      "purpose": "Async task scheduler: priority queue with Promise-based concurrency control (max 3 parallel), timeout (5s), and retry (2x). Used to dispatch collectors in parallel and manage reporter retries.",
+      "exports": ["__SCHEDULER__"],
+      "keyValues": { "MAX_CONCURRENT": 3, "DEFAULT_TIMEOUT": 5000, "MAX_RETRIES": 2 }
+    },
+    {
+      "name": "fprint/device.js",
+      "purpose": "Device info collector: collects navigator properties (userAgent, platform, language, hardwareConcurrency, deviceMemory), screen dimensions, timezone, touch support, plugin list. Registers into __COLLECTOR_REGISTRY__ with priority 10.",
+      "imports": [],
+      "exports": ["registers into __COLLECTOR_REGISTRY__"],
+      "keyValues": { "collectorName": "device", "priority": 10 }
+    },
+    {
+      "name": "fprint/canvas.js",
+      "purpose": "Canvas + WebGL fingerprinting: renders text/emoji to 2D canvas → pixel hash, queries WebGL renderer/vendor info → GPU fingerprint. Registers into __COLLECTOR_REGISTRY__ with priority 8.",
+      "imports": [],
+      "exports": ["registers into __COLLECTOR_REGISTRY__"],
+      "keyValues": { "collectorName": "canvas", "priority": 8 }
+    },
+    {
+      "name": "fprint/audio.js",
+      "purpose": "AudioContext fingerprinting: creates triangle(440Hz)+sawtooth(220Hz) oscillators → DynamicsCompressor → AnalyserNode → FFT spectrum (256 bins) → hash. Contains 3 internal sub-functions for oscillator creation, compression, and FFT analysis. Registers into __COLLECTOR_REGISTRY__ with priority 5.",
+      "imports": [],
+      "exports": ["registers into __COLLECTOR_REGISTRY__"],
+      "keyValues": { "collectorName": "audio", "priority": 5, "oscTypes": ["triangle", "sawtooth"], "fftSize": 256 }
+    },
+    {
+      "name": "encoder.js",
+      "purpose": "Fingerprint encoder: filters out null/undefined/timestamp fields → JSON serializes → base64 encodes → XOR encrypts (key: 0xA3). Caches results in __FINGERPRINT_CACHE__.",
+      "imports": ["globalThis.btoa from polyfills.js"],
+      "exports": ["__ENCODER__", "__FINGERPRINT_CACHE__"],
+      "keyValues": { "XOR_KEY": "0xA3" }
+    },
+    {
+      "name": "reporter.js",
+      "purpose": "Reporting entry point: reportRisk() dispatches all collectors via scheduler (parallel Promise.all), encodes results via __ENCODER__, builds HMAC-SHA256 signed payload (key: integrity_v2_2025), sends via XHR with beacon fallback. Also provides event queue with batch flushing.",
+      "imports": ["__SCHEDULER__ from scheduler.js", "__COLLECTOR_REGISTRY__ from fprint/*.js", "__ENCODER__ from encoder.js", "__FINGERPRINT_CACHE__ from encoder.js", "atob from polyfills.js"],
+      "exports": ["__reportRisk__", "__queueEvent__", "__REPORT_ENDPOINT__"],
+      "keyValues": { "HMAC_KEY": "integrity_v2_2025", "REPORT_ENDPOINT": "https://risk.example.com/api/v2/collect" }
+    }
+  ],
+
+  "crossFileDependencies": [
+    { "from": "reporter.js:reportRisk", "to": "scheduler.js:enqueue", "mechanism": "globalThis.__SCHEDULER__ — dispatches collectors in parallel" },
+    { "from": "reporter.js:reportRisk", "to": "fprint/device.js:collectDeviceInfo", "mechanism": "globalThis.__COLLECTOR_REGISTRY__ — plugin registry pattern" },
+    { "from": "reporter.js:reportRisk", "to": "fprint/canvas.js:collectCanvasFingerprint", "mechanism": "globalThis.__COLLECTOR_REGISTRY__" },
+    { "from": "reporter.js:reportRisk", "to": "fprint/audio.js:collectAudioFingerprint", "mechanism": "globalThis.__COLLECTOR_REGISTRY__" },
+    { "from": "reporter.js:reportRisk", "to": "encoder.js:encode", "mechanism": "globalThis.__ENCODER__" },
+    { "from": "encoder.js:encode", "to": "polyfills.js:globalThis.btoa", "mechanism": "globalThis.btoa — used for base64 encoding" },
+    { "from": "reporter.js:buildPayload", "to": "polyfills.js:atob", "mechanism": "globalThis.atob — used for base64 decode in HMAC" },
+    { "from": "reporter.js:sendViaXHR", "to": "reporter.js:REPORT_ENDPOINT", "mechanism": "direct reference — XHR POST to risk API" },
+    { "from": "fprint/device.js", "to": "scheduler.js", "mechanism": "globalThis.__COLLECTOR_REGISTRY__ — collector registration consumed by scheduler" }
+  ],
+
+  "sharedResources": [
+    { "name": "__POLYFILLS_READY__", "type": "globalThis boolean", "definedIn": "polyfills.js", "usedIn": ["not checked by any file — passive signal"] },
+    { "name": "__SCHEDULER__", "type": "globalThis object", "definedIn": "scheduler.js", "usedIn": ["reporter.js"] },
+    { "name": "__COLLECTOR_REGISTRY__", "type": "globalThis array", "definedIn": "fprint/device.js (initialized)", "usedIn": ["fprint/canvas.js", "fprint/audio.js (register)", "reporter.js (consume)"] },
+    { "name": "__ENCODER__", "type": "globalThis object", "definedIn": "encoder.js", "usedIn": ["reporter.js"] },
+    { "name": "__FINGERPRINT_CACHE__", "type": "globalThis object", "definedIn": "encoder.js", "usedIn": ["reporter.js"] },
+    { "name": "__reportRisk__", "type": "globalThis function", "definedIn": "reporter.js", "usedIn": ["external entry point"] }
+  ],
+
+  "entryPoint": { "file": "reporter.js", "function": "reportRisk" },
+
+  "dataFlow": "reporter.reportRisk() → reads __COLLECTOR_REGISTRY__ → scheduler.enqueue all 3 collectors (device/canvas/audio) in parallel with priority queue → Promise.all collects results → encoder.encode: filter null fields → JSON.stringify → btoa → XOR(0xA3) → cache in __FINGERPRINT_CACHE__ → buildPayload: JSON.stringify + HMAC-SHA256(key=integrity_v2_2025) → XHR POST to https://risk.example.com/api/v2/collect → on failure: sendBeacon fallback",
+
+  "expectedAnswers": {
+    "filePurposes": {
+      "polyfills.js": "ES6 polyfills (Promise, Array.from, Object.assign, atob, btoa) — only atob is used by reporter for base64 decode; rest is noise",
+      "scheduler.js": "Async task scheduler: priority queue with Promise-based concurrency control (max 3), 5s timeout, 2 retries",
+      "fprint/device.js": "Device info collector: navigator/screen/timezone/touch/plugins. Priority 10 in registry.",
+      "fprint/canvas.js": "Canvas 2D + WebGL fingerprinting: text rendering hash + GPU vendor/model. Priority 8.",
+      "fprint/audio.js": "AudioContext fingerprinting: oscillator → compressor → FFT → hash. 3 sub-functions. Priority 5.",
+      "encoder.js": "Fingerprint encoder: field filtering → JSON → base64 → XOR(0xA3). Caches to __FINGERPRINT_CACHE__.",
+      "reporter.js": "Entry point: reportRisk() dispatches collectors → encodes → HMAC-SHA256 signs → XHR POST → beacon fallback"
+    },
+    "entryFunction": "reportRisk",
+    "entryFile": "reporter.js",
+    "apiEndpoints": [
+      { "method": "POST", "url": "https://risk.example.com/api/v2/collect", "purpose": "Submit encoded fingerprint data with HMAC signature" }
+    ],
+    "keyValues": {
+      "XOR_KEY": "0xA3",
+      "HMAC_KEY": "integrity_v2_2025",
+      "REPORT_ENDPOINT": "https://risk.example.com/api/v2/collect",
+      "MAX_CONCURRENT": 3,
+      "DEFAULT_TIMEOUT": 5000
+    }
+  },
+
+  "verification": {
+    "testCollectorData": { "device": { "userAgent": "Mozilla/5.0", "platform": "Win32" } },
+    "testEncoded": "XOR(0xA3) applied to base64(JSON(filtered_data))"
+  }
+}

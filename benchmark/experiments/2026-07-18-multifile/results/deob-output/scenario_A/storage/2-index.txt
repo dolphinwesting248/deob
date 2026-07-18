@@ -1,0 +1,33 @@
+# main.js · Function Index · 9 functions
+_Previous: 1-structure.md  →  **Now: 2-index.txt**  →  Jump to main.js by function name._
+
+## Legend
+name | Ss/Pp | cc=N | → callees ⇐ callers | extras
+S=statements, P=params, cc=complexity, → calls, ⇐ called-by, root=entry
+closure:v = captures v, [tag] = semantic tag, FLAT=flattened, DATA=hex-data
+
+## entry
+_0x20a6 | cc=3 | → _0x2e96, $1_if
+$10_declare_fn | cc=1 | → $12_fn, $13_fn
+
+## trace
+_0x20a6 → _0x2e96
+
+## shared
+_0x1d5e67 ⇒ $10_declare_fn, _0x45858b, _0x13c7cd, _0x384dc0, _0x5fb8db · 5 fns · var
+_0x20a6 ⇒ _0x20a6, $10_declare_fn, $9_loop_body, $1_if · 4 fns · const
+_0x2e96 ⇒ _0x20a6, _0x2e96 · 2 fns · const, mut
+_0x473da2 ⇒ _0x13c7cd, _0x384dc0 · 2 fns · var
+
+## fn/core  (2) — Core Functions
+_0x20a6 | 9S/2P | cc=3 | → _0x2e96, $1_if root | out=_0x5897a4 ; [returns arg]
+_0x2e96 | 3S/0P | cc=1 | → _0x2e96 ⇐ _0x20a6, _0x2e96 | self-modifying table-init ; [calls → _0x2e96]
+
+## fn/obfuscation  (7) — Obfuscation Artifacts
+$10_declare_fn | 8S/0P | cc=1 | → $12_fn, $13_fn root | closure: $12_fn, $13_fn +11 obf ; [void, 8S; side-effects]
+$9_loop_body | 3S/2P | cc=4 | cb=_0x5d69bb ; [void, 3S; callback-driven]
+$11_fn | 5S/1P | cc=6 | cfg:this=_0xd334a5 ; [calls → decodeURIComponent]
+$8_catch | 1S/1P | cc=1 | [returns value]
+$1_if | 4S/1P | cc=1 | ⇐ _0x20a6 | cfg:this=_0x20a6 ; [void, 4S; side-effects]
+$12_fn | 2S/0P | cc=2 | ⇐ $10_declare_fn | [returns conditional]
+$13_fn | 2S/0P | cc=2 | ⇐ $10_declare_fn | [returns conditional]

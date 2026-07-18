@@ -1,0 +1,114 @@
+{
+  "scenario": "C",
+  "difficulty": "extreme",
+  "algorithm": "MD5 + HMAC-SHA256",
+  "description": "Webpack 5 multi-chunk e-commerce behavioral tracker: 5 files (runtime + 4 chunks), 30 webpack modules total. The runtime provides a shared module cache (__webpack_require__.c) that all chunks use for cross-chunk calls. The app chunk has 9 tracker modules communicating through an event bus (vendors.js module 0). The analytics chunk processes events through sampling → batching → deflate → throttle. The sender chunk signs payloads with HMAC (key: tracker_prod_2025_v2) and sends via XHR with retry. Agent must navigate webpack module IDs across chunks, understand the event-driven architecture, and trace the full data flow from user interaction through to network send.",
+
+  "files": [
+    {
+      "name": "runtime.js",
+      "purpose": "Webpack 5 runtime bootstrap: provides __webpack_require__ (module loader), __webpack_register__ (module registration), __webpack_chunk_load__ (JSONP chunk loader), __webpack_get_module__ (cross-chunk module access). The shared module cache __webpack_require__c enables all cross-chunk communication.",
+      "isInfrastructure": true,
+      "exports": ["__webpack_require__", "__webpack_register__", "__webpack_chunk_load__", "__webpack_get_module__", "__webpack_require__c"],
+      "keyValues": {}
+    },
+    {
+      "name": "vendors.js",
+      "purpose": "Vendor chunk: 6 shared utility modules. Module 0=EventEmitter (on/off/emit/once), 1=tiny-md5 (request dedup), 2=data-validator (isObject/isArray/deepEqual), 3=base64-codec, 4=debounce-throttle, 5=cookie-helper. Module 0 (EventEmitter) is the foundation of the event-driven architecture — all tracker events flow through its instances.",
+      "imports": ["runtime.js:__webpack_register__"],
+      "exports": ["modules 0-5 via __webpack_require__"],
+      "keyValues": {}
+    },
+    {
+      "name": "app.js",
+      "purpose": "App chunk: 9 tracker modules. Module 10=tracker-init (entry: creates EventEmitter instance as __TRACKER_EVENT_BUS__, sets __TRACKER_CONFIG__), 11=page-view (url/referrer/title, SPA history pushState hook, visibilitychange), 12=click-heatmap (xpath, offsetX/Y, debounce 500ms), 13=scroll-depth (25/50/75/100% milestones, throttle 200ms), 14=form-watcher (focus/blur timing, field duration, abandonment detection), 15=cart-tracker (add/remove/update, state snapshot), 16=session-manager (sessionId, heartbeat 30s, idle tracking), 17=error-catcher (window.onerror + unhandledrejection), 18=user-identity (cookie-based userId, first visit timestamp). All trackers emit events through __TRACKER_EVENT_BUS__.",
+      "imports": ["runtime.js:__webpack_register__", "vendors.js:modules 0(EventEmitter), 2(validator), 4(debounce/throttle), 5(cookie)"],
+      "exports": ["modules 10-18 via __webpack_require__", "__TRACKER_EVENT_BUS__", "__TRACKER_CONFIG__", "__TRACKER_READY__"],
+      "keyValues": {
+        "appId": "tracker_demo_v3",
+        "samplingRate": 0.1,
+        "endpoint": "https://track.example.com/api/v3/batch",
+        "maxBatchSize": 50,
+        "flushInterval": 5000
+      }
+    },
+    {
+      "name": "analytics.js",
+      "purpose": "Analytics chunk: 5 event processing modules. Module 20=event-aggregator (extends EventEmitter, dedup by id+ts, max 100 cache, auto-flush at 10 events), 21=sampling-engine (deterministic hash-based sampling, default 10%, whitelist/blacklist), 22=batch-builder (batch packing up to 50, MD5 batch ID, auto-flush every 5s, feeds __BATCH_QUEUE__), 23=dimension-builder (flattens event into uid/sid/url/device/client_ts/event_type dimensions), 24=throttle-controller (token bucket: 30 max tokens, 3/sec refill).",
+      "imports": ["runtime.js:__webpack_register__", "vendors.js:modules 0(EventEmitter), 1(tiny-md5), 2(validator)", "app.js:__TRACKER_CONFIG__"],
+      "exports": ["modules 20-24 via __webpack_require__", "__BATCH_QUEUE__"],
+      "keyValues": { "MAX_EVENTS": 100, "MAX_BATCH": 50, "DEFAULT_SAMPLING_RATE": 0.1, "MAX_TOKENS": 30, "REFILL_RATE": 3 }
+    },
+    {
+      "name": "sender.js",
+      "purpose": "Network chunk: 4 transport modules. Module 30=transport-xhr (XHR POST, 10s timeout), 31=transport-beacon (sendBeacon for unload), 32=retry-queue (exponential backoff 1→2→4→8→16s, max 5 retries, feeds __RETRY_QUEUE__), 33=payload-builder (HMAC-SHA256 signing with key=tracker_prod_2025_v2, base64 encoding, MD5 checksum).",
+      "imports": ["runtime.js:__webpack_register__", "vendors.js:modules 1(tiny-md5), 3(base64-codec)"],
+      "exports": ["modules 30-33 via __webpack_require__", "__RETRY_QUEUE__"],
+      "keyValues": { "HMAC_KEY": "tracker_prod_2025_v2", "ENDPOINT": "https://track.example.com/api/v3/batch", "TIMEOUT": 10000, "MAX_RETRIES": 5 }
+    }
+  ],
+
+  "crossFileDependencies": [
+    { "from": "app.js:module 10 tracker-init", "to": "vendors.js:module 0 EventEmitter", "mechanism": "__webpack_get_module__('0') — creates __TRACKER_EVENT_BUS__" },
+    { "from": "app.js:module 12 click-heatmap", "to": "vendors.js:module 4 throttle", "mechanism": "__webpack_get_module__('4').throttle" },
+    { "from": "app.js:module 13 scroll-depth", "to": "vendors.js:module 4 throttle", "mechanism": "__webpack_get_module__('4').throttle" },
+    { "from": "app.js:module 15 cart-tracker", "to": "vendors.js:module 2 validator", "mechanism": "__webpack_get_module__('2')" },
+    { "from": "app.js:module 18 user-identity", "to": "vendors.js:module 5 cookie-helper", "mechanism": "__webpack_get_module__('5')" },
+    { "from": "app.js:all tracker modules", "to": "app.js:module 10 __TRACKER_EVENT_BUS__", "mechanism": "globalThis.__TRACKER_EVENT_BUS__ — event-driven communication" },
+    { "from": "analytics.js:module 20 event-aggregator", "to": "vendors.js:module 0 EventEmitter", "mechanism": "__webpack_get_module__('0') — extends EventEmitter" },
+    { "from": "analytics.js:module 22 batch-builder", "to": "vendors.js:module 1 tiny-md5", "mechanism": "__webpack_get_module__('1') — batch ID generation" },
+    { "from": "analytics.js:module 21 sampling-engine", "to": "app.js:module 10 __TRACKER_CONFIG__", "mechanism": "globalThis.__TRACKER_CONFIG__.samplingRate" },
+    { "from": "sender.js:module 33 payload-builder", "to": "vendors.js:module 1 tiny-md5", "mechanism": "__webpack_get_module__('1') — checksum" },
+    { "from": "sender.js:module 33 payload-builder", "to": "vendors.js:module 3 base64-codec", "mechanism": "__webpack_get_module__('3').encode — payload encoding" },
+    { "from": "sender.js:module 32 retry-queue", "to": "globalThis.__RETRY_QUEUE__", "mechanism": "globalThis.__RETRY_QUEUE__ — shared retry state" },
+    { "from": "analytics.js:module 22 batch-builder", "to": "globalThis.__BATCH_QUEUE__", "mechanism": "globalThis.__BATCH_QUEUE__ — feeds batches to sender" },
+    { "from": "app.js:module 11 page-view → analytics.js:module 20", "to": "__TRACKER_EVENT_BUS__.emit('page_view')", "mechanism": "globalThis event bus — indirect event-driven coupling" },
+    { "from": "app.js:module 12 click-heatmap → analytics.js:module 20", "to": "__TRACKER_EVENT_BUS__.emit('click')", "mechanism": "globalThis event bus" }
+  ],
+
+  "sharedResources": [
+    { "name": "__webpack_require__c", "type": "globalThis object (module cache)", "definedIn": "runtime.js", "usedIn": "ALL chunks — foundation of cross-chunk module access" },
+    { "name": "__webpack_require__", "type": "globalThis function", "definedIn": "runtime.js", "usedIn": "vendors.js, app.js, analytics.js, sender.js" },
+    { "name": "__webpack_register__", "type": "globalThis function", "definedIn": "runtime.js", "usedIn": "vendors.js, app.js, analytics.js, sender.js" },
+    { "name": "__webpack_get_module__", "type": "globalThis function", "definedIn": "runtime.js", "usedIn": "app.js, analytics.js, sender.js (cross-chunk imports)" },
+    { "name": "__TRACKER_EVENT_BUS__", "type": "globalThis EventEmitter instance", "definedIn": "app.js module 10", "usedIn": "app.js (all 8 tracker modules), analytics.js module 20" },
+    { "name": "__TRACKER_CONFIG__", "type": "globalThis object", "definedIn": "app.js module 10", "usedIn": "analytics.js module 21, app.js all modules" },
+    { "name": "__BATCH_QUEUE__", "type": "globalThis array", "definedIn": "analytics.js module 22", "usedIn": "sender.js module 33" },
+    { "name": "__RETRY_QUEUE__", "type": "globalThis array", "definedIn": "sender.js module 32", "usedIn": "sender.js module 32" },
+    { "name": "__TRACKER_READY__", "type": "globalThis boolean", "definedIn": "app.js module 10", "usedIn": "external consumers" }
+  ],
+
+  "entryPoint": { "file": "app.js", "function": "module 10 (tracker-init)" },
+
+  "dataFlow": "USER INTERACTION (click/scroll/form/cart/error/page_view) → app tracker modules emit events via __TRACKER_EVENT_BUS__ → analytics module 20 (event-aggregator) deduplicates and caches → analytics module 21 (sampling-engine) applies 10% hash-based sampling → analytics module 22 (batch-builder) packs up to 50 events, generates MD5 batch ID, pushes to __BATCH_QUEUE__ → analytics module 24 (throttle-controller) token-bucket rate-limits to 3/sec → sender module 33 (payload-builder) builds final payload with dimensions, base64 encodes, HMAC-SHA256 signs (key: tracker_prod_2025_v2) → sender module 32 (retry-queue) sends via sender module 30 (transport-xhr) with exponential backoff → POST https://track.example.com/api/v3/batch → on failure/unload: sender module 31 (transport-beacon) fallback",
+
+  "expectedAnswers": {
+    "filePurposes": {
+      "runtime.js": "Webpack 5 runtime: module system (__webpack_require__), chunk loader, shared module cache — infrastructure, not business logic",
+      "vendors.js": "Shared utility chunk: EventEmitter (event system foundation), tiny-md5, validator, base64-codec, debounce/throttle, cookie-helper",
+      "app.js": "Tracker modules: init (entry), page-view, click-heatmap, scroll-depth, form-watcher, cart-tracker, session-manager, error-catcher, user-identity — all communicate via event bus",
+      "analytics.js": "Processing pipeline: event-aggregator (dedup+cache), sampling-engine (10% hash-based), batch-builder (MD5 batches), dimension-builder, throttle-controller (token bucket 3/sec)",
+      "sender.js": "Network transport: XHR + beacon, retry queue (5 attempts, exponential backoff), payload builder with HMAC-SHA256 signing (key: tracker_prod_2025_v2)"
+    },
+    "entryFunction": "module 10 (tracker-init) — creates event bus and config",
+    "entryFile": "app.js",
+    "apiEndpoints": [
+      { "method": "POST", "url": "https://track.example.com/api/v3/batch", "purpose": "Submit batched behavioral tracking events with HMAC signature" }
+    ],
+    "keyValues": {
+      "HMAC_KEY": "tracker_prod_2025_v2",
+      "ENDPOINT": "https://track.example.com/api/v3/batch",
+      "samplingRate": 0.1,
+      "maxBatchSize": 50,
+      "flushInterval": 5000,
+      "MAX_RETRIES": 5,
+      "TOKEN_BUCKET_MAX": 30,
+      "TOKEN_BUCKET_REFILL": 3
+    }
+  },
+
+  "verification": {
+    "testBatch": [{ "type": "page_view", "data": { "url": "https://example.com" }, "id": "page_view_1700000000000" }],
+    "expectedHmacKey": "tracker_prod_2025_v2"
+  }
+}

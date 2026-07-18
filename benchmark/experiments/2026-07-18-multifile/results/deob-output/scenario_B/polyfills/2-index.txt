@@ -1,0 +1,41 @@
+# main.js · Function Index · 14 functions
+_Previous: 1-structure.md  →  **Now: 2-index.txt**  →  Jump to main.js by function name._
+
+## Legend
+name | Ss/Pp | cc=N | → callees ⇐ callers | extras
+S=statements, P=params, cc=complexity, → calls, ⇐ called-by, root=entry
+closure:v = captures v, [tag] = semantic tag, FLAT=flattened, DATA=hex-data
+
+## entry
+_0x5ce5 | cc=3 | → _0x3ebb, $11_if, $12_if, $13_else
+$16_fn | cc=2 | → $10_if
+$15_iife_body | cc=6 | → $18_fn, $19_fn
+
+## trace
+_0x5ce5 → _0x3ebb
+
+## shared
+_0x5ce5 ⇒ _0x5ce5, $14_loop_body, $11_if, $12_if, $15_iife_body · 5 fns · const
+_0xf693ca ⇒ $15_iife_body, _0x5b44e2, _0x46ae45, _0xb4c83c · 4 fns · var
+_0x2d5d37 ⇒ _0x5b44e2, _0x46ae45, _0xb4c83c · 3 fns · var
+_0x3ac9a0 ⇒ _0x46ae45, _0xb4c83c, _0x5b44e2 · 3 fns · var
+_0x3ebb ⇒ _0x5ce5, _0x3ebb · 2 fns · const, mut
+_0x285d64 ⇒ $15_iife_body, _0x5b44e2 · 2 fns · var
+
+## fn/core  (2) — Core Functions
+_0x5ce5 | 9S/2P | cc=3 | → _0x3ebb, $11_if, $12_if, $13_else root | out=_0xe86263 ; [returns arg]
+_0x3ebb | 3S/0P | cc=1 | → _0x3ebb ⇐ _0x5ce5, _0x3ebb | self-modifying table-init ; [calls → _0x3ebb]
+
+## fn/obfuscation  (12) — Obfuscation Artifacts
+$14_loop_body | 3S/2P | cc=4 | cb=_0x303038 ; [void, 3S; callback-driven]
+$9_if | 1S/7P | cc=3 | cfg:this=_0x32f28f, this=_0x32ff6a, cfg:this=_0x17b3b4, cfg:this=_0x56cc06 ; [void, 1S; side-effects]
+$16_fn | 4S/2P | cc=2 | → $10_if root | closure: $10_if +2 obf ; [returns arg]
+$17_fn | 8S/1P | cc=8 | cfg:this=_0x552f97 ; [calls → decodeURIComponent]
+$10_if | 3S/1P | cc=1 | ⇐ $16_fn | [returns arg]
+$11_if | 4S/1P | cc=1 | ⇐ _0x5ce5 | cfg:this=_0x5ce5 ; [void, 4S; side-effects]
+$12_if | 7S/1P | cc=2 | ⇐ _0x5ce5 | cfg:this=_0x5ce5 ; [void, 7S; side-effects]
+$13_else | 1S/0P | cc=1 | ⇐ _0x5ce5 | [void, 1S]
+$18_fn | 2S/0P | cc=2 | ⇐ $15_iife_body | [void, 2S]
+$19_fn | 2S/1P | cc=1 | ⇐ $15_iife_body | [void, 2S]
+$20_fn | 5S/1P | cc=1 | [void, 5S; side-effects]
+$15_iife_body | 12S/0P | cc=6 | → $18_fn, $19_fn root | closure: $16_fn, $18_fn, $19_fn +42 obf ; [void, 12S; side-effects]

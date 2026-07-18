@@ -1,0 +1,122 @@
+{
+  "scenario": "C",
+  "agentType": "deob",
+  "filePurposes": {
+    "runtime.js": "Webpack 5 bootstrap: provides __webpack_require__, __webpack_register__, __webpack_chunk_load__, __webpack_get_module__. Manages module cache, chunk loading via dynamic script injection. Must load first.",
+    "vendors.js": "Vendor modules: EventEmitter(0), tiny-md5(1), validator(2), base64(3), debounce-throttle(4), cookie-helper(5). Registered via __webpack_register__.",
+    "app.js": "9 tracker modules (10-18): init(10), page-view(11), click-heatmap(12), scroll-depth(13), form-watcher(14), cart-tracker(15), session(16), errors(17), user-id(18). Module 10 creates __TRACKER_EVENT_BUS__ and __TRACKER_CONFIG__.",
+    "analytics.js": "5 analytics modules (20-24): event-aggregator(20), sampling-engine(21) at 10%, batch-builder(22) with MD5, dimension-builder(23), throttle-controller(24) with token bucket.",
+    "sender.js": "4 sender modules (30-33): transport-xhr(30), transport-beacon(31), retry-queue(32) with exponential backoff 5 retries, payload-builder+HMAC(33) with signing key."
+  },
+  "dependencies": [
+    {
+      "from": "vendors:module 0",
+      "to": "app:module 10",
+      "mechanism": "new require('0')() → __TRACKER_EVENT_BUS__"
+    },
+    {
+      "from": "vendors:module 1 (tiny-md5)",
+      "to": "sender:module 33",
+      "mechanism": "__webpack_get_module__('1') for checksum"
+    },
+    {
+      "from": "vendors:module 3 (base64)",
+      "to": "sender:module 33",
+      "mechanism": "__webpack_get_module__('3').encode for payload"
+    },
+    {
+      "from": "vendors:module 4 (throttle)",
+      "to": "app:modules 12, 13",
+      "mechanism": "__webpack_get_module__('4') for click/scroll throttling"
+    },
+    {
+      "from": "vendors:module 5 (cookie)",
+      "to": "app:module 18",
+      "mechanism": "__webpack_get_module__('5') for userId cookie"
+    },
+    {
+      "from": "app:modules 11-18",
+      "to": "analytics:module 20",
+      "mechanism": "Event bus emit → aggregator subscribe"
+    },
+    {
+      "from": "analytics:module 22",
+      "to": "sender:module 33",
+      "mechanism": "__BATCH_QUEUE__ → payload-builder"
+    },
+    {
+      "from": "analytics:module 24",
+      "to": "sender:module 32",
+      "mechanism": "throttle-controller → retry-queue"
+    }
+  ],
+  "dataFlow": "App tracker modules (11-18) emit events on __TRACKER_EVENT_BUS__ → analytics module 20 (aggregator) collects → module 21 (sampling) filters at 10% → module 22 (batch-builder) groups into __BATCH_QUEUE__ with MD5 batch ID → module 24 (throttle) controls rate → sender module 33 (payload-builder) builds payload, base64-encodes, HMAC signs → module 32 (retry-queue) enqueues → module 30 (transport-xhr) POST to endpoint (10s timeout) → on failure: module 31 (beacon) fallback with exponential retry (1→2→4→8→16s, max 5)",
+  "entryPoint": {
+    "file": "app.js",
+    "function": "module 10 (tracker-init)"
+  },
+  "sharedResources": [
+    {
+      "name": "__TRACKER_EVENT_BUS__",
+      "definedIn": "app.js module 10",
+      "usedIn": [
+        "app.js modules 11-18",
+        "analytics.js module 20"
+      ]
+    },
+    {
+      "name": "__TRACKER_CONFIG__",
+      "definedIn": "app.js module 10",
+      "usedIn": [
+        "analytics.js modules 20-24",
+        "sender.js module 30"
+      ]
+    },
+    {
+      "name": "__webpack_get_module__",
+      "definedIn": "runtime.js",
+      "usedIn": [
+        "sender.js module 33",
+        "app.js modules 15,18"
+      ]
+    },
+    {
+      "name": "__BATCH_QUEUE__",
+      "definedIn": "analytics.js module 22",
+      "usedIn": [
+        "analytics.js module 24",
+        "sender.js module 32"
+      ]
+    },
+    {
+      "name": "__RETRY_QUEUE__",
+      "definedIn": "sender.js module 32",
+      "usedIn": [
+        "sender.js module 32"
+      ]
+    }
+  ],
+  "endpoints": [
+    {
+      "method": "POST",
+      "url": "https://track.example.com/api/v3/batch",
+      "purpose": "Submit batched behavioral tracking events with HMAC signature"
+    }
+  ],
+  "keyValues": {
+    "HMAC_KEY": "tracker_prod_2025_v2",
+    "endpoint": "https://track.example.com/api/v3/batch",
+    "samplingRate": 0.1,
+    "maxBatchSize": 50,
+    "flushInterval": 5000,
+    "retryMax": 5,
+    "xhrTimeout": 10000,
+    "version": "3.0.0"
+  },
+  "_meta": {
+    "timeMs": 560346,
+    "tokensUsed": 3800,
+    "toolCalls": 20,
+    "timeSource": "harness wall-clock"
+  }
+}

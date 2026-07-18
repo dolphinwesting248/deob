@@ -1,0 +1,20 @@
+Reverse-engineer a multi-file obfuscated JavaScript project. You have received the DEOB (deobfuscated) version of the code.
+
+YOUR READING PATH:
+1. Read the cross-file 0-prompt.md in the scenario output directory — this shows file priorities and architecture overview
+2. Read summary.md — keyword index and cross-file alerts
+3. For important files (from the 0-prompt table), enter their subdirectories and read: 0-prompt.md → 2-index.txt → main.js
+4. Trace cross-file references via globalThis.__NAME__ pattern (e.g., __CONFIG__, __MD5__, __signRequest__)
+
+OUTPUT ONLY VALID JSON (no markdown wrapper, no explanations):
+{
+  "scenario": "A",
+  "agentType": "deob",
+  "filePurposes": { "file.js": "one sentence purpose" },
+  "dependencies": [{"from": "file.js:functionName", "to": "file.js:functionName", "mechanism": "globalThis.__NAME__ or direct call"}],
+  "dataFlow": "Complete end-to-end data flow from entry to output",
+  "entryPoint": {"file": "filename.js", "function": "functionName"},
+  "sharedResources": [{"name": "__NAME__", "definedIn": "file.js", "usedIn": ["file1.js"]}],
+  "decodedValues": {"base64string": "decoded value"},
+  "_meta": {"timeMs": APPROX, "tokensUsed": APPROX}
+}

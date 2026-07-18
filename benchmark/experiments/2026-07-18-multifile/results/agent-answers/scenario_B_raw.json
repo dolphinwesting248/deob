@@ -1,0 +1,108 @@
+{
+  "scenario": "B",
+  "agentType": "raw",
+  "filePurposes": {
+    "polyfills.js": "ES6 polyfills: Promise (resolve/reject/then/catch/all), Array.from, Object.assign, atob, btoa. Sets __POLYFILLS_READY__.",
+    "scheduler.js": "Async task scheduler with priority queue: concurrency=3, timeout=5s, maxRetries=2. Exposes __SCHEDULER__ with enqueue/getStats/cancelAll.",
+    "fprint/device.js": "Device fingerprint collector (priority 10): navigator (UA/platform/language/concurrency/memory/vendor/plugins), screen (w/h/colorDepth), timezone (Intl), touch. Registers as 'device_v2'.",
+    "fprint/canvas.js": "Canvas 2D + WebGL collector (priority 8): 2D text+shapes → DJB2 hash of imageData; WebGL GPU vendor/renderer via debug extension → DJB2 hash. Registers as 'canvas_v2'.",
+    "fprint/audio.js": "AudioContext collector (priority 5): OscillatorNode (triangle 440Hz + sawtooth 220Hz) → DynamicsCompressor (-50/40/12) → AnalyserNode (fftSize=256) → 30-bin hex hash. Registers as 'audio_v2'.",
+    "encoder.js": "Data encoder: strips metadata → JSON.stringify → btoa → XOR per char (key=0xA3). Caches in __FINGERPRINT_CACHE__. Exposes __ENCODER__ {encode, cacheResult, getCache}.",
+    "reporter.js": "ENTRY POINT __reportRisk__: iterates __COLLECTOR_REGISTRY__ → scheduler.enqueue() all collectors → Promise.all → encoder.encode() → HMAC sign (key=integrity_v2_2025) → XHR POST with X-Risk-Signature header → beacon fallback. Also __queueEvent__ for batched events (10/batch, max 100)."
+  },
+  "dependencies": [
+    {
+      "from": "polyfills.js:Promise",
+      "to": "scheduler.js, reporter.js",
+      "mechanism": "globalThis.Promise for async ops + Promise.all"
+    },
+    {
+      "from": "polyfills.js:btoa",
+      "to": "encoder.js",
+      "mechanism": "btoa for base64 encoding in encoder"
+    },
+    {
+      "from": "scheduler.js:__SCHEDULER__",
+      "to": "reporter.js",
+      "mechanism": "enqueue(collector.collect, {priority, label}) + enqueue(sendFn, {priority:0})"
+    },
+    {
+      "from": "fprint/*.js:collectors",
+      "to": "reporter.js",
+      "mechanism": "__COLLECTOR_REGISTRY__[] — collectors push, reporter reads"
+    },
+    {
+      "from": "encoder.js:__ENCODER__",
+      "to": "reporter.js",
+      "mechanism": "encode(results) + cacheResult() in report pipeline"
+    }
+  ],
+  "dataFlow": "polyfills (Promise/atob/btoa) → scheduler (__SCHEDULER__ with concurrency=3) → 3 collectors register on __COLLECTOR_REGISTRY__ (device priority=10, canvas=8, audio=5) → encoder (__ENCODER__) → __reportRisk__(): scheduler.enqueue dispatches all collectors concurrently → Promise.all aggregates → encoder.encode (JSON→btoa→XOR 0xA3) → cacheResult → build packet {version:'2.0', client_ts, data, session_id} → HMAC sign (key: integrity_v2_2025) → XHR POST to https://risk.example.com/api/v2/collect (X-Risk-Signature header, 10s timeout) → on failure: sendBeacon fallback → auto-flush at 10 buffered events",
+  "entryPoint": {
+    "file": "reporter.js",
+    "function": "__reportRisk__"
+  },
+  "sharedResources": [
+    {
+      "name": "__SCHEDULER__",
+      "definedIn": "scheduler.js",
+      "usedIn": [
+        "reporter.js"
+      ]
+    },
+    {
+      "name": "__COLLECTOR_REGISTRY__",
+      "definedIn": "fprint/device.js (init)",
+      "usedIn": [
+        "fprint/device.js",
+        "fprint/canvas.js",
+        "fprint/audio.js",
+        "reporter.js"
+      ]
+    },
+    {
+      "name": "__ENCODER__",
+      "definedIn": "encoder.js",
+      "usedIn": [
+        "reporter.js"
+      ]
+    },
+    {
+      "name": "__FINGERPRINT_CACHE__",
+      "definedIn": "encoder.js",
+      "usedIn": [
+        "reporter.js"
+      ]
+    },
+    {
+      "name": "__REPORT_ENDPOINT__",
+      "definedIn": "reporter.js",
+      "usedIn": [
+        "reporter.js (XHR+beacon)"
+      ]
+    }
+  ],
+  "endpoints": [
+    {
+      "method": "POST",
+      "url": "https://risk.example.com/api/v2/collect",
+      "purpose": "Submit fingerprint data with HMAC signature via XHR, beacon fallback"
+    }
+  ],
+  "keyValues": {
+    "HMAC_KEY": "integrity_v2_2025",
+    "XOR_KEY": "0xA3",
+    "REPORT_ENDPOINT": "https://risk.example.com/api/v2/collect",
+    "CONCURRENCY": 3,
+    "TIMEOUT_MS": 5000,
+    "MAX_RETRIES": 2,
+    "XHR_TIMEOUT": 10000,
+    "EVENT_BATCH": 10
+  },
+  "_meta": {
+    "timeMs": 889900,
+    "tokensUsed": 12000,
+    "toolCalls": 25,
+    "timeSource": "harness wall-clock"
+  }
+}

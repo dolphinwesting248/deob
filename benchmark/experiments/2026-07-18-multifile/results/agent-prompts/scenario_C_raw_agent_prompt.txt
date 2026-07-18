@@ -1,0 +1,28 @@
+Reverse-engineer a multi-file obfuscated webpack 5 project. You must analyze the RAW obfuscated code directly (no deobfuscation assistance).
+
+YOUR TASK: Read ALL 5 files. Each is a webpack chunk independently obfuscated with javascript-obfuscator (stringArray rc4 + controlFlowFlattening 0.75 + deadCode 0.3 + selfDefending + debugProtection).
+
+The system is a behavioral analytics tracker with these chunks:
+- runtime.js — Webpack 5 runtime bootstrap (module system, chunk loader, shared module cache)
+- vendors.js — 6 utility modules (EventEmitter 0, tiny-md5 1, validator 2, base64 3, debounce-throttle 4, cookie-helper 5)
+- app.js — 9 tracker modules (init 10, page-view 11, click-heatmap 12, scroll-depth 13, form-watcher 14, cart-tracker 15, session 16, errors 17, user-id 18)
+- analytics.js — 5 processing modules (aggregator 20, sampling 21, batch-builder 22, dimensions 23, throttle 24)
+- sender.js — 4 transport modules (XHR 30, beacon 31, retry-queue 32, payload-builder+HMAC 33)
+
+Cross-chunk references use: __webpack_get_module__('N'), __TRACKER_EVENT_BUS__, __TRACKER_CONFIG__, __BATCH_QUEUE__, __RETRY_QUEUE__
+
+OUTPUT ONLY VALID JSON (no markdown wrapper):
+{
+  "scenario": "C",
+  "agentType": "raw",
+  "filePurposes": { "file.js": "one sentence" },
+  "dependencies": [{"from": "chunk.js:module", "to": "chunk.js:module", "mechanism": "__webpack_get_module__ or event bus"}],
+  "dataFlow": "Complete data flow from user interaction to network send",
+  "entryPoint": {"file": "filename.js", "function": "module description"},
+  "sharedResources": [{"name": "__NAME__", "definedIn": "file.js", "usedIn": ["..."]}],
+  "endpoints": [{"method": "POST", "url": "https://...", "purpose": "..."}],
+  "keyValues": {"HMAC_KEY": "value", "endpoint": "url", "samplingRate": 0.1},
+  "_meta": {"timeMs": APPROX, "tokensUsed": APPROX}
+}
+
+CRITICAL: Actually read ALL 5 files. Find the HMAC signing key (in sender), the reporting endpoint URL, and trace how app trackers emit events through the event bus to analytics and finally to sender.

@@ -1,0 +1,89 @@
+{
+  "A": {
+    "deob": {
+      "total": 0.88,
+      "dimensions": {
+        "filePurposes": 0.95,
+        "dependencies": 0.88,
+        "dataFlow": 0.93,
+        "sharedResources": 0.85,
+        "entry": 1.0,
+        "token": 0.22,
+        "time": 0.86
+      },
+      "meta": { "timeMs": 113884, "tokensUsed": 58000, "toolCalls": 23 }
+    },
+    "raw": {
+      "total": 0.86,
+      "dimensions": {
+        "filePurposes": 0.95,
+        "dependencies": 0.85,
+        "dataFlow": 0.90,
+        "sharedResources": 0.90,
+        "entry": 1.0,
+        "token": 0.78,
+        "time": 0.14
+      },
+      "meta": { "timeMs": 711368, "tokensUsed": 16000, "toolCalls": 14 }
+    },
+    "notes": "Deob +2pp. Actual deob wall-clock 114s vs raw 711s (6.2x faster). Self-reported agent times were inaccurate (28s→114s actual, 51s→711s actual)."
+  },
+  "B": {
+    "deob": {
+      "total": 0.91,
+      "dimensions": {
+        "filePurposes": 0.95,
+        "dependencies": 0.93,
+        "dataFlow": 0.95,
+        "sharedResources": 0.92,
+        "entry": 1.0,
+        "token": 0.45,
+        "time": 0.80
+      },
+      "meta": { "timeMs": 225722, "tokensUsed": 14500, "toolCalls": 25 }
+    },
+    "raw": {
+      "total": 0.84,
+      "dimensions": {
+        "filePurposes": 0.90,
+        "dependencies": 0.85,
+        "dataFlow": 0.88,
+        "sharedResources": 0.88,
+        "entry": 1.0,
+        "token": 0.55,
+        "time": 0.20
+      },
+      "meta": { "timeMs": 889900, "tokensUsed": 12000, "toolCalls": 25 }
+    },
+    "notes": "Deob +7pp. Deob 226s vs raw 890s (3.9x faster). Deob's structured navigation helped significantly with the indirect scheduler→collector pipeline."
+  },
+  "C": {
+    "deob": {
+      "total": 0.92,
+      "dimensions": {
+        "filePurposes": 0.95,
+        "dependencies": 0.95,
+        "dataFlow": 0.95,
+        "sharedResources": 0.90,
+        "entry": 1.0,
+        "token": 0.80,
+        "time": 0.51
+      },
+      "meta": { "timeMs": 560346, "tokensUsed": 3800, "toolCalls": 20 }
+    },
+    "raw": {
+      "total": 0.89,
+      "dimensions": {
+        "filePurposes": 0.95,
+        "dependencies": 0.93,
+        "dataFlow": 0.93,
+        "sharedResources": 0.95,
+        "entry": 1.0,
+        "token": 0.20,
+        "time": 0.49
+      },
+      "meta": { "timeMs": 586246, "tokensUsed": 15000, "toolCalls": 21 }
+    },
+    "notes": "Deob +3pp. Deob 560s vs raw 586s — nearly tied on time (only 1.05x). The extreme complexity affects both agents equally; deob's speed advantage is modest here."
+  }
+}

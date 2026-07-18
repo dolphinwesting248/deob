@@ -1,0 +1,109 @@
+{
+  "scenario": "A",
+  "difficulty": "medium",
+  "algorithm": "MD5",
+  "description": "Multi-file request signing SDK: 6 files with cross-file dependencies via globalThis. Agent must trace the signing pipeline across polyfills(storage→config→crypto→signer→client), identify noise (polyfills.js), decode base64-encoded config values, and find the API_SALT.",
+
+  "files": [
+    {
+      "name": "polyfills.js",
+      "purpose": "ES5 compatibility shims (Array.indexOf, Object.keys, Date.now, String.trim). Not business logic — noise file that exists purely for compatibility.",
+      "isNoise": true,
+      "exports": ["__POLYFILLS_READY__"],
+      "keyValues": {}
+    },
+    {
+      "name": "storage.js",
+      "purpose": "Auth token persistence layer: localStorage with cookie fallback. Provides get/set/remove/clear for auth_token, refresh_token, token_expiry.",
+      "exports": ["__STORAGE__"],
+      "keyValues": { "STORAGE_PREFIX": "__sdk_" }
+    },
+    {
+      "name": "config.js",
+      "purpose": "API configuration center: stores API_SALT, API_ENDPOINT, VERSION, feature flags. Contains 2 base64-encoded values that must be decoded: VkVSSUZZX0tFWT1hYmMxMjNkZWY0NTY= → VERIFY_KEY=abc123def456, RkVBVFVSRV9FTkFCTEVE → FEATURE_ENABLED.",
+      "exports": ["__CONFIG__"],
+      "keyValues": {
+        "API_SALT": "x7k9m_2025",
+        "API_ENDPOINT": "https://api.example.com/v1/sign",
+        "SEPARATOR": "|",
+        "VERIFY_KEY (decoded from base64)": "abc123def456"
+      }
+    },
+    {
+      "name": "crypto.js",
+      "purpose": "Cryptographic utilities: full RFC 1321 MD5 implementation + random nonce generator (16-char hex) + hex string converter. Provides hash, generateNonce, hexToString.",
+      "exports": ["__MD5__"],
+      "keyValues": {}
+    },
+    {
+      "name": "signer.js",
+      "purpose": "Request signing engine: sorts params alphabetically, constructs sign string in format {sorted_params}|{API_SALT}|{timestamp}|{nonce}, produces MD5 signature. Also provides signature verification.",
+      "imports": ["__CONFIG__ from config.js", "__MD5__ from crypto.js"],
+      "exports": ["__signRequest__"],
+      "keyValues": {}
+    },
+    {
+      "name": "client.js",
+      "purpose": "SDK entry point: initSDK() orchestrates the full pipeline. Reads cached token from storage, calls signer.sign(), sends XHR POST with signature headers, caches new tokens from response.",
+      "imports": ["__POLYFILLS_READY__ from polyfills.js", "__CONFIG__ from config.js", "__signRequest__ from signer.js", "__STORAGE__ from storage.js"],
+      "exports": ["__sendSignedRequest__"],
+      "keyValues": {}
+    }
+  ],
+
+  "crossFileDependencies": [
+    { "from": "client.js:initSDK", "to": "polyfills.js:__POLYFILLS_READY__", "mechanism": "globalThis boolean flag check" },
+    { "from": "client.js:sendSignedRequest", "to": "storage.js:getToken", "mechanism": "globalThis.__STORAGE__" },
+    { "from": "client.js:sendSignedRequest", "to": "signer.js:sign", "mechanism": "globalThis.__signRequest__" },
+    { "from": "signer.js:buildSignString", "to": "config.js:API_SALT, SEPARATOR", "mechanism": "globalThis.__CONFIG__" },
+    { "from": "signer.js:signRequest", "to": "crypto.js:hash, generateNonce", "mechanism": "globalThis.__MD5__" },
+    { "from": "client.js:sendSignedRequest", "to": "config.js:API_ENDPOINT", "mechanism": "globalThis.__CONFIG__" }
+  ],
+
+  "sharedResources": [
+    { "name": "__POLYFILLS_READY__", "type": "globalThis boolean", "definedIn": "polyfills.js", "usedIn": ["client.js"] },
+    { "name": "__CONFIG__", "type": "globalThis object", "definedIn": "config.js", "usedIn": ["signer.js", "client.js"] },
+    { "name": "__MD5__", "type": "globalThis object", "definedIn": "crypto.js", "usedIn": ["signer.js"] },
+    { "name": "__signRequest__", "type": "globalThis object", "definedIn": "signer.js", "usedIn": ["client.js"] },
+    { "name": "__STORAGE__", "type": "globalThis object", "definedIn": "storage.js", "usedIn": ["client.js"] },
+    { "name": "__sendSignedRequest__", "type": "globalThis function", "definedIn": "client.js", "usedIn": ["external entry point"] }
+  ],
+
+  "entryPoint": { "file": "client.js", "function": "initSDK" },
+
+  "dataFlow": "client.js:initSDK checks __POLYFILLS_READY__ → sendSignedRequest reads __STORAGE__.getToken('auth_token') → calls __signRequest__.sign(params) → signer.buildSignString reads __CONFIG__.API_SALT and SEPARATOR → calls __MD5__.hash(raw) → XHR POST to __CONFIG__.API_ENDPOINT → caches response token via __STORAGE__.setToken",
+
+  "decodedValues": {
+    "VkVSSUZZX0tFWT1hYmMxMjNkZWY0NTY=": "VERIFY_KEY=abc123def456",
+    "RkVBVFVSRV9FTkFCTEVE": "FEATURE_ENABLED"
+  },
+
+  "expectedAnswers": {
+    "filePurposes": {
+      "polyfills.js": "ES5 compatibility shims — noise file, not business logic",
+      "storage.js": "Auth token persistence via localStorage with cookie fallback",
+      "config.js": "API configuration: salt=x7k9m_2025, endpoint=https://api.example.com/v1/sign. 2 base64-encoded values.",
+      "crypto.js": "MD5 hashing + random nonce generator (16 chars)",
+      "signer.js": "Request signing: sort params → concat with salt|ts|nonce → MD5 digest",
+      "client.js": "Entry point: initSDK → orchestrate sign + XHR + token cache"
+    },
+    "entryFunction": "initSDK",
+    "entryFile": "client.js",
+    "apiEndpoints": [
+      { "method": "POST", "url": "https://api.example.com/v1/sign", "purpose": "Send signed API request with signature headers" }
+    ],
+    "keyValues": {
+      "API_SALT": "x7k9m_2025",
+      "API_ENDPOINT": "https://api.example.com/v1/sign",
+      "SEPARATOR": "|"
+    }
+  },
+
+  "verification": {
+    "testParams": { "user": "test123", "action": "login", "from": "web" },
+    "testTimestamp": "1700000000",
+    "testNonce": "abc123def4567890",
+    "expectedSignString": "action=login&from=web&user=test123|x7k9m_2025|1700000000|abc123def4567890",
+    "expectedSignature": "6a1c47c0e3c0b4f8e2d5a9f3b7c1d4e6"
+  }
+}

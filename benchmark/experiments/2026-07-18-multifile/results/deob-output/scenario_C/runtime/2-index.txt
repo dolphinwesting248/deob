@@ -1,0 +1,67 @@
+# main.js · Function Index · 27 functions
+_Previous: 1-structure.md  →  **Now: 2-index.txt**  →  Jump to main.js by function name._
+
+## Legend
+name | Ss/Pp | cc=N | → callees ⇐ callers | extras
+S=statements, P=params, cc=complexity, → calls, ⇐ called-by, root=entry
+closure:v = captures v, [tag] = semantic tag, FLAT=flattened, DATA=hex-data
+
+## entry
+_0xf2f4 | cc=3 | → _0x16a5, $5_if, $6_if, $8_else
+$25_fn | cc=2 | → $21_if
+$26_fn | cc=2 | → $15_if, $16_else
+$23_declare_fn | cc=4 | → $30_fn, _0x2d6cdf
+
+## trace
+$23_declare_fn → _0x2d6cdf → $1_try → $32_fn
+
+## shared
+_0xf2f4 ⇒ _0xf2f4, _0x2d6cdf, $22_loop_body, $5_if, $6_if +1 · 6 fns · const
+_0xd6895c ⇒ $23_declare_fn, __webpack_require__, __webpack_register__, __webpack_chunk_load__, __webpack_get_module__ · 5 fns · var
+_0x1878e8 ⇒ $23_declare_fn, __webpack_require__, __webpack_register__, __webpack_chunk_load__, __webpack_get_module__ · 5 fns · var
+_0x2d6cdf ⇒ _0xf2f4, $6_if, $8_else · 3 fns · const, mut
+_0x59ba16 ⇒ _0x2d6cdf, _0x5158ad, $33_fn · 3 fns · var
+_0x361445 ⇒ _0x5158ad, $32_fn, $33_fn · 3 fns · var
+arguments ⇒ $16_else, $21_if, $31_fn · 3 fns · param
+_0x22e0c6 ⇒ __webpack_require__, __webpack_get_module__, $23_declare_fn · 3 fns · var
+_0x16a5 ⇒ _0xf2f4, _0x16a5 · 2 fns · const, mut
+_0x5158ad ⇒ _0x5158ad, $33_fn · 2 fns · const
+$25_fn ⇒ $19_if, $30_fn · 2 fns · const
+_0x528667 ⇒ $20_else, $28_fn · 2 fns · param, mut
+_0x126349 ⇒ $20_else, $28_fn · 2 fns · param, mut
+_0x170609 ⇒ $20_else, $28_fn · 2 fns · param
+_0xfd6591 ⇒ $1_try, $32_fn · 2 fns · param
+__webpack_require__ ⇒ __webpack_require__, $23_declare_fn · 2 fns · const
+
+## fn/core  (2) — Core Functions
+_0xf2f4 | 9S/2P | cc=3 | → _0x16a5, $5_if, $6_if, $8_else root | out=_0x2e95d9 ; [returns arg]
+_0x2d6cdf | 3S/1P | cc=2 | → $1_try, $4_catch ⇐ $23_declare_fn | [void, 3S]
+
+## fn/obfuscation  (24) — Obfuscation Artifacts
+$18_if | 1S/0P | cc=2 | [returns value]
+$19_if | 2S/0P | cc=1 | [returns arg]
+$20_else | 1S/4P | cc=2 | cfg:this=biunQo, cfg:this=_0x528667, cfg:this=_0x126349 ; [returns conditional]
+$22_loop_body | 3S/2P | cc=4 | cb=_0x3c9d44 ; [void, 3S; callback-driven]
+$24_fn | 0S/1P | cc=1 | [pass-through]
+$25_fn | 4S/2P | cc=2 | → $21_if root | closure: $21_if +1 obf ; [returns arg]
+$26_fn | 4S/2P | cc=2 | → $15_if, $16_else root | closure: $15_if, $16_else +3 obf ; [returns arg]
+$27_fn | 0S/1P | cc=1 | [pass-through]
+$28_fn | 8S/1P | cc=8 | cfg:this=_0x6b2508 ; [calls → decodeURIComponent]
+$29_fn | 9S/2P | cc=4 | cfg:out:this=_0xbbe4b9, cfg:this=_0x39beb3 ; [returns arg]
+$15_if | 4S/5P | cc=3 | ⇐ $26_fn | cfg:this=Qqnrcg ; [void, 4S]
+$16_else | 1S/2P | cc=2 | → $31_fn ⇐ $26_fn | [calls → $31_fn]
+$21_if | 3S/1P | cc=1 | ⇐ $25_fn | [returns arg]
+$1_try | 1S/1P | cc=2 | → $32_fn, $33_fn ⇐ _0x2d6cdf | [returns via 2 paths]
+$4_catch | 0S/1P | cc=1 | ⇐ _0x2d6cdf | [pass-through]
+$5_if | 5S/1P | cc=1 | ⇐ _0xf2f4 | cfg:this=_0xf2f4 ; [void, 5S; side-effects]
+$6_if | 3S/2P | cc=2 | ⇐ _0xf2f4 | closure: $34_fn ; cfg:this=_0xf2f4 ; [void, 3S; side-effects]
+$8_else | 1S/0P | cc=1 | ⇐ _0xf2f4 | [void, 1S]
+$30_fn | 2S/1P | cc=1 | ⇐ $23_declare_fn | [returns arg]
+$31_fn | 3S/3P | cc=1 | ⇐ $16_else | cfg:out:this=_0x112bba ; [returns arg]
+$32_fn | 2S/2P | cc=1 | ⇐ $1_try | cfg:this=_0x361445 ; [void, 2S]
+$34_fn | 5S/1P | cc=1 | [void, 5S; side-effects]
+$23_declare_fn | 22S/0P | cc=4 | → $30_fn, _0x2d6cdf root | closure: $30_fn, $26_fn, __webpack_require__, $27_fn, __webpack_public_path__ +20 obf ; [void, 22S; side-effects]
+$33_fn | 1S/4P | cc=2 ⇐ $1_try | auto-generated callback
+
+## fn/data  (1) — Data Tables
+_0x16a5 | 3S/0P | cc=1 | → _0x16a5 ⇐ _0xf2f4, _0x16a5 | self-modifying table-init ; [calls → _0x16a5] ; DATA

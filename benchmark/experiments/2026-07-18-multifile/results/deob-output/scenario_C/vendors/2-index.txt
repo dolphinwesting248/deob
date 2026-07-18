@@ -1,0 +1,82 @@
+# main.js · Function Index · 35 functions
+_Previous: 1-structure.md  →  **Now: 2-index.txt**  →  Jump to main.js by function name._
+
+## Legend
+name | Ss/Pp | cc=N | → callees ⇐ callers | extras
+S=statements, P=params, cc=complexity, → calls, ⇐ called-by, root=entry
+closure:v = captures v, [tag] = semantic tag, FLAT=flattened, DATA=hex-data
+
+## entry
+_0x1852 | cc=3 | → _0x41d2, $1_if, $2_if, $4_else
+$42_fn | cc=2 | → $33_if, $34_else
+$43_fn | cc=2 | → $30_if, $32_else
+$45_fn | cc=2 | → $17_if, $18_else
+_0x3e66bb | cc=2 | → $7_if, $8_else, $5_try, $6_catch
+$39_iife_body | cc=2 | → $47_fn, $48_fn, $49_fn, $50_fn, $51_fn | FLAT
+
+## trace
+$42_fn → $33_if → $52_fn
+
+## flat
+$39_iife_body | cc=2 | while+switch
+
+## shared
+_0x1a9f44 ⇒ _0xc6f2f5, _0xf1d5db, _0x311067, _0x2d9f7d, _0x3b98b5 +6 · 11 fns · var
+_0x1852 ⇒ _0x1852, $38_loop_body, $45_fn, $1_if, $2_if +4 · 9 fns · const
+arguments ⇒ $44_fn, $45_fn, $17_if, $30_if, $52_fn +1 · 6 fns · param
+_0x405e8d ⇒ _0xf1d5db, _0x3b98b5, _0x3d7275, _0x22c66a, _0x48afff · 5 fns · var
+_0x45d75e ⇒ _0x311067, _0x2d9f7d, _0x236752, _0x2fff55, _0x262fcd · 5 fns · var
+_0x3e66bb ⇒ _0x1852, $2_if, $4_else · 3 fns · const, mut
+_0x2d9f7d ⇒ _0x3b98b5, _0x22c66a, _0x236752 · 3 fns · const
+_0x41d2 ⇒ _0x1852, _0x41d2 · 2 fns · const, mut
+_0x1160a7 ⇒ $42_fn, $33_if · 2 fns · param, mut
+_0x4242f6 ⇒ $42_fn, $34_else · 2 fns · param
+_0x3b07a7 ⇒ $42_fn, $34_else · 2 fns · param
+mTGFzN ⇒ $45_fn, $18_else · 2 fns · param
+_0x2ac2f8 ⇒ $45_fn, $18_else · 2 fns · param
+_0x2938cd ⇒ $8_else, $55_fn · 2 fns · param
+_0x4f0812 ⇒ $8_else, $55_fn · 2 fns · param
+_0x1f98dc ⇒ _0x1f98dc, $47_fn · 2 fns · const
+_0x2f4273 ⇒ $55_fn, _0x2c81f8 · 2 fns · param
+_0x3bcb86 ⇒ $55_fn, _0x2c81f8 · 2 fns · param
+_0x129581 ⇒ _0x3e66bb, _0x2c81f8 · 2 fns · var
+_0x4b5ce6 ⇒ $39_iife_body, _0xc6f2f5 · 2 fns · var
+
+## fn/core  (2) — Core Functions
+_0x1852 | 9S/2P | cc=3 | → _0x41d2, $1_if, $2_if, $4_else root | out=_0x4f75d5 ; [returns arg]
+_0x3e66bb | 3S/1P | cc=2 | → $7_if, $8_else, $5_try, $6_catch root | [void, 3S]
+
+## fn/obfuscation  (32) — Obfuscation Artifacts
+$21_setTimeout | 1S/0P | cc=1 | [void, 1S]
+$38_loop_body | 3S/2P | cc=4 | cb=_0x313498 ; [void, 3S; callback-driven]
+$40_fn | 8S/1P | cc=8 | cfg:this=_0x1852af ; [calls → decodeURIComponent]
+$41_fn | 9S/2P | cc=4 | cfg:out:this=_0x221fa0, cfg:this=_0x254bc9 ; [returns arg]
+$43_fn | 4S/2P | cc=2 | → $30_if, $32_else root | closure: $30_if, $32_else +2 obf ; [returns arg]
+$44_fn | 3S/5P | cc=1 | this=_0x566c4b ; [void, 3S]
+$46_fn | 0S/1P | cc=1 | [pass-through]
+$17_if | 2S/1P | cc=2 | ⇐ $45_fn | [void, 2S]
+$18_else | 1S/2P | cc=1 | ⇐ $45_fn | this=mTGFzN ; [calls expr]
+$33_if | 4S/1P | cc=2 | → $52_fn ⇐ $42_fn | closure: $52_fn ; out=_0x1160a7 ; [returns arg]
+$34_else | 3S/2P | cc=2 | ⇐ $42_fn | cfg:this=_0x4242f6, this=_0x3b07a7 ; [returns arg]
+$30_if | 1S/2P | cc=2 | → $53_fn ⇐ $43_fn | [calls → $53_fn]
+$32_else | 1S/4P | cc=3 | ⇐ $43_fn | cfg:this=_0x3a47d9 ; [returns value]
+$1_if | 5S/1P | cc=1 | ⇐ _0x1852 | cfg:this=_0x1852 ; [void, 5S; side-effects]
+$2_if | 3S/2P | cc=2 | ⇐ _0x1852 | closure: $54_fn ; cfg:this=_0x1852 ; [void, 3S; side-effects]
+$4_else | 1S/0P | cc=1 | ⇐ _0x1852 | [void, 1S]
+$5_try | 1S/0P | cc=2 | ⇐ _0x3e66bb | [returns arg]
+$6_catch | 0S/1P | cc=1 | ⇐ _0x3e66bb | [pass-through]
+$7_if | 1S/3P | cc=2 | ⇐ _0x3e66bb | this=_0x330bd9 ; [calls expr]
+$8_else | 1S/6P | cc=3 | → $55_fn ⇐ _0x3e66bb | [calls → $55_fn]
+$47_fn | 4S/0P | cc=1 | ⇐ $39_iife_body | closure: 3 obf ; [returns value]
+$48_fn | 3S/3P | cc=2 | ⇐ $39_iife_body | this=_0xfc24fe, this=_0x36fe57, this=_0x41e27d ; [returns arg]
+$49_fn | 3S/0P | cc=2 | ⇐ $39_iife_body | [returns arg]
+$50_fn | 5S/6P | cc=3 | ⇐ $39_iife_body | this=_0x35525e, cfg:this=_0x39a15b ; [returns via 2 paths]
+$51_fn | 2S/1P | cc=1 | ⇐ $39_iife_body | [returns arg]
+$52_fn | 1S/8P | cc=2 | ⇐ $33_if | closure: 1 obf ; cfg:this=_0x58b44b ; [returns via 2 paths]
+$53_fn | 3S/3P | cc=1 | ⇐ $30_if | cfg:out:this=_0x59de7c ; [returns arg]
+$54_fn | 5S/1P | cc=1 | [void, 5S; side-effects]
+$39_iife_body | 11S/0P | cc=2 | → $47_fn, $48_fn, $49_fn, $50_fn, $51_fn root | closure: $42_fn, $43_fn, $47_fn, $48_fn, $49_fn, $50_fn, $51_fn, $45_fn +45 obf ; table-init ; [void, 11S; can throw] ; FLAT
+... +3 auto-generated callbacks (cc=2-2)
+
+## fn/data  (1) — Data Tables
+_0x41d2 | 3S/0P | cc=1 | → _0x41d2 ⇐ _0x1852, _0x41d2 | self-modifying table-init ; [calls → _0x41d2] ; DATA

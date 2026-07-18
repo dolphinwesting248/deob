@@ -1,0 +1,76 @@
+# main.js · Function Index · 27 functions
+_Previous: 1-structure.md  →  **Now: 2-index.txt**  →  Jump to main.js by function name._
+
+## Legend
+name | Ss/Pp | cc=N | → callees ⇐ callers | extras
+S=statements, P=params, cc=complexity, → calls, ⇐ called-by, root=entry
+closure:v = captures v, [tag] = semantic tag, FLAT=flattened, DATA=hex-data
+
+## entry
+_0x4eb0 | cc=3 | → _0x203e, $3_if, $4_if, $6_else
+_0x2064bc | cc=2 | → $1_try, $2_catch
+$61_fn | cc=4 | → $55_if
+$62_fn | cc=2 | → $52_if, $53_else
+$57_declare_fn | cc=2 | → $63_fn, $64_fn, $65_fn | FLAT
+
+## alerts
+[API Endpoint] $57_declare_fn · L438 · https://track.example.com/api/v3/batch
+[API Path] $57_declare_fn · L438 · /api/v3/batch
+
+## trace
+$62_fn → $52_if → $66_fn
+
+## flat
+$57_declare_fn | cc=2 | while+switch
+
+## shared
+_0x2994a9 ⇒ $61_fn, $57_declare_fn, _0x55bed2, _0x4a4940, _0x431463 +6 · 11 fns · param
+_0x4eb0 ⇒ _0x4eb0, _0x2064bc, $56_loop_body, $61_fn, $62_fn +3 · 8 fns · const
+_0x43eee8 ⇒ $57_declare_fn, _0x5db906, _0x55bed2, _0x2ec932 · 4 fns · var
+_0x2064bc ⇒ _0x4eb0, $4_if, $6_else · 3 fns · const, mut
+_0x235dd3 ⇒ $60_fn, $62_fn, $53_else · 3 fns · var, mut
+_0x203e ⇒ _0x4eb0, _0x203e · 2 fns · const, mut
+_0xdf9732 ⇒ _0x2064bc, _0x41e410 · 2 fns · var
+_0x48f592 ⇒ $17_if, $59_fn · 2 fns · param, mut
+_0x3319c9 ⇒ $17_if, $59_fn · 2 fns · param
+_0x237214 ⇒ $17_if, $60_fn · 2 fns · param, mut
+vtqBjL ⇒ $62_fn, $53_else · 2 fns · param
+arguments ⇒ $55_if, $66_fn · 2 fns · param
+_0x45d07d ⇒ $24_else, _0x52bfc8 · 2 fns · param
+_0x24dab8 ⇒ _0x557c14, _0x431463 · 2 fns · var
+_0x3cd765 ⇒ _0x5da762, _0x57a6e8 · 2 fns · var
+_0x350f9f ⇒ _0x1188fe, _0xd883c5 · 2 fns · var
+_0x150dfa ⇒ _0x54f041, _0x164109 · 2 fns · var
+
+## fn/core  (2) — Core Functions
+_0x4eb0 | 9S/2P | cc=3 | → _0x203e, $3_if, $4_if, $6_else root | out=_0x2a3fab ; [returns arg]
+_0x2064bc | 3S/1P | cc=2 | → $1_try, $2_catch root | [void, 3S]
+
+## fn/obfuscation  (24) — Obfuscation Artifacts
+$14_setInterval | 2S/0P | cc=2 | [calls expr]
+$17_if | 1S/4P | cc=2 | cfg:this=JoKkBb, cfg:this=_0x48f592, this=_0x3319c9 ; [returns conditional]
+$18_else | 1S/0P | cc=1 | [void, 1S]
+$56_loop_body | 3S/2P | cc=4 | cb=_0x5a4b8c ; [void, 3S; callback-driven]
+$58_fn | 0S/1P | cc=1 | [pass-through]
+$59_fn | 8S/1P | cc=8 | cfg:this=_0x4eb07f ; [calls → decodeURIComponent]
+$60_fn | 9S/2P | cc=4 | cfg:out:this=_0x237214, cfg:this=_0x375388 ; [returns arg]
+$61_fn | 2S/13P | cc=4 | → $55_if root | closure: $55_if +1 obf ; cfg:this=_0x2994a9, this=_0x5ec515, this=_0x26668a, cfg:this=_0x30b849, this=_0x4a8df7, cfg:this=_0xe87c0, this=_0x3d28e4, this=_0x1ec8da, this=_0x533f10, out=_0x2c7c6a ; [returns arg]
+$55_if | 3S/1P | cc=1 | ⇐ $61_fn | [returns arg]
+$52_if | 4S/0P | cc=2 | → $66_fn ⇐ $62_fn | closure: $66_fn +1 obf ; [returns arg]
+$53_else | 2S/2P | cc=1 | ⇐ $62_fn | closure: vtqBjL +1 obf ; cfg:this=vtqBjL ; [void, 2S]
+$24_else | 1S/1P | cc=1 | [returns arg]
+$1_try | 1S/0P | cc=2 | ⇐ _0x2064bc | [returns arg]
+$2_catch | 0S/1P | cc=1 | ⇐ _0x2064bc | [pass-through]
+$3_if | 5S/1P | cc=1 | ⇐ _0x4eb0 | cfg:this=_0x4eb0 ; [void, 5S; side-effects]
+$4_if | 3S/2P | cc=2 | ⇐ _0x4eb0 | closure: $67_fn ; cfg:this=_0x4eb0 ; [void, 3S; side-effects]
+$6_else | 1S/0P | cc=1 | ⇐ _0x4eb0 | [void, 1S]
+$63_fn | 3S/5P | cc=2 | ⇐ $57_declare_fn | this=_0x8accc9, cfg:this=_0x2c9959, cfg:this=_0x4cfa78 ; [calls expr]
+$64_fn | 4S/12P | cc=4 | ⇐ $57_declare_fn | cfg:this=_0x44b356, cfg:this=AdiKED, cfg:this=_0x14fb37, cfg:this=_0x4913d2 ; [returns via 2 paths]
+$65_fn | 3S/0P | cc=2 | ⇐ $57_declare_fn | [calls → parseInt]
+$66_fn | 3S/3P | cc=1 | ⇐ $52_if | out:this=_0x501d0c ; [returns arg]
+$67_fn | 5S/1P | cc=1 | [void, 5S; side-effects]
+$57_declare_fn | 15S/0P | cc=2 | → $63_fn, $64_fn, $65_fn root | closure: $61_fn, $62_fn, $63_fn, $14_setInterval, $64_fn, $65_fn +73 obf ; table-init ; [void, 15S; can throw] ; FLAT
+$62_fn | 2S/7P | cc=2 | auto-generated callback
+
+## fn/data  (1) — Data Tables
+_0x203e | 3S/0P | cc=1 | → _0x203e ⇐ _0x4eb0, _0x203e | self-modifying table-init ; [calls → _0x203e] ; DATA

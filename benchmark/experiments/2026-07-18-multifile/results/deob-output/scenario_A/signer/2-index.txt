@@ -1,0 +1,35 @@
+# main.js · Function Index · 6 functions
+_Previous: 1-structure.md  →  **Now: 2-index.txt**  →  Jump to main.js by function name._
+
+## Legend
+name | Ss/Pp | cc=N | → callees ⇐ callers | extras
+S=statements, P=params, cc=complexity, → calls, ⇐ called-by, root=entry
+closure:v = captures v, [tag] = semantic tag, FLAT=flattened, DATA=hex-data
+
+## entry
+_0x20ef | cc=3 | → _0xadbb, $1_if
+
+## alerts
+[Signature] $3_declare_fn · L128 · sign
+
+## trace
+_0x20ef → _0xadbb
+
+## shared
+_0x3a3b3a ⇒ $3_declare_fn, _0x24cae6, _0x450c47, _0x243f81, _0x28c49d · 5 fns · var
+_0x20ef ⇒ _0x20ef, $2_loop_body, $3_declare_fn, $1_if · 4 fns · const
+_0x450c47 ⇒ _0x243f81, _0x28c49d, $3_declare_fn · 3 fns · const
+_0xadbb ⇒ _0x20ef, _0xadbb · 2 fns · const, mut
+_0x13eedc ⇒ _0x450c47, _0x243f81 · 2 fns · var
+_0x24cae6 ⇒ _0x450c47, _0x243f81 · 2 fns · const
+_0xb1eaf1 ⇒ _0x243f81, _0x28c49d · 2 fns · const
+
+## fn/core  (2) — Core Functions
+_0x20ef | 9S/2P | cc=3 | → _0xadbb, $1_if root | out=_0x2c98e3 ; [returns arg]
+_0xadbb | 3S/0P | cc=1 | → _0xadbb ⇐ _0x20ef, _0xadbb | self-modifying table-init ; [calls → _0xadbb]
+
+## fn/obfuscation  (4) — Obfuscation Artifacts
+$2_loop_body | 3S/2P | cc=4 | cb=_0xb4221b ; [void, 3S; callback-driven]
+$3_declare_fn | 7S/0P | cc=1 | closure: 5 obf ; [void, 7S; side-effects]
+$4_fn | 5S/1P | cc=6 | cfg:this=_0x3e943b ; [calls → decodeURIComponent]
+$1_if | 4S/1P | cc=1 | ⇐ _0x20ef | cfg:this=_0x20ef ; [void, 4S; side-effects]

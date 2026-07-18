@@ -1,0 +1,26 @@
+Reverse-engineer a multi-file obfuscated JavaScript project. You must analyze the RAW obfuscated code directly (no deobfuscation assistance).
+
+YOUR TASK: Read ALL 6 obfuscated files in the scenario directory. Each is independently obfuscated with javascript-obfuscator (stringArray base64 + controlFlowFlattening 0.3 + deadCode 0.1). Cross-file communication uses globalThis.__NAME__ variables.
+
+The project is a request signing SDK:
+- polyfills.js — ES5 compatibility shims (likely noise)
+- storage.js — Token persistence (localStorage/cookie)
+- config.js — API configuration (salt, endpoint)
+- crypto.js — MD5 implementation + nonce generator
+- signer.js — Request signing engine
+- client.js — API client entry point
+
+OUTPUT ONLY VALID JSON (no markdown wrapper):
+{
+  "scenario": "A",
+  "agentType": "raw",
+  "filePurposes": { "file.js": "one sentence description of what this file does" },
+  "dependencies": [{"from": "file.js:functionName", "to": "file.js:functionName", "mechanism": "globalThis.__NAME__ or direct call"}],
+  "dataFlow": "Complete end-to-end data flow from entry to output",
+  "entryPoint": {"file": "filename.js", "function": "functionName"},
+  "sharedResources": [{"name": "__NAME__", "definedIn": "file.js", "usedIn": ["file1.js", "file2.js"]}],
+  "keyValues": {"SALT": "value if found", "ENDPOINT": "url if found"},
+  "_meta": {"timeMs": APPROX, "tokensUsed": APPROX}
+}
+
+CRITICAL: Actually read ALL files. Find the SALT value, API endpoint URL, and trace how signRequest works across files.

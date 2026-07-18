@@ -1,0 +1,111 @@
+{
+  "scenario": "B",
+  "agentType": "deob",
+  "filePurposes": {
+    "polyfills.js": "ES6 polyfill shims (Promise, Array.from, Object.assign, atob/btoa). Sets polyfill_ready=true — must execute first.",
+    "scheduler.js": "Priority-based async task scheduler (__SCHEDULER__). Manages priority queue with concurrency=3, timeout=5000ms, retry=2, cancellation support. Exposes enqueue(), getStats(), cancelAll().",
+    "fprint/device.js": "Device fingerprint collector (priority 10). navigator (UA/platform/language/concurrency/memory), screen (w/h/colorDepth/pixelRatio), timezone, maxTouchPoints, plugins list, mimeTypes. Registers on __COLLECTOR_REGISTRY__.",
+    "fprint/canvas.js": "Canvas 2D + WebGL fingerprint collector (priority 8). Canvas: 60x60 text rendering + colored rects → DJB2 hash of pixel data. WebGL: UNMASKED_VENDOR_WEBGL/UNMASKED_RENDERER_WEBGL, MAX_TEXTURE_SIZE, VERSION, RENDERER → GPU hash. Registers on __COLLECTOR_REGISTRY__.",
+    "fprint/audio.js": "AudioContext fingerprint collector (priority 5). OscillatorNode (triangle 440Hz + sawtooth 220Hz) → DynamicsCompressor → AnalyserNode (fftSize=256) → 30-bin hex hash. Registers on __COLLECTOR_REGISTRY__.",
+    "encoder.js": "Data encoder (__ENCODER__). encode(): strips internal fields → JSON.stringify → btoa (base64) → XOR cipher per char (key=0xa3). cacheResult() stores in __FINGERPRINT_CACHE__.",
+    "reporter.js": "Report orchestrator (ENTRY POINT __reportRisk__). Dispatches all collectors via __SCHEDULER__, Promise.all waits, encodes results, HMAC-SHA256 signs with key='integrity_v2_2025', XHR POST to __REPORT_ENDPOINT__. Fallback: sendBeacon. Also exposes __queueEvent__ for batched events (10/batch, max 100)."
+  },
+  "dependencies": [
+    {
+      "from": "polyfills.js:Promise",
+      "to": "scheduler.js, reporter.js",
+      "mechanism": "globalThis Promise polyfill"
+    },
+    {
+      "from": "polyfills.js:btoa",
+      "to": "encoder.js",
+      "mechanism": "globalThis.btoa for base64 encode"
+    },
+    {
+      "from": "scheduler.js:__SCHEDULER__",
+      "to": "reporter.js",
+      "mechanism": "globalThis.__SCHEDULER__.enqueue() — dispatches collectors + send"
+    },
+    {
+      "from": "fprint/device.js,canvas.js,audio.js",
+      "to": "reporter.js",
+      "mechanism": "globalThis.__COLLECTOR_REGISTRY__[] — collectors push, reporter reads"
+    },
+    {
+      "from": "encoder.js:__ENCODER__",
+      "to": "reporter.js",
+      "mechanism": "globalThis.__ENCODER__.encode() + cacheResult()"
+    }
+  ],
+  "dataFlow": "polyfills (Promise/atob/btoa) → scheduler (__SCHEDULER__) → 3 collectors push to __COLLECTOR_REGISTRY__ → encoder (__ENCODER__) → __reportRisk__(): scheduler.enqueue() dispatches all collectors concurrently (max 3) → Promise.all waits → encoder.encode() (JSON→base64→XOR 0xa3) → encoder.cacheResult() → build packet {version:'2.0', client_ts, data, session_id} → HMAC-SHA256 sign (key: integrity_v2_2025) → XHR POST to __REPORT_ENDPOINT__ (10s timeout) → on failure: sendBeacon fallback",
+  "entryPoint": {
+    "file": "reporter.js",
+    "function": "__reportRisk__"
+  },
+  "sharedResources": [
+    {
+      "name": "__SCHEDULER__",
+      "definedIn": "scheduler.js",
+      "usedIn": [
+        "reporter.js"
+      ]
+    },
+    {
+      "name": "__COLLECTOR_REGISTRY__",
+      "definedIn": "fprint/device.js,canvas.js,audio.js",
+      "usedIn": [
+        "reporter.js"
+      ]
+    },
+    {
+      "name": "__ENCODER__",
+      "definedIn": "encoder.js",
+      "usedIn": [
+        "reporter.js"
+      ]
+    },
+    {
+      "name": "__FINGERPRINT_CACHE__",
+      "definedIn": "encoder.js",
+      "usedIn": [
+        "reporter.js"
+      ]
+    },
+    {
+      "name": "__REPORT_ENDPOINT__",
+      "definedIn": "reporter.js",
+      "usedIn": [
+        "reporter.js"
+      ]
+    },
+    {
+      "name": "Promise",
+      "definedIn": "polyfills.js",
+      "usedIn": [
+        "scheduler.js",
+        "reporter.js"
+      ]
+    }
+  ],
+  "endpoints": [
+    {
+      "method": "POST",
+      "url": "https://risk.example.com/api/v2/collect",
+      "purpose": "Submit fingerprint data with HMAC signature"
+    }
+  ],
+  "keyValues": {
+    "HMAC_KEY": "integrity_v2_2025",
+    "XOR_KEY": "0xa3",
+    "REPORT_ENDPOINT": "https://risk.example.com/api/v2/collect",
+    "SCHEDULER_CONCURRENCY": 3,
+    "CANVAS_SIZE": "60x60",
+    "AUDIO_FFT_SIZE": 256
+  },
+  "_meta": {
+    "timeMs": 225722,
+    "tokensUsed": 14500,
+    "toolCalls": 25,
+    "timeSource": "harness wall-clock"
+  }
+}

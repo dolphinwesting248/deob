@@ -1,0 +1,30 @@
+Reverse-engineer a multi-file obfuscated JavaScript project. You must analyze the RAW obfuscated code directly (no deobfuscation assistance).
+
+YOUR TASK: Read ALL 7 obfuscated files in the scenario directory. Each is independently obfuscated with javascript-obfuscator (stringArray base64 + controlFlowFlattening 0.5 + deadCode 0.2 + selfDefending). Cross-file communication uses globalThis.__NAME__ variables.
+
+The project is a device fingerprinting SDK:
+- polyfills.js — ES6 polyfills (Promise, Array.from, Object.assign, atob/btoa) — likely noise
+- scheduler.js — Async task scheduler (Promise-based, priority queue, concurrency=3, timeout=5s, retry=2)
+- fprint/device.js — Device info collector (navigator, screen, timezone)
+- fprint/canvas.js — Canvas/WebGL fingerprinting (text rendering, WebGL readPixels, GPU detection)
+- fprint/audio.js — AudioContext fingerprinting (oscillator → compressor → FFT → hash)
+- encoder.js — Fingerprint encoding (JSON serialize, base64, XOR obfuscation)
+- reporter.js — Report module: HMAC-SHA256 signing, XHR beacon, exponential retry (ENTRY POINT)
+
+Key globals to trace: __SCHEDULER__, __COLLECTOR_REGISTRY__, __ENCODER__, __FINGERPRINT_CACHE__, __reportRisk__, __REPORT_ENDPOINT__
+
+OUTPUT ONLY VALID JSON (no markdown wrapper):
+{
+  "scenario": "B",
+  "agentType": "raw",
+  "filePurposes": { "file.js": "one sentence" },
+  "dependencies": [{"from": "file.js:fn", "to": "file.js:fn", "mechanism": "globalThis.__NAME__"}],
+  "dataFlow": "Complete data flow from collectors to network send",
+  "entryPoint": {"file": "filename.js", "function": "functionName"},
+  "sharedResources": [{"name": "__NAME__", "definedIn": "file.js", "usedIn": ["..."]}],
+  "endpoints": [{"method": "POST", "url": "https://...", "purpose": "..."}],
+  "keyValues": {"HMAC_KEY": "value", "XOR_KEY": "value"},
+  "_meta": {"timeMs": APPROX, "tokensUsed": APPROX}
+}
+
+CRITICAL: Read ALL 7 files. Find the HMAC key, reporting endpoint, and XHR transport function. Understand how the scheduler orchestrates the collectors in parallel.

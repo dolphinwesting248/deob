@@ -1,0 +1,30 @@
+# main.js · Function Index · 8 functions
+_Previous: 1-structure.md  →  **Now: 2-index.txt**  →  Jump to main.js by function name._
+
+## Legend
+name | Ss/Pp | cc=N | → callees ⇐ callers | extras
+S=statements, P=params, cc=complexity, → calls, ⇐ called-by, root=entry
+closure:v = captures v, [tag] = semantic tag, FLAT=flattened, DATA=hex-data
+
+## entry
+_0x41fd | cc=3 | → _0x595d, $5_if
+$9_fn | cc=7 | → $4_branch
+
+## trace
+_0x41fd → _0x595d
+
+## shared
+_0x41fd ⇒ _0x41fd, $6_loop_body, $7_iife_body, $5_if · 4 fns · const
+_0x595d ⇒ _0x41fd, _0x595d · 2 fns · const, mut
+
+## fn/core  (2) — Core Functions
+_0x41fd | 9S/2P | cc=3 | → _0x595d, $5_if root | out=_0x3c302c ; [returns arg]
+_0x595d | 3S/0P | cc=1 | → _0x595d ⇐ _0x41fd, _0x595d | self-modifying table-init ; [calls → _0x595d]
+
+## fn/obfuscation  (6) — Obfuscation Artifacts
+$6_loop_body | 3S/2P | cc=4 | cb=_0x5af0d7 ; [void, 3S; callback-driven]
+$7_iife_body | 6S/0P | cc=5 | closure: $9_fn +3 obf ; [void, 6S; side-effects]
+$8_fn | 5S/1P | cc=6 | cfg:this=_0x5dc700 ; [calls → decodeURIComponent]
+$4_branch | 1S/0P | cc=2 | ⇐ $9_fn | [void, 1S]
+$5_if | 4S/1P | cc=1 | ⇐ _0x41fd | cfg:this=_0x41fd ; [void, 4S; side-effects]
+$9_fn | 6S/2P | cc=7 | auto-generated callback

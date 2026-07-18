@@ -1,0 +1,29 @@
+Reverse-engineer a multi-file obfuscated webpack 5 project. You have received the DEOB (deobfuscated) version of the code.
+
+YOUR READING PATH:
+1. Read the cross-file 0-prompt.md in the scenario output directory — file priorities and architecture
+2. Read summary.md — keyword index and cross-file alerts
+3. For important files, enter their subdirectories and read: 0-prompt.md → 2-index.txt → main.js
+
+The project is a webpack 5 multi-chunk behavioral tracker with 5 chunks:
+- runtime.js — Webpack 5 runtime: __webpack_require__, chunk loader, module cache
+- vendors.js — Vendor chunk (6 modules): EventEmitter(0), tiny-md5(1), validator(2), base64(3), debounce-throttle(4), cookie-helper(5)
+- app.js — App chunk (9 modules): tracker-init(10), page-view(11), click-heatmap(12), scroll-depth(13), form-watcher(14), cart-tracker(15), session-manager(16), error-catcher(17), user-identity(18)
+- analytics.js — Analytics chunk (5 modules): event-aggregator(20), sampling-engine(21), batch-builder(22), dimension-builder(23), throttle-controller(24)
+- sender.js — Network chunk (4 modules): transport-xhr(30), transport-beacon(31), retry-queue(32), payload-builder(33) with HMAC signing
+
+Cross-chunk communication: webpack module system via globalThis.__webpack_get_module__() + event bus via globalThis.__TRACKER_EVENT_BUS__
+
+OUTPUT ONLY VALID JSON (no markdown wrapper):
+{
+  "scenario": "C",
+  "agentType": "deob",
+  "filePurposes": { "file.js": "one sentence" },
+  "dependencies": [{"from": "file.js:moduleId", "to": "file.js:moduleId", "mechanism": "__webpack_get_module__('N') or event bus"}],
+  "dataFlow": "Complete data flow from user interaction to network send",
+  "entryPoint": {"file": "filename.js", "function": "moduleId description"},
+  "sharedResources": [{"name": "__NAME__", "definedIn": "file.js module N", "usedIn": ["..."]}],
+  "endpoints": [{"method": "POST", "url": "https://...", "purpose": "..."}],
+  "keyValues": {"HMAC_KEY": "value", "endpoint": "url"},
+  "_meta": {"timeMs": APPROX, "tokensUsed": APPROX}
+}

@@ -1,0 +1,39 @@
+# main.js · Function Index · 11 functions
+_Previous: 1-structure.md  →  **Now: 2-index.txt**  →  Jump to main.js by function name._
+
+## Legend
+name | Ss/Pp | cc=N | → callees ⇐ callers | extras
+S=statements, P=params, cc=complexity, → calls, ⇐ called-by, root=entry
+closure:v = captures v, [tag] = semantic tag, FLAT=flattened, DATA=hex-data
+
+## entry
+_0x38ff | cc=3 | → _0x102f, $6_if, $7_if, $8_else
+$11_fn | cc=2 | → $5_if
+
+## trace
+_0x38ff → _0x102f
+
+## shared
+_0x3189f3 ⇒ $10_declare_fn, _0x2553e8, _0x1a26e0, _0x1d7feb, _0x41350d +3 · 8 fns · var
+_0x11d4f0 ⇒ $10_declare_fn, _0x2553e8, _0x1a26e0, _0x1d7feb, _0x41350d +2 · 7 fns · var
+_0x38ff ⇒ _0x38ff, $10_declare_fn, $9_loop_body, $6_if, $7_if · 5 fns · const
+_0x5c48ec ⇒ _0x1a26e0, _0x1d7feb, _0x50ae4d, _0x5c64bc, _0x42e807 · 5 fns · var, mut
+_0x4d1e6e ⇒ _0x1d7feb, _0x41350d, _0x50ae4d, _0x5c64bc · 4 fns · var, mut
+_0x102f ⇒ _0x38ff, _0x102f · 2 fns · const, mut
+_0x1d7feb ⇒ _0x1a26e0, _0x50ae4d · 2 fns · const
+_0x138213 ⇒ _0x1d7feb, _0x5c64bc · 2 fns · var
+
+## fn/core  (2) — Core Functions
+_0x38ff | 9S/2P | cc=3 | → _0x102f, $6_if, $7_if, $8_else root | out=_0xb0c4b2 ; [returns arg]
+_0x102f | 3S/0P | cc=1 | → _0x102f ⇐ _0x38ff, _0x102f | self-modifying table-init ; [calls → _0x102f]
+
+## fn/obfuscation  (9) — Obfuscation Artifacts
+$10_declare_fn | 15S/0P | cc=1 | closure: $11_fn +20 obf ; [void, 15S; side-effects]
+$9_loop_body | 3S/2P | cc=4 | cb=_0x543891 ; [void, 3S; callback-driven]
+$11_fn | 4S/2P | cc=2 | → $5_if root | closure: $5_if +2 obf ; [returns arg]
+$12_fn | 8S/1P | cc=8 | cfg:this=_0x13d8a5 ; [calls → decodeURIComponent]
+$5_if | 3S/1P | cc=1 | ⇐ $11_fn | [returns arg]
+$6_if | 4S/1P | cc=1 | ⇐ _0x38ff | cfg:this=_0x38ff ; [void, 4S; side-effects]
+$7_if | 7S/1P | cc=2 | ⇐ _0x38ff | cfg:this=_0x38ff ; [void, 7S; side-effects]
+$8_else | 1S/0P | cc=1 | ⇐ _0x38ff | [void, 1S]
+$13_fn | 5S/1P | cc=1 | [void, 5S; side-effects]

@@ -1,0 +1,31 @@
+Reverse-engineer a multi-file obfuscated JavaScript project. You have received the DEOB (deobfuscated) version of the code.
+
+YOUR READING PATH:
+1. Read the cross-file 0-prompt.md in the scenario output directory — file priorities and architecture overview
+2. Read summary.md — keyword index and cross-file alerts
+3. For important files, enter their subdirectories and read: 0-prompt.md → 2-index.txt → main.js
+
+The project is a device fingerprinting SDK with 7 files:
+- polyfills.js — ES6 polyfills (likely noise)
+- scheduler.js — Async task scheduler with priority queue
+- fprint/device.js — Device info collector
+- fprint/canvas.js — Canvas/WebGL fingerprinting
+- fprint/audio.js — AudioContext fingerprinting
+- encoder.js — Fingerprint encoding (serialization + base64 + XOR)
+- reporter.js — Report module with HMAC signing (ENTRY POINT)
+
+Key patterns to trace: __SCHEDULER__, __COLLECTOR_REGISTRY__, __ENCODER__, __FINGERPRINT_CACHE__, __reportRisk__
+
+OUTPUT ONLY VALID JSON (no markdown wrapper):
+{
+  "scenario": "B",
+  "agentType": "deob",
+  "filePurposes": { "file.js": "one sentence purpose" },
+  "dependencies": [{"from": "file.js:functionName", "to": "file.js:functionName", "mechanism": "..."}],
+  "dataFlow": "Complete data flow from collector dispatch to network send",
+  "entryPoint": {"file": "filename.js", "function": "functionName"},
+  "sharedResources": [{"name": "__NAME__", "definedIn": "file.js", "usedIn": ["..."]}],
+  "endpoints": [{"method": "POST", "url": "https://...", "purpose": "..."}],
+  "keyValues": {"HMAC_KEY": "value", "XOR_KEY": "value"},
+  "_meta": {"timeMs": APPROX, "tokensUsed": APPROX}
+}

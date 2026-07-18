@@ -1,0 +1,49 @@
+# main.js · Function Index · 17 functions
+_Previous: 1-structure.md  →  **Now: 2-index.txt**  →  Jump to main.js by function name._
+
+## Legend
+name | Ss/Pp | cc=N | → callees ⇐ callers | extras
+S=statements, P=params, cc=complexity, → calls, ⇐ called-by, root=entry
+closure:v = captures v, [tag] = semantic tag, FLAT=flattened, DATA=hex-data
+
+## entry
+_0x1b59 | cc=3 | → _0x2363, $14_if, $15_if, $16_else
+$18_declare_fn | cc=2 | → $21_fn, $22_fn
+$20_fn | cc=2 | → $11_if
+
+## trace
+$20_fn → $11_if → $23_fn
+
+## shared
+_0x1b59 ⇒ _0x1b59, $17_loop_body, $18_declare_fn, $14_if, $15_if · 5 fns · const
+_0x559c44 ⇒ $18_declare_fn, _0x2a4e4e, _0x4de67a, _0x3c99ef, _0x266325 · 5 fns · var
+_0x4fefe1 ⇒ $18_declare_fn, _0x3c99ef, _0x266325 · 3 fns · var
+_0x2363 ⇒ _0x1b59, _0x2363 · 2 fns · const, mut
+$20_fn ⇒ $9_if, $21_fn · 2 fns · const
+_0x31e416 ⇒ $19_fn, $11_if · 2 fns · var, mut
+_0x28da09 ⇒ $19_fn, $11_if · 2 fns · var, mut
+_0x405026 ⇒ $19_fn, $11_if · 2 fns · var, mut
+arguments ⇒ $11_if, $23_fn · 2 fns · param
+
+## fn/core  (2) — Core Functions
+_0x1b59 | 9S/2P | cc=3 | → _0x2363, $14_if, $15_if, $16_else root | out=_0x10874c ; [returns arg]
+_0x2363 | 3S/0P | cc=1 | → _0x2363 ⇐ _0x1b59, _0x2363 | self-modifying table-init ; [calls → _0x2363]
+
+## fn/branch  (1) — Branches
+$10_else | 1S/0P | cc=1 | [void, 1S]
+
+## fn/obfuscation  (14) — Obfuscation Artifacts
+$17_loop_body | 3S/2P | cc=4 | cb=_0x3a2ba6 ; [void, 3S; callback-driven]
+$18_declare_fn | 12S/0P | cc=2 | → $21_fn, $22_fn root | closure: $21_fn +7 obf ; [calls → $22_fn]
+$9_if | 2S/0P | cc=1 | [returns arg]
+$19_fn | 8S/1P | cc=8 | cfg:this=_0x6c3fd7 ; [calls → decodeURIComponent]
+$20_fn | 4S/2P | cc=2 | → $11_if root | closure: $11_if +2 obf ; [returns arg]
+$8_catch | 1S/1P | cc=1 | this=_0x4b6a35 ; [factory]
+$11_if | 1S/6P | cc=2 | → $23_fn ⇐ $20_fn | [returns via 2 paths]
+$14_if | 4S/1P | cc=1 | ⇐ _0x1b59 | cfg:this=_0x1b59 ; [void, 4S; side-effects]
+$15_if | 7S/1P | cc=2 | ⇐ _0x1b59 | cfg:this=_0x1b59 ; [void, 7S; side-effects]
+$16_else | 1S/0P | cc=1 | ⇐ _0x1b59 | [void, 1S]
+$21_fn | 2S/1P | cc=1 | ⇐ $18_declare_fn | [returns arg]
+$22_fn | 1S/4P | cc=2 | ⇐ $18_declare_fn | [calls expr]
+$24_fn | 5S/1P | cc=1 | [void, 5S; side-effects]
+$23_fn | 3S/4P | cc=1 ⇐ $11_if | auto-generated callback

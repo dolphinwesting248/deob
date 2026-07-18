@@ -1,0 +1,103 @@
+{
+  "scenario": "A",
+  "agentType": "raw",
+  "filePurposes": {
+    "polyfills.js": "ES5 polyfill shims: Array.prototype.indexOf, Object.keys, Date.now, String.prototype.trim. Sets __POLYFILLS_READY__ = true as guard.",
+    "storage.js": "Dual-backend token persistence (localStorage with cookie fallback). Exposes getToken/setToken/clearAll with obfuscated prefix. Sets __STORAGE__.",
+    "config.js": "SDK configuration exposed via __CONFIG__. Contains API_SALT (x7k9m_2025), API_ENDPOINT, API_VERSION, VERIFY_KEY (double-base64-decoded), FEATURE_ENABLED, SEPARATOR (|), feature flags.",
+    "crypto.js": "Full MD5 implementation (Rivest constants: 0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476), nonce generator (16-char random hex), hex-to-string. Exposed as __MD5__.",
+    "signer.js": "Request signing engine: sorts params → builds sign string (k=v&k=v|salt|ts|nonce) → MD5 hash → returns {signature, timestamp, nonce, algorithm, version}. Also verify(). Exposed as __signRequest__.",
+    "client.js": "API client entry point: checks polyfills+config, reads config/signer/storage, injects cached token, signs params, XHR POST to API_ENDPOINT, caches auth_token/refresh_token on success. Exposed as __sendSignedRequest__."
+  },
+  "dependencies": [
+    {
+      "from": "polyfills.js:IIFE",
+      "to": "client.js:init",
+      "mechanism": "globalThis.__POLYFILLS_READY__ guard check"
+    },
+    {
+      "from": "config.js:IIFE",
+      "to": "signer.js, client.js",
+      "mechanism": "globalThis.__CONFIG__ for SALT, ENDPOINT, VERSION, FEATURES"
+    },
+    {
+      "from": "crypto.js:IIFE",
+      "to": "signer.js",
+      "mechanism": "globalThis.__MD5__ for hash() and generateNonce()"
+    },
+    {
+      "from": "storage.js:IIFE",
+      "to": "client.js",
+      "mechanism": "globalThis.__STORAGE__ for getToken/setToken/clearAll"
+    },
+    {
+      "from": "signer.js:IIFE",
+      "to": "client.js",
+      "mechanism": "globalThis.__signRequest__ for sign()"
+    }
+  ],
+  "dataFlow": "polyfills → config (decodes base64 values: API_SALT=x7k9m_2025, VERIFY_KEY=abc123def456, API_ENDPOINT) → crypto (MD5 + nonce) → storage (localStorage/cookie) → signer reads CONFIG.API_SALT + MD5, builds sign string (sorted k=v&k=v|salt|ts|nonce) → MD5 hash → client reads CONFIG+signer+storage: injects auth_token → signs params → XHR POST to API_ENDPOINT with X-Signature/X-Timestamp/X-Nonce headers → caches tokens on 200 response → returns signature",
+  "entryPoint": {
+    "file": "client.js",
+    "function": "__sendSignedRequest__"
+  },
+  "sharedResources": [
+    {
+      "name": "__POLYFILLS_READY__",
+      "definedIn": "polyfills.js",
+      "usedIn": [
+        "client.js"
+      ]
+    },
+    {
+      "name": "__CONFIG__",
+      "definedIn": "config.js",
+      "usedIn": [
+        "signer.js",
+        "client.js"
+      ]
+    },
+    {
+      "name": "__MD5__",
+      "definedIn": "crypto.js",
+      "usedIn": [
+        "signer.js"
+      ]
+    },
+    {
+      "name": "__STORAGE__",
+      "definedIn": "storage.js",
+      "usedIn": [
+        "client.js"
+      ]
+    },
+    {
+      "name": "__signRequest__",
+      "definedIn": "signer.js",
+      "usedIn": [
+        "client.js"
+      ]
+    },
+    {
+      "name": "__sendSignedRequest__",
+      "definedIn": "client.js",
+      "usedIn": [
+        "external"
+      ]
+    }
+  ],
+  "keyValues": {
+    "API_SALT": "x7k9m_2025",
+    "API_ENDPOINT": "https://api.example.com/v1/sign",
+    "VERIFY_KEY": "abc123def456",
+    "SEPARATOR": "|",
+    "ALGORITHM": "MD5",
+    "NONCE_LENGTH": 16
+  },
+  "_meta": {
+    "timeMs": 711368,
+    "tokensUsed": 16000,
+    "toolCalls": 14,
+    "timeSource": "harness wall-clock"
+  }
+}

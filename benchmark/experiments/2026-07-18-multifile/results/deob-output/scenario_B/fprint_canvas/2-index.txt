@@ -1,0 +1,47 @@
+# main.js · Function Index · 16 functions
+_Previous: 1-structure.md  →  **Now: 2-index.txt**  →  Jump to main.js by function name._
+
+## Legend
+name | Ss/Pp | cc=N | → callees ⇐ callers | extras
+S=statements, P=params, cc=complexity, → calls, ⇐ called-by, root=entry
+closure:v = captures v, [tag] = semantic tag, FLAT=flattened, DATA=hex-data
+
+## entry
+_0x464f | cc=3 | → _0x2c99, $9_if, $10_if, $11_else
+$13_declare_fn | cc=2 | → $16_fn
+$14_fn | cc=2 | → $6_if
+
+## alerts
+[Fingerprint] $13_declare_fn · L57 · WEBGL_debug_renderer_info
+[Fingerprint] $16_fn · L325 · getParameter
+
+## trace
+$14_fn → $6_if → $17_fn
+
+## shared
+_0x464f ⇒ _0x464f, $12_loop_body, $13_declare_fn, $10_if, $9_if · 5 fns · const
+_0x2806db ⇒ $13_declare_fn, _0x17920c, _0x5756aa, _0x3f00d0, _0x1df28f · 5 fns · var
+_0x3768f0 ⇒ _0x17920c, _0x5756aa, _0x3f00d0, _0x1df28f, $13_declare_fn · 5 fns · var
+_0x2c99 ⇒ _0x464f, _0x2c99 · 2 fns · const, mut
+arguments ⇒ $6_if, $17_fn · 2 fns · param
+_0x1bf201 ⇒ $6_if, $8_else · 2 fns · param
+
+## fn/core  (2) — Core Functions
+_0x464f | 9S/2P | cc=3 | → _0x2c99, $9_if, $10_if, $11_else root | out=_0x5f4312 ; [returns arg]
+_0x2c99 | 3S/0P | cc=1 | → _0x2c99 ⇐ _0x464f, _0x2c99 | self-modifying table-init ; [calls → _0x2c99]
+
+## fn/obfuscation  (14) — Obfuscation Artifacts
+$12_loop_body | 3S/2P | cc=4 | cb=_0x64ba19 ; [void, 3S; callback-driven]
+$13_declare_fn | 12S/0P | cc=2 | → $16_fn root | closure: $14_fn, $16_fn +7 obf ; [void, 12S; side-effects]
+$14_fn | 4S/2P | cc=2 | → $6_if root | closure: $6_if +2 obf ; [returns arg]
+$15_fn | 8S/1P | cc=8 | cfg:this=_0x18073d ; [calls → decodeURIComponent]
+$5_catch | 1S/1P | cc=1 | this=_0x1daef6 ; [factory]
+$6_if | 1S/3P | cc=2 | → $17_fn ⇐ $14_fn | this=_0x1bf201 ; [returns via 2 paths]
+$4_else | 1S/1P | cc=1 | cfg:this=_0x5180c4 ; [factory]
+$8_else | 1S/1P | cc=1 | this=_0x1bf201 ; [factory]
+$10_if | 7S/1P | cc=2 | ⇐ _0x464f | cfg:this=_0x464f ; [void, 7S; side-effects]
+$11_else | 1S/0P | cc=1 | ⇐ _0x464f | [void, 1S]
+$9_if | 4S/1P | cc=1 | ⇐ _0x464f | cfg:this=_0x464f ; [void, 4S; side-effects]
+$16_fn | 13S/7P | cc=7 | ⇐ $13_declare_fn | out=_0x596583, this=AWcNbU, this=_0x2036ae, out=_0x5ca32d ; table-init ; [returns via 2 paths]
+$17_fn | 3S/3P | cc=1 | ⇐ $6_if | cfg:out:this=_0x13812d ; [returns arg]
+$18_fn | 5S/1P | cc=1 | [void, 5S; side-effects]

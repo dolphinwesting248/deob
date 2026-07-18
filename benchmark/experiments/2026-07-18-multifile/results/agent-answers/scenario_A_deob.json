@@ -1,0 +1,102 @@
+{
+  "scenario": "A",
+  "agentType": "deob",
+  "filePurposes": {
+    "polyfills.js": "Polyfills for Array.prototype.indexOf, Object.keys, Date.now, String.prototype.trim; sets globalThis.__POLYFILLS_READY__ as readiness flag",
+    "storage.js": "Token storage abstraction (localStorage with cookie fallback) supporting getToken, setToken, clearAll; exposed via __STORAGE__",
+    "config.js": "Decodes base64-encoded config values and initializes SDK config (API_ENDPOINT, API_SALT, VERIFY_KEY, FEATURE_ENABLED); exposed via __CONFIG__",
+    "crypto.js": "MD5 hashing implementation (4-round Feistel compression) with hex nonce generator; exposed via __MD5__",
+    "signer.js": "Request signing engine: sorts params, builds sign string (params+salt+nonce+ts), MD5 hashes; exposed via __signRequest__",
+    "client.js": "SDK entry point: orchestrates config→crypto→signer→storage, signs params, sends XHR POST, caches tokens"
+  },
+  "dependencies": [
+    {
+      "from": "config.js",
+      "to": "polyfills.js",
+      "mechanism": "checks globalThis.__POLYFILLS_READY__"
+    },
+    {
+      "from": "signer.js",
+      "to": "config.js",
+      "mechanism": "reads globalThis.__CONFIG__.API_SALT, API_VERSION"
+    },
+    {
+      "from": "signer.js",
+      "to": "crypto.js",
+      "mechanism": "reads globalThis.__MD5__ for hash() and generateNonce()"
+    },
+    {
+      "from": "client.js",
+      "to": "config.js",
+      "mechanism": "reads globalThis.__CONFIG__"
+    },
+    {
+      "from": "client.js",
+      "to": "signer.js",
+      "mechanism": "reads globalThis.__signRequest__"
+    },
+    {
+      "from": "client.js",
+      "to": "storage.js",
+      "mechanism": "reads globalThis.__STORAGE__"
+    }
+  ],
+  "dataFlow": "polyfills→config (decodes base64 values)→crypto (provides MD5+nonce)→signer (reads CONFIG.SALT + MD5, builds sign string sorted_keys|timestamp|nonce|salt → MD5)→client (orchestrates: reads CONFIG/SIGNER/STORAGE, signs params, sends XHR POST to API_ENDPOINT, caches auth_token/refresh_token)",
+  "entryPoint": {
+    "file": "client.js",
+    "function": "initSDK"
+  },
+  "sharedResources": [
+    {
+      "name": "__POLYFILLS_READY__",
+      "definedIn": "polyfills.js",
+      "usedIn": [
+        "config.js",
+        "client.js"
+      ]
+    },
+    {
+      "name": "__CONFIG__",
+      "definedIn": "config.js",
+      "usedIn": [
+        "signer.js",
+        "client.js"
+      ]
+    },
+    {
+      "name": "__MD5__",
+      "definedIn": "crypto.js",
+      "usedIn": [
+        "signer.js"
+      ]
+    },
+    {
+      "name": "__signRequest__",
+      "definedIn": "signer.js",
+      "usedIn": [
+        "client.js"
+      ]
+    },
+    {
+      "name": "__STORAGE__",
+      "definedIn": "storage.js",
+      "usedIn": [
+        "client.js"
+      ]
+    }
+  ],
+  "decodedValues": {
+    "RkVBVFVSRV9FTkFCTEVE": "FEATURE_ENABLED"
+  },
+  "keyValues": {
+    "API_SALT": "x7k9m_2025",
+    "API_ENDPOINT": "https://api.example.com/v1/sign",
+    "VERIFY_KEY": "abc123def456"
+  },
+  "_meta": {
+    "timeMs": 113884,
+    "tokensUsed": 58000,
+    "toolCalls": 23,
+    "timeSource": "harness wall-clock"
+  }
+}
